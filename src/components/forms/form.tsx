@@ -40,6 +40,10 @@ export function Form<V extends FieldValues>({
     try {
       res = await action(values);
     } catch (e) {
+      // redirect() inside a server action surfaces here as an internal NEXT_REDIRECT error:
+      // navigation is already underway, so it must not be shown as a failure.
+      const digest = (e as { digest?: unknown })?.digest;
+      if ((typeof digest === "string" && digest.startsWith("NEXT_REDIRECT")) || (e instanceof Error && e.message === "NEXT_REDIRECT")) return;
       res = { error: e instanceof Error ? e.message : "İşlem tamamlanamadı. Lütfen tekrar deneyin." };
     }
     if (res?.fieldErrors) {

@@ -1,12 +1,19 @@
 "use client";
 
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Building2, FolderKanban, History, LayoutDashboard, LifeBuoy, MessageSquare, UserCog, Users,
   type LucideIcon,
 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { cn } from "@/components/ui";
+
+/** Fixed-size slot so the spinner never shifts layout. */
+function Pending() {
+  const { pending } = useLinkStatus();
+  return <Loader2 aria-hidden className={cn("ml-auto size-4 animate-spin transition-opacity", pending ? "opacity-100" : "opacity-0")} />;
+}
 
 const icons: Record<string, LucideIcon> = {
   dashboard: LayoutDashboard,
@@ -52,6 +59,7 @@ export function Nav({ items, onNavigate }: { items: NavItem[]; onNavigate?: () =
               {active && <span aria-hidden className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-[color:var(--side-active-fg)]" />}
               <Icon className="size-[18px]" aria-hidden />
               {item.label}
+              <Pending />
             </Link>
           </div>
         );

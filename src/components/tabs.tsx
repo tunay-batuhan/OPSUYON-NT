@@ -1,8 +1,14 @@
 "use client";
 
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
+import { Loader2 } from "lucide-react";
 import { cn } from "@/components/ui";
+
+function Pending() {
+  const { pending } = useLinkStatus();
+  return <Loader2 aria-hidden className={cn("ml-1.5 inline size-3.5 animate-spin align-[-2px] transition-opacity", pending ? "opacity-100" : "opacity-0")} />;
+}
 
 export type TabItem = { href: string; label: string; exact?: boolean };
 
@@ -23,6 +29,7 @@ export function Tabs({ items }: { items: TabItem[] }) {
             )}
           >
             {item.label}
+            <Pending />
           </Link>
         );
       })}
