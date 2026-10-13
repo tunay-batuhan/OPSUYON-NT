@@ -4,7 +4,19 @@ import { supabasePublicKey, supabaseUrl } from "@/lib/supabase/env";
 
 // Optimistic gate + session refresh. Real authorization lives in the data layer (RLS + lib/auth.ts).
 export async function proxy(request: NextRequest) {
-  let response = NextResponse.next({ request });
+  const response = NextResponse.next({ request });
+
+  // Optimistic gate only: if configuration is missing or Supabase is unreachable, fail open.
+  // Real authorization happens in the data layer (requireUser + RLS), so this is safe.
+  try {
+    return await gate(request, response);
+  } catch {
+    return response;
+  }
+}
+
+async function gate(request: NextRequest, initial: NextResponse) {
+  let response = initial;
 
   const supabase = createServerClient(supabaseUrl(), supabasePublicKey(), {
     cookies: {
@@ -32,5 +44,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)"],
 };

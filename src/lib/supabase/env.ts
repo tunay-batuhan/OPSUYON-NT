@@ -6,7 +6,10 @@ export function supabaseUrl(): string {
 }
 
 export function supabasePublicKey(): string {
-  const v = process.env.SUPABASE_PUBLIC_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  const v =
+    process.env.SUPABASE_PUBLIC_KEY ??
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
+    process.env.SUPABASE_ANON_KEY; // legacy anon key also works with supabase-js
   if (!v) throw new Error("SUPABASE_PUBLIC_KEY tanımlı değil (.env)");
   return v;
 }
@@ -21,3 +24,12 @@ export function supabaseSecretKey(): string {
 export const AUTH_EMAIL_DOMAIN = "portal.opsuyon.com";
 export const usernameToEmail = (username: string) =>
   `${username.trim().toLowerCase()}@${AUTH_EMAIL_DOMAIN}`;
+
+/** Which required variables are present (names only, never values). */
+export function envStatus() {
+  return {
+    SUPABASE_URL: Boolean(process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL),
+    SUPABASE_PUBLIC_KEY: Boolean(process.env.SUPABASE_PUBLIC_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? process.env.SUPABASE_ANON_KEY),
+    SUPABASE_SECRET_KEY: Boolean(process.env.SUPABASE_SECRET_KEY),
+  };
+}
