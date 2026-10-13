@@ -1,36 +1,47 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# OPSUYON — Operasyonel Personel Süreç Yönetimi
 
-## Getting Started
+opsuyon.com · Next.js 16 (App Router) + Supabase (Postgres, Auth, Storage)
 
-First, run the development server:
+Güvenlik, temizlik ve kurumsal tedarik hizmetlerinde personel, puantaj, izin, bordro, fatura
+ve cari hesap takibi. Hesapları **merkez** açar; müşteriler yalnızca merkezin yetkilendirdiği
+bilgiye ulaşır.
+
+## Kurulum
 
 ```bash
+npm install
+cp .env.example .env        # SUPABASE_URL, SUPABASE_PUBLIC_KEY, SUPABASE_SECRET_KEY
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Veritabanı şeması `supabase/migrations/` altındadır ve sırayla uygulanır:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Dosya | İçerik |
+|---|---|
+| `…0100_foundation` | uzantılar, hizmet alanları, izin kataloğu, roller |
+| `…0200_core_access` | firma, proje, profil, proje üyeliği, izin istisnaları, RLS fonksiyonları |
+| `…0300_personnel` | personel, hassas bilgiler (ayrı tablo), proje atamaları |
+| `…0400_documents` | belge kategorileri, belgeler, özel Storage bucket'ı |
+| `…0500_operations_finance` | puantaj, izin, fatura, ödeme, cari hesap, içe aktarma kayıtları |
+| `…0600_messaging_audit` | merkez ile yazışma, işlem geçmişi |
+| `…0700_public_landing` | açılış sayfası için halka açık hizmet alanları |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+İlk süper yönetici:
 
-## Learn More
+```bash
+node --env-file=.env scripts/bootstrap-admin.mjs --username=admin --name="Ad Soyad"
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Mimari notlar
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Giriş:** kullanıcı adı + parola. Supabase Auth e-posta ister; `kullanici@portal.opsuyon.com`
+  biçiminde iç bir adres türetilir (e-posta gönderilmez). Açık kayıt kapalıdır.
+- **Yetki modeli:** `permissions` (katalog) → `roles` → `role_permissions`. Müşteri erişimi
+  `project_members` (proje başına rol) + `member_permission_overrides` (kişiye özel izin ver / engelle).
+  Güvenlik **RLS** ile veritabanında sağlanır; arayüzdeki gizlemeler yalnızca kolaylıktır.
+- **Yeni özellik eklemek:** yeni izin = `permissions` satırı; yeni belge türü = `document_categories`
+  satırı; yeni hizmet alanı = `service_lines` satırı. Yeni tablo → RLS aç, politikaları
+  `app.has_project_permission(...)` ile yaz, `app.audit_row()` tetikleyicisini bağla.
+- **Belgeler:** özel bucket; tarayıcı doğrudan imzalı URL ile yükler, indirme
+  `/api/documents/[id]` üzerinden RLS kontrolünden sonra 60 sn'lik imzalı URL ile yapılır.
+- **Gizli anahtar:** `SUPABASE_SECRET_KEY` yalnızca `src/lib/supabase/admin.ts` (server-only) içinde kullanılır.

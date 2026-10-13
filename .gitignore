@@ -39,3 +39,13 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local-only notes & source documents
+Bilgiler.txt
+domainler.pdf
+supabase/.temp
+supabase/.branches
+!.env.example
+authadmin.txt
+*.docx
+*.tsbuildinfo

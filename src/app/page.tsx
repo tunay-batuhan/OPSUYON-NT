@@ -1,69 +1,107 @@
-import Image from "next/image";
+import Link from "next/link";
+import { ArrowRight, Building2, FileText, Users, CalendarCheck, Wallet, MessageSquare, Lock } from "lucide-react";
+import { Logo } from "@/components/logo";
+import { btn, lineColor, LineIcon } from "@/components/ui";
+import { getServiceLines } from "@/lib/lines";
+import { getCurrentUser, homePathFor } from "@/lib/auth";
 
-export default function Home() {
+const features = [
+  { icon: Users, title: "Personel & özlük", text: "Projenize atanan personelin özlük evrakları ve sözleşmeleri tek yerde." },
+  { icon: CalendarCheck, title: "Puantaj & izin", text: "Aylık puantajlar ve yıllık izin durumları güncel ve indirilebilir." },
+  { icon: FileText, title: "Bordro", text: "Personel bordrolarına yetkiniz ölçüsünde güvenle ulaşın." },
+  { icon: Wallet, title: "Fatura & cari hesap", text: "Kesilen faturalar, ödemeler ve anlık cari bakiye." },
+  { icon: MessageSquare, title: "Merkez ile yazışma", text: "Sorularınızı doğrudan operasyon merkezine iletin." },
+  { icon: Lock, title: "Yetki bazlı erişim", text: "Her kullanıcı yalnızca merkezin yetkilendirdiği bilgileri görür." },
+];
+
+export default async function Home() {
+  const [lines, user] = await Promise.all([getServiceLines(), getCurrentUser().catch(() => null)]);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <div className="hero-glow flex min-h-screen flex-col">
+      <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-5">
+        <Logo />
+        {user ? (
+          <Link href={homePathFor(user)} className={btn("primary", "lg")}>
+            Panele git <ArrowRight className="size-5" aria-hidden />
+          </Link>
+        ) : (
+          <Link
+            href="/giris/merkez"
+            className="group flex items-center gap-3 rounded-2xl border border-border bg-surface px-4 py-2.5 shadow-card transition hover:-translate-y-0.5 hover:border-brand sm:px-5 sm:py-3"
+          >
+            <span className="grid size-10 place-items-center rounded-xl bg-[var(--side-bg)] text-teal-300" aria-hidden>
+              <Building2 className="size-5" />
+            </span>
+            <span className="text-left leading-tight">
+              <span className="block text-base font-semibold sm:text-lg">Merkez girişi</span>
+              <span className="hidden text-xs text-muted sm:block">Yönetim paneli</span>
+            </span>
+            <ArrowRight className="size-5 text-brand transition-transform group-hover:translate-x-1" aria-hidden />
+          </Link>
+        )}
+      </header>
+
+      <main className="mx-auto w-full max-w-6xl flex-1 px-6">
+        <section className="py-14 sm:py-20">
+          <p className="mb-4 inline-block rounded-full bg-brand-soft px-3 py-1 text-xs font-medium text-brand">
+            Operasyonel Personel Süreç Yönetimi
           </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+          <h1 className="max-w-3xl text-4xl font-semibold leading-tight tracking-tight sm:text-5xl">
+            Personel, puantaj ve faturalarınız <span className="text-brand">tek panelde.</span>
+          </h1>
+          <p className="mt-5 max-w-2xl text-lg text-muted">
+            Hizmet aldığınız alanı seçerek size tanımlanan kullanıcı adı ve parola ile giriş yapın.
+          </p>
+
+          <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {lines.map((line) => {
+              return (
+                <Link
+                  key={line.code}
+                  href={`/giris/${line.code}`}
+                  className="group relative overflow-hidden rounded-2xl border border-border bg-surface p-6 shadow-card transition hover:-translate-y-0.5 hover:border-[color:var(--c)]"
+                  style={{ ["--c" as string]: lineColor(line.code) }}
+                >
+                  <span
+                    className="grid size-12 place-items-center rounded-xl text-white"
+                    style={{ background: lineColor(line.code) }}
+                    aria-hidden
+                  >
+                    <LineIcon name={line.icon} className="size-6" />
+                  </span>
+                  <h2 className="mt-5 text-xl font-semibold">{line.name}</h2>
+                  <p className="mt-1 text-sm text-muted">{line.description}</p>
+                  <span className="mt-6 inline-flex items-center gap-1.5 text-sm font-medium" style={{ color: lineColor(line.code) }}>
+                    Giriş yap
+                    <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" aria-hidden />
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className="pb-20">
+          <h2 className="mb-6 text-sm font-medium uppercase tracking-wide text-muted">Panelde neler var?</h2>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {features.map(({ icon: Icon, title, text }) => (
+              <div key={title} className="rounded-2xl border border-border bg-surface/70 p-5">
+                <Icon className="size-5 text-brand" aria-hidden />
+                <h3 className="mt-3 font-medium">{title}</h3>
+                <p className="mt-1 text-sm text-muted">{text}</p>
+              </div>
+            ))}
+          </div>
+        </section>
       </main>
+
+      <footer className="border-t border-border">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-6 py-5 text-sm text-muted">
+          <span>© {new Date().getFullYear()} OPSUYON · opsuyon.com</span>
+          <span>Hesap bilgileriniz merkez tarafından tanımlanır.</span>
+        </div>
+      </footer>
     </div>
   );
 }

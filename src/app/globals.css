@@ -1,26 +1,101 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #e3e9f1;
+  --surface: #f9fafc;
+  --surface-2: #edf1f7;
+  --border: #cdd6e3;
+  --fg: #0f172a;
+  --muted: #566479;
+
+  --brand: #0d9488;
+  --brand-hover: #0f766e;
+  --brand-fg: #ffffff;
+  --brand-soft: #cdeee8;
+
+  --success: #059669;
+  --success-soft: #d8f5e8;
+  --warning: #b45309;
+  --warning-soft: #fdecc8;
+  --danger: #dc2626;
+  --danger-soft: #fde2e2;
+
+  /* sidebar (dark in both themes) */
+  --side-bg: #0b1324;
+  --side-fg: #aab6cc;
+  --side-fg-strong: #ffffff;
+  --side-hover: rgb(255 255 255 / 0.06);
+  --side-active: rgb(45 212 191 / 0.14);
+  --side-active-fg: #5eead4;
+  --side-border: rgb(255 255 255 / 0.08);
+
+  /* colourful accents used by stat tiles, chips, service lines */
+  --tone-teal: #0d9488;     --tone-teal-soft: #d9f4ef;
+  --tone-blue: #2563eb;     --tone-blue-soft: #dbe7fe;
+  --tone-violet: #7c3aed;   --tone-violet-soft: #ece3fd;
+  --tone-amber: #d97706;    --tone-amber-soft: #fdecc8;
+  --tone-rose: #e11d48;     --tone-rose-soft: #fddde4;
+  --tone-emerald: #059669;  --tone-emerald-soft: #d8f5e8;
+
+  --line-guvenlik: #2563eb;
+  --line-temizlik: #059669;
+  --line-kurumsal_tedarik: #7c3aed;
+  --shadow: 0 1px 2px rgb(15 23 42 / 0.08), 0 8px 24px rgb(15 23 42 / 0.08);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-fg: var(--brand-fg);
+  --color-brand-soft: var(--brand-soft);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --shadow-card: var(--shadow);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  color-scheme: light;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--brand-soft);
+}
+
+:where(a, button, input, select, textarea, summary):focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+/* Landing / login backdrop */
+.hero-glow {
+  background:
+    radial-gradient(52rem 28rem at 10% -10%, color-mix(in oklab, var(--tone-teal) 22%, transparent), transparent 60%),
+    radial-gradient(44rem 26rem at 95% 0%, color-mix(in oklab, var(--tone-violet) 18%, transparent), transparent 55%),
+    radial-gradient(40rem 22rem at 60% 100%, color-mix(in oklab, var(--tone-blue) 14%, transparent), transparent 60%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
 }
