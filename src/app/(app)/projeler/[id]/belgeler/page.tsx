@@ -51,7 +51,7 @@ export default async function DocumentsPage({ params, searchParams }: PageProps<
     <div className="space-y-6">
       <div className="flex flex-wrap gap-2" role="group" aria-label="Belge türü">
         <Link href={`/projeler/${id}/belgeler`} className={chip(!active)}>Tümü ({rows.length})</Link>
-        {categories.map((c) => (
+        {categories.filter((c) => manage || (byCategory.get(c.code)?.length ?? 0) > 0).map((c) => (
           <Link key={c.code} href={`/projeler/${id}/belgeler?kategori=${c.code}`} className={chip(active === c.code)}>
             {c.name} ({byCategory.get(c.code)?.length ?? 0})
           </Link>
