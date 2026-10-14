@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { BRAND, BRAND_TAGLINE } from "@/lib/brand";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -14,8 +15,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "OPSUYON — Operasyonel Personel Süreç Yönetimi",
-    template: "%s · OPSUYON",
+    default: `${BRAND} — ${BRAND_TAGLINE}`,
+    template: `%s · ${BRAND}`,
   },
   description:
     "Güvenlik, temizlik ve kurumsal tedarik hizmetlerinde personel, puantaj, bordro, fatura ve cari hesap takibi.",

@@ -1,4 +1,4 @@
-# OPSUYON — Operasyonel Personel Süreç Yönetimi
+# OPSÜYON — Operasyonel Personel Süreç Yönetimi
 
 opsuyon.com · Next.js 16 (App Router) + Supabase (Postgres, Auth, Storage)
 

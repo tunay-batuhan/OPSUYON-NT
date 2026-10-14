@@ -10,6 +10,8 @@ export type CurrentUser = Profile & {
   roleName: string | null;
   /** Global (merkez) permissions — empty for customers. */
   permissions: string[];
+  /** Everything the user may do on ANY project (menu gating). */
+  allPermissions: string[];
 };
 
 /**
@@ -30,10 +32,12 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   if (!profile || !profile.is_active) return null;
 
   let permissions: string[] = [];
-  if (profile.kind === "staff") {
-    const { data } = await supabase.rpc("my_global_permissions");
-    permissions = (data as string[] | null) ?? [];
-  }
+  const [globalRes, unionRes] = await Promise.all([
+    profile.kind === "staff" ? supabase.rpc("my_global_permissions") : Promise.resolve({ data: [] as string[] }),
+    supabase.rpc("my_permission_union"),
+  ]);
+  permissions = (globalRes.data as string[] | null) ?? [];
+  const allPermissions = (unionRes.data as string[] | null) ?? [];
 
   const { roles, ...rest } = profile as Profile & { roles: { code: string; name: string } | null };
   return {
@@ -42,6 +46,7 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
     roleCode: roles?.code ?? null,
     roleName: roles?.name ?? null,
     permissions,
+    allPermissions,
   };
 });
 
@@ -83,3 +88,9 @@ export async function assertStaff(permission: string): Promise<CurrentUser> {
 }
 
 export const homePathFor = (user: Pick<Profile, "kind">) => (user.kind === "staff" ? "/merkez" : "/panel");
+
+/** Menu-level check: may the user do this on at least one project (or globally, for staff)? */
+export function canAnywhere(user: Pick<CurrentUser, "kind" | "permissions" | "roleCode" | "allPermissions">, permission: string): boolean {
+  if (user.kind === "staff" && hasPermission(user, permission)) return true;
+  return user.allPermissions.includes(permission);
+}

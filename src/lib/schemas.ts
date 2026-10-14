@@ -204,6 +204,13 @@ export const userSchema = z
     if (v.kind === "staff" && !v.staff_role_id) ctx.addIssue({ code: "custom", path: ["staff_role_id"], message: "Merkez rolü seçin" });
   });
 
+export const changePasswordSchema = z
+  .object({
+    password: z.string().min(8, "Parola en az 8 karakter olmalı").max(72, "Parola en fazla 72 karakter olabilir"),
+    confirm: z.string().min(1, "Parolayı tekrar girin"),
+  })
+  .refine((v) => v.password === v.confirm, { path: ["confirm"], message: "Parolalar eşleşmiyor" });
+
 export const resetPasswordSchema = z.object({ id: uuid("Kullanıcı"), password: newPassword(false) });
 export const staffRoleSchema = z.object({ id: uuid("Kullanıcı"), staff_role_id: uuid("Rol") });
 export const membershipSchema = z.object({ user_id: uuid("Kullanıcı"), project_id: uuid("Proje"), role_id: uuid("Rol") });
@@ -242,6 +249,7 @@ export type PaymentValues = z.infer<typeof paymentSchema>;
 export type ThreadValues = z.infer<typeof threadSchema>;
 export type MessageValues = z.infer<typeof messageSchema>;
 export type UserValues = z.infer<typeof userSchema>;
+export type ChangePasswordValues = z.infer<typeof changePasswordSchema>;
 export type ResetPasswordValues = z.infer<typeof resetPasswordSchema>;
 export type StaffRoleValues = z.infer<typeof staffRoleSchema>;
 export type MembershipValues = z.infer<typeof membershipSchema>;

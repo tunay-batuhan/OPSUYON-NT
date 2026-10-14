@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { usernameToEmail } from "@/lib/supabase/env";
 import { guard, validate } from "@/lib/form";
-import { loginSchema, type LoginValues } from "@/lib/schemas";
+import { changePasswordSchema, loginSchema, type ChangePasswordValues, type LoginValues } from "@/lib/schemas";
 import type { ActionState } from "@/lib/action-types";
 import type { Profile } from "@/lib/types";
 
@@ -56,4 +56,20 @@ export async function logoutAction() {
   const supabase = await createClient();
   await supabase.auth.signOut();
   redirect("/");
+}
+
+export async function changeOwnPassword(values: ChangePasswordValues): Promise<ActionState> {
+  return guard(async () => {
+    const v = validate(changePasswordSchema, values);
+    if (!v.ok) return v.state;
+    const supabase = await createClient();
+    const { data } = await supabase.auth.getUser();
+    if (!data.user) return { error: "Oturum süresi doldu. Lütfen yeniden giriş yapın." };
+    const { error } = await supabase.auth.updateUser({ password: v.data.password });
+    if (error) {
+      if (/different|same/i.test(error.message)) return { error: "Yeni parola eskisinden farklı olmalı.", fieldErrors: { password: "Yeni parola eskisinden farklı olmalı" } };
+      return { error: error.message };
+    }
+    return { ok: true, message: "Parolanız güncellendi." };
+  });
 }

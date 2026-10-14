@@ -12,6 +12,7 @@ export const metadata: Metadata = { title: "Projeler" };
 export default async function ProjectsPage({ searchParams }: PageProps<"/merkez/projeler">) {
   const sp = await searchParams;
   const defaultOrg = typeof sp.firma === "string" ? sp.firma : "";
+  const hat = typeof sp.hat === "string" ? sp.hat : undefined;
   const user = await requireStaff("projects.read");
   const supabase = await createClient();
   const [lines, { data: projects }, { data: orgs }] = await Promise.all([
@@ -19,12 +20,18 @@ export default async function ProjectsPage({ searchParams }: PageProps<"/merkez/
     supabase.from("projects").select("*, organizations(id, name)").order("created_at", { ascending: false }),
     supabase.from("organizations").select("id, name").eq("status", "active").order("name"),
   ]);
-  const list = (projects ?? []) as Project[];
+  const list = ((projects ?? []) as Project[]).filter((p) => !hat || p.service_line === hat);
   const manage = hasPermission(user, "projects.manage");
 
   return (
     <>
       <PageHeader title="Projeler" description="Her proje bir firmaya ve bir hizmet alanına bağlıdır." />
+      <div className="mb-5 flex flex-wrap gap-2" role="group" aria-label="Hizmet alanı filtresi">
+        <Link href="/merkez/projeler" className={chipCls(!hat)}>Tümü</Link>
+        {lines.map((l) => (
+          <Link key={l.code} href={`/merkez/projeler?hat=${l.code}`} className={chipCls(hat === l.code)}>{l.name}</Link>
+        ))}
+      </div>
       <div className="space-y-6">
         <Card>
           {list.length === 0 ? (
@@ -72,3 +79,6 @@ export default async function ProjectsPage({ searchParams }: PageProps<"/merkez/
     </>
   );
 }
+
+const chipCls = (on: boolean) =>
+  `rounded-full border px-3 py-1 text-sm ${on ? "border-brand bg-brand-soft text-brand" : "border-border text-muted hover:text-fg"}`;

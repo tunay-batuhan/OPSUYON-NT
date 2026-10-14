@@ -57,3 +57,12 @@ export function slugify(input: string): string {
     .replace(/[^a-z0-9._-]+/g, "-")
     .replace(/^-+|-+$/g, "");
 }
+
+/** YYYY-MM-DD for today + offset days (kept out of components: Date.now() is impure during render). */
+export function isoDayFromNow(offsetDays = 0): string {
+  return new Date(Date.now() + offsetDays * 86400000).toISOString().slice(0, 10);
+}
+
+export function isoTimeFromNow(offsetMs: number): string {
+  return new Date(Date.now() + offsetMs).toISOString();
+}

@@ -32,7 +32,7 @@ async function gate(request: NextRequest, initial: NextResponse) {
   const { data } = await supabase.auth.getClaims();
   const signedIn = Boolean(data?.claims);
   const { pathname } = request.nextUrl;
-  const isProtected = /^\/(panel|merkez|projeler|mesajlar|hesap)(\/|$)/.test(pathname);
+  const isProtected = /^\/(panel|merkez|projeler|mesajlar|personel|puantaj|vardiya|izinler|sozlesmeler|bordrolar|faturalar|cari-hesap|raporlar|bildirimler|profil|ara)(\/|$)/.test(pathname);
 
   if (isProtected && !signedIn) {
     const url = request.nextUrl.clone();
