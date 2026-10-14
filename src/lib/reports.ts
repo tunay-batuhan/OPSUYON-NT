@@ -11,7 +11,7 @@ export type ReportParams = { projectId?: string; year: number; month: number; da
 export const REPORT_DEFS: Record<ReportType, { title: string; description: string; permission: string }> = {
   timesheet: { title: "Aylık puantaj özeti", description: "Personel bazında çalışılan gün, izin, devamsızlık ve fazla mesai.", permission: "timesheets.read" },
   personnel: { title: "Personel listesi", description: "Projelerdeki görevli personel, görev ve vardiya bilgisi.", permission: "personnel.read" },
-  finance: { title: "Fatura ve ödeme özeti", description: "Yıl içinde kesilen fatura, yapılan ödeme ve fark; proje bazında.", permission: "invoices.read" },
+  finance: { title: "Cari hesap özeti", description: "Proje bazında güncel cari bakiye (ekstrenin son satırı).", permission: "ledger.read" },
   leave: { title: "Yıllık izin bakiyeleri", description: "Hak edilen, devreden, kullanılan ve kalan izin günleri.", permission: "leaves.read" },
   contracts: { title: "Yaklaşan sözleşmeler", description: "Bitiş tarihi yaklaşan aktif projeler.", permission: "projects.read" },
 };
@@ -58,28 +58,20 @@ export async function buildReport(type: ReportType, p: ReportParams, supabase: S
   }
 
   if (type === "finance") {
-    const from = `${p.year}-01-01`, to = `${p.year}-12-31`;
-    let qi = supabase.from("invoices").select("project_id, total, projects(name, organizations(name))").eq("status", "issued").gte("issue_date", from).lte("issue_date", to).limit(5000);
-    let qp = supabase.from("payments").select("project_id, amount").gte("paid_on", from).lte("paid_on", to).limit(5000);
-    if (project) { qi = qi.eq("project_id", project); qp = qp.eq("project_id", project); }
-    const [{ data: inv, error: e1 }, { data: pay, error: e2 }] = await Promise.all([qi, qp]);
-    if (e1 || e2) throw new Error((e1 ?? e2)!.message);
-    const acc = new Map<string, { name: string; org: string; invoiced: number; paid: number }>();
-    for (const i of (inv ?? []) as unknown as { project_id: string; total: number; projects: { name: string; organizations: { name: string } | null } | null }[]) {
-      const a = acc.get(i.project_id) ?? { name: i.projects?.name ?? "", org: i.projects?.organizations?.name ?? "", invoiced: 0, paid: 0 };
-      a.invoiced += Number(i.total);
-      acc.set(i.project_id, a);
-    }
-    const names = new Map<string, string>([...acc.entries()].map(([id, v]) => [id, v.name]));
-    for (const x of (pay ?? []) as { project_id: string; amount: number }[]) {
-      const a = acc.get(x.project_id) ?? { name: names.get(x.project_id) ?? "(bilinmeyen proje)", org: "", invoiced: 0, paid: 0 };
-      a.paid += Number(x.amount);
-      acc.set(x.project_id, a);
-    }
-    const rows = [...acc.values()].sort((a, b) => a.name.localeCompare(b.name, "tr")).map((a): Cell[] => [a.name, a.org, a.invoiced, a.paid, a.invoiced - a.paid]);
+    let q = supabase
+      .from("ledger_statements")
+      .select("project_id, closing_balance, as_of_date, row_count, projects(name, organizations(name))")
+      .eq("is_current", true)
+      .limit(2000);
+    if (project) q = q.eq("project_id", project);
+    const { data, error } = await q;
+    if (error) throw new Error(error.message);
+    const rows = ((data ?? []) as unknown as { closing_balance: number; as_of_date: string | null; row_count: number; projects: { name: string; organizations: { name: string } | null } | null }[])
+      .sort((a, b) => (a.projects?.name ?? "").localeCompare(b.projects?.name ?? "", "tr"))
+      .map((r): Cell[] => [r.projects?.name ?? "", r.projects?.organizations?.name ?? "", r.as_of_date, r.row_count, Number(r.closing_balance)]);
     return {
-      title: REPORT_DEFS.finance.title, subtitle: `${p.year} yılı`,
-      columns: [{ label: "Proje", type: "text" }, { label: "Firma", type: "text" }, { label: "Kesilen Fatura", type: "money" }, { label: "Yapılan Ödeme", type: "money" }, { label: "Fark", type: "money" }],
+      title: REPORT_DEFS.finance.title, subtitle: "Yüklenen ekstrelerin son satır bakiyeleri",
+      columns: [{ label: "Proje", type: "text" }, { label: "Firma", type: "text" }, { label: "Ekstre Tarihi", type: "date" }, { label: "Satır", type: "number" }, { label: "Güncel Bakiye", type: "money" }],
       rows,
     };
   }

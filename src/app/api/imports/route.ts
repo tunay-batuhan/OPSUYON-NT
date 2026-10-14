@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
 
     let report;
     try {
-      report = await runImport({ type, buffer, mode, ctx: { supabase, projectId, importId: rec.id, options, canSensitive } });
+      report = await runImport({ type, buffer, mode, ctx: { supabase, projectId, importId: rec.id, options, canSensitive, fileName: file.name, storagePath: path, userId: user.id } });
     } catch (e) {
       await supabase.from("imports").update({ status: "failed", errors: [{ error: e instanceof Error ? e.message : String(e) }], completed_at: new Date().toISOString() }).eq("id", rec.id);
       throw e;

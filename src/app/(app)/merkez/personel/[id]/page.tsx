@@ -2,7 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import { Badge, Card, CardHeader, EmptyState, PageHeader, Table, td, tdNum } from "@/components/ui";
+import { DeletePersonnelButton, PersonnelEditForm } from "@/components/forms/admin-forms";
 import { hasPermission, requireStaff } from "@/lib/auth";
+import { getServiceLines } from "@/lib/lines";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatNumber } from "@/lib/format";
 import type { LeaveBalance, Personnel } from "@/lib/types";
@@ -22,6 +24,8 @@ export default async function PersonnelDetail({ params }: PageProps<"/merkez/per
   const supabase = await createClient();
 
   const sensitive = hasPermission(user, "personnel.sensitive.read");
+  const manage = hasPermission(user, "personnel.manage");
+  const lines = await getServiceLines();
   const [{ data: person }, { data: assignments }, { data: leaves }, priv] = await Promise.all([
     supabase.from("personnel").select("*").eq("id", id).maybeSingle(),
     supabase.from("personnel_assignments").select("id, position, start_date, end_date, projects(id, name, organizations(name))").eq("personnel_id", id).order("start_date", { ascending: false }),
@@ -42,21 +46,36 @@ export default async function PersonnelDetail({ params }: PageProps<"/merkez/per
       />
 
       <div className="space-y-6">
-        <Card>
-          <CardHeader title="Bilgiler" />
-          <dl className="grid gap-x-6 gap-y-4 p-5 text-sm sm:grid-cols-3">
-            <Item label="Telefon" value={p.phone} />
-            <Item label="E-posta" value={p.email} />
-            <Item label="İşe giriş" value={formatDate(p.hire_date)} />
-            {sensitive && (
-              <>
-                <Item label="TC kimlik no" value={priv?.data?.national_id} mono />
-                <Item label="IBAN" value={priv?.data?.iban} mono />
-                <Item label="Doğum tarihi" value={formatDate(priv?.data?.birth_date)} />
-              </>
-            )}
-          </dl>
-        </Card>
+        {manage ? (
+          <Card>
+            <CardHeader title="Personel kartı" description="Bilgileri düzenleyebilirsiniz. Ayrılan personel için durumu 'Ayrıldı' yapın." />
+            <PersonnelEditForm
+              person={{
+                id: p.id, first_name: p.first_name, last_name: p.last_name, employee_no: p.employee_no, title: p.title, service_line: p.service_line,
+                hire_date: p.hire_date, phone: p.phone, email: p.email, status: p.status,
+                national_id: priv?.data?.national_id ?? null, iban: priv?.data?.iban ?? null,
+              }}
+              lines={lines.map((l) => ({ value: l.code, label: l.name }))}
+              canSensitive={sensitive}
+            />
+          </Card>
+        ) : (
+          <Card>
+            <CardHeader title="Bilgiler" />
+            <dl className="grid gap-x-6 gap-y-4 p-5 text-sm sm:grid-cols-3">
+              <Item label="Telefon" value={p.phone} />
+              <Item label="E-posta" value={p.email} />
+              <Item label="İşe giriş" value={formatDate(p.hire_date)} />
+              {sensitive && (
+                <>
+                  <Item label="TC kimlik no" value={priv?.data?.national_id} mono />
+                  <Item label="IBAN" value={priv?.data?.iban} mono />
+                  <Item label="Doğum tarihi" value={formatDate(priv?.data?.birth_date)} />
+                </>
+              )}
+            </dl>
+          </Card>
+        )}
 
         <Card>
           <CardHeader title="Proje görevlendirmeleri" />
@@ -95,6 +114,14 @@ export default async function PersonnelDetail({ params }: PageProps<"/merkez/per
             </Table>
           )}
         </Card>
+        {manage && (
+          <Card>
+            <CardHeader title="Kartı sil" description="Yalnızca hiç işlem kaydı (atama, puantaj, izin, vardiya, belge) olmayan personel silinebilir." />
+            <div className="p-5">
+              <DeletePersonnelButton id={p.id} name={p.full_name} />
+            </div>
+          </Card>
+        )}
       </div>
     </>
   );

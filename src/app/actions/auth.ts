@@ -11,11 +11,12 @@ import type { Profile } from "@/lib/types";
 
 const GENERIC_ERROR = "Kullanıcı adı veya parola hatalı.";
 
+/** Tek giriş: merkez de müşteri de aynı ekrandan girer; hesabın türü ve yetkisi hangi ekranın açılacağını belirler. */
 export async function loginAction(values: LoginValues): Promise<ActionState> {
   return guard(async () => {
     const v = validate(loginSchema, values);
     if (!v.ok) return v.state;
-    const { hat, username, password } = v.data;
+    const { username, password } = v.data;
 
     const supabase = await createClient();
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -33,22 +34,17 @@ export async function loginAction(values: LoginValues): Promise<ActionState> {
     if (!profile) return deny(GENERIC_ERROR);
     if (!profile.is_active) return deny("Hesabınız kısıtlanmıştır. Lütfen merkez ile iletişime geçin.");
 
-    if (hat === "merkez" && profile.kind !== "staff") {
-      return deny("Merkez girişi yalnızca merkez personeli içindir.");
-    }
-
-    // Customers may use any button: we send them to the service line they actually have projects in.
-    let landing = hat;
     if (profile.kind === "customer") {
-      const { data: mine } = await supabase.from("projects").select("service_line");
-      const lines = [...new Set((mine ?? []).map((p) => p.service_line as string))];
-      if (!lines.length) return deny("Hesabınıza henüz proje tanımlanmamış. Lütfen merkez ile iletişime geçin.");
-      if (!lines.includes(hat)) landing = lines[0];
+      const { count } = await supabase.from("projects").select("id", { count: "exact", head: true });
+      if (!count) return deny("Hesabınıza henüz proje tanımlanmamış. Lütfen merkez ile iletişime geçin.");
+    } else {
+      // pasife alınması gereken projeleri güncelle (gece görevi çalışmamış olsa bile)
+      await supabase.rpc("close_expired_projects");
     }
 
     await createAdminClient().from("profiles").update({ last_login_at: new Date().toISOString() }).eq("id", profile.id);
 
-    redirect(profile.kind === "staff" ? "/merkez" : `/panel?hat=${encodeURIComponent(landing)}`);
+    redirect(profile.kind === "staff" ? "/merkez" : "/panel");
   });
 }
 

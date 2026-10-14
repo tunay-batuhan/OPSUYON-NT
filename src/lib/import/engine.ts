@@ -129,7 +129,8 @@ function findPerson(pool: Person[], employeeNo: string, fullName: string): { per
   return { error: "Sicil No veya Ad Soyad girilmeli" };
 }
 
-type Prepared = RowResult & { apply?: () => Promise<string | null> };
+type LedgerRow = { row_no: number; entry_date: string; ref_no: string | null; description: string | null; debit: number; credit: number; balance: number };
+type Prepared = RowResult & { apply?: () => Promise<string | null>; ledger?: LedgerRow };
 
 export type ImportOptions = { year?: number; month?: number };
 type Ctx = {
@@ -138,6 +139,9 @@ type Ctx = {
   importId?: string;
   options: ImportOptions;
   canSensitive: boolean;
+  fileName?: string;
+  storagePath?: string | null;
+  userId?: string;
 };
 
 /* ------------------------------ per-type preparation ------------------------------ */
@@ -298,6 +302,81 @@ async function preparePersonnel(rows: Parsed["rows"], ctx: Ctx): Promise<Prepare
   });
 }
 
+
+async function prepareLedger(rows: Parsed["rows"], ctx: Ctx): Promise<Prepared[]> {
+  void ctx;
+  let running = 0;
+  return rows.map(({ row, v }, i) => {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+    const date = parseDateStr(v.entry_date ?? "");
+    if (!date) errors.push(v.entry_date ? `Tarih geçersiz ("${v.entry_date}")` : "Tarih zorunlu");
+    const money = (key: string, label: string) => {
+      const raw = v[key];
+      if (!raw) return 0;
+      const n = toNumber(raw);
+      if (n === null) { errors.push(`${label} sayı olmalı ("${raw}")`); return 0; }
+      if (n < 0) errors.push(`${label} negatif olamaz ("${raw}")`);
+      return n;
+    };
+    const debit = money("debit", "Borç");
+    const credit = money("credit", "Alacak");
+    if (!v.debit && !v.credit && !v.balance) errors.push("Borç, Alacak veya Bakiye değerlerinden en az biri gerekli");
+
+    let balance = running + debit - credit;
+    if (v.balance) {
+      const b = toNumber(v.balance);
+      if (b === null) errors.push(`Bakiye sayı olmalı ("${v.balance}")`);
+      else balance = b;
+    }
+    if (!errors.length) running = balance;
+    const round = (n: number) => Math.round(n * 100) / 100;
+    return {
+      row,
+      title: `${date ? v.entry_date : "—"}${v.ref_no ? ` · ${v.ref_no}` : ""}`,
+      errors,
+      warnings,
+      summary: `${v.description ?? ""} · borç ${debit} · alacak ${credit} · bakiye ${round(balance)}`,
+      ledger: { row_no: i + 1, entry_date: date ?? "", ref_no: v.ref_no || null, description: v.description || null, debit: round(debit), credit: round(credit), balance: round(balance) },
+    };
+  });
+}
+
+/** Replaces the project's current statement; the LAST row's balance becomes the current balance. */
+async function commitLedger(prepared: Prepared[], ctx: Ctx): Promise<number> {
+  const entries = prepared.map((p) => p.ledger!).filter(Boolean);
+  if (!entries.length) throw new Error("Aktarılacak satır yok.");
+  const last = entries[entries.length - 1];
+
+  const { data: prev } = await ctx.supabase.from("ledger_statements").select("id").eq("project_id", ctx.projectId).eq("is_current", true).maybeSingle();
+  if (prev) {
+    const { error } = await ctx.supabase.from("ledger_statements").update({ is_current: false }).eq("id", prev.id);
+    if (error) throw new Error(error.message);
+  }
+  const { data: st, error: sErr } = await ctx.supabase
+    .from("ledger_statements")
+    .insert({
+      project_id: ctx.projectId, file_name: ctx.fileName ?? "ekstre.xlsx", storage_path: ctx.storagePath ?? null,
+      row_count: entries.length, closing_balance: last.balance, as_of_date: last.entry_date, is_current: true, created_by: ctx.userId ?? null,
+    })
+    .select("id")
+    .single();
+  if (sErr || !st) {
+    if (prev) await ctx.supabase.from("ledger_statements").update({ is_current: true }).eq("id", prev.id);
+    throw new Error(sErr?.message ?? "Ekstre kaydedilemedi.");
+  }
+  for (let i = 0; i < entries.length; i += 500) {
+    const chunk = entries.slice(i, i + 500).map((e) => ({ ...e, statement_id: st.id, project_id: ctx.projectId }));
+    const { error } = await ctx.supabase.from("ledger_entries").insert(chunk);
+    if (error) {
+      await ctx.supabase.from("ledger_statements").delete().eq("id", st.id);
+      if (prev) await ctx.supabase.from("ledger_statements").update({ is_current: true }).eq("id", prev.id);
+      throw new Error(error.message);
+    }
+  }
+  return entries.length;
+}
+
 /* ------------------------------ public API ------------------------------ */
 export async function runImport(args: {
   type: ImportType;
@@ -320,9 +399,22 @@ export async function runImport(args: {
   const prepared =
     args.type === "timesheet" ? await prepareTimesheet(parsed.rows, args.ctx)
     : args.type === "leave" ? await prepareLeave(parsed.rows, args.ctx)
+    : args.type === "ledger" ? await prepareLedger(parsed.rows, args.ctx)
     : await preparePersonnel(parsed.rows, args.ctx);
 
   let applied = 0;
+  if (args.type === "ledger") {
+    const bad = prepared.filter((p) => p.errors.length).length;
+    if (args.mode === "commit") {
+      if (bad) throw new Error(`Ekstrede ${bad} hatalı satır var. Bakiyenin doğru olması için tüm satırlar geçerli olmalı; dosyayı düzeltip yeniden yükleyin.`);
+      applied = await commitLedger(prepared, args.ctx);
+    }
+    base.rows = prepared.map((p) => ({ row: p.row, title: p.title, summary: p.summary, errors: p.errors, warnings: p.warnings }));
+    base.failed = bad;
+    base.ok = base.rows.length - bad;
+    if (args.mode === "commit") base.applied = applied;
+    return base;
+  }
   for (const p of prepared) {
     if (!p.errors.length && args.mode === "commit" && p.apply) {
       const err = await p.apply();

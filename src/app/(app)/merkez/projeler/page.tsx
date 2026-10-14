@@ -55,7 +55,7 @@ export default async function ProjectsPage({ searchParams }: PageProps<"/merkez/
                     </td>
                     <td className={td}>
                       <Badge tone={p.status === "active" ? "success" : p.status === "paused" ? "warning" : "neutral"}>
-                        {p.status === "active" ? "Aktif" : p.status === "paused" ? "Duraklatıldı" : "Kapandı"}
+                        {p.status === "active" ? "Aktif" : p.status === "paused" ? "Duraklatıldı" : "Pasif"}
                       </Badge>
                     </td>
                   </tr>

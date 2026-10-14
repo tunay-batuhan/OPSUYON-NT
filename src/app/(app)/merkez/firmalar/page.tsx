@@ -42,7 +42,7 @@ export default async function OrganizationsPage() {
               {orgs.map((o) => (
                 <tr key={o.id}>
                   <td className={td}>
-                    <p className="font-medium">{o.name}</p>
+                    <Link href={`/merkez/firmalar/${o.id}`} className="font-medium hover:text-brand">{o.name}</Link>
                     {o.legal_name && <p className="text-xs text-muted">{o.legal_name}</p>}
                   </td>
                   <td className={td}>{projectCount.get(o.id) ?? 0}</td>
@@ -55,6 +55,7 @@ export default async function OrganizationsPage() {
                   {manage && (
                     <td className={td}>
                       <div className="mb-1 flex gap-3 text-sm">
+                        <Link href={`/merkez/firmalar/${o.id}`} className="font-medium text-brand hover:underline">Düzenle</Link>
                         <Link href={`/merkez/projeler?firma=${o.id}#yeni`} className="font-medium text-brand hover:underline">+ Proje</Link>
                         <Link href={`/merkez/kullanicilar?firma=${o.id}#yeni`} className="font-medium text-brand hover:underline">+ Hesap aç</Link>
                       </div>

@@ -6,19 +6,20 @@ import { AlertCircle, AlertTriangle, CheckCircle2, Download, FileSpreadsheet, Lo
 import { btn, cn, inputCls } from "@/components/ui";
 import { MONTHS } from "@/lib/format";
 import type { ImportReport } from "@/lib/import/engine";
+import type { ImportType } from "@/lib/import/defs";
 
 type DefInfo = {
-  type: "timesheet" | "leave" | "personnel";
+  type: ImportType;
   title: string;
   description: string;
   usesPeriod: "month-year" | "year" | null;
   columns: { label: string; required?: boolean; note?: string }[];
 };
 
-export function ImportWizard({ projectId, defs }: { projectId: string; defs: DefInfo[] }) {
+export function ImportWizard({ projectId, defs, defaultType }: { projectId: string; defs: DefInfo[]; defaultType?: string }) {
   const router = useRouter();
   const now = new Date();
-  const [type, setType] = useState<DefInfo["type"]>(defs[0].type);
+  const [type, setType] = useState<DefInfo["type"]>(defs.find((d) => d.type === defaultType)?.type ?? defs[0].type);
   const [month, setMonth] = useState(String(now.getMonth() + 1));
   const [year, setYear] = useState(String(now.getFullYear()));
   const [file, setFile] = useState<File | null>(null);

@@ -1,9 +1,11 @@
 "use client";
 
-import { createOrganization, createProject, updateProject } from "@/app/actions/projects";
-import { assignPersonnel, createPersonnel } from "@/app/actions/personnel";
+import { createOrganization, createProject, updateOrganization, updateProject } from "@/app/actions/projects";
+import { useState } from "react";
+import { Loader2, Trash2 } from "lucide-react";
+import { assignPersonnel, createPersonnel, deletePersonnel, updatePersonnel } from "@/app/actions/personnel";
 import {
-  assignSchema, organizationSchema, personnelSchema, projectCreateSchema, projectUpdateSchema,
+  assignSchema, personnelUpdateSchema, organizationSchema, organizationUpdateSchema, personnelSchema, projectCreateSchema, projectUpdateSchema,
 } from "@/lib/schemas";
 import { Form, FormGrid, SelectField, SubmitButton, TextField, TextareaField } from "@/components/forms/form";
 
@@ -20,13 +22,41 @@ export function OrganizationForm() {
       <FormGrid>
         <TextField name="name" label="Firma adı" required placeholder="Örn. Atlas Plaza" />
         <TextField name="legal_name" label="Ticari unvan" placeholder="Örn. Atlas Plaza Yönetimi A.Ş." />
-        <TextField name="tax_office" label="Vergi dairesi" />
-        <TextField name="tax_no" label="Vergi no / TC" inputMode="numeric" maxLength={11} hint="10 haneli vergi no veya 11 haneli TC kimlik no" />
+        <TextField name="tax_office" label="Vergi dairesi" required />
+        <TextField name="tax_no" label="Vergi no / TC" required inputMode="numeric" maxLength={11} hint="10 haneli vergi no veya 11 haneli TC kimlik no" />
         <TextField name="email" type="email" label="E-posta" autoComplete="off" placeholder="ornek@firma.com" />
-        <TextField name="phone" type="tel" label="Telefon" placeholder="0532 000 00 00" />
-        <TextField name="address" label="Adres" className="sm:col-span-2" />
+        <TextField name="phone" type="tel" label="Telefon" required placeholder="0532 000 00 00" />
+        <TextField name="address" label="Adres" required className="sm:col-span-2" />
       </FormGrid>
       <SubmitButton>Firmayı kaydet</SubmitButton>
+    </Form>
+  );
+}
+
+export function OrganizationEditForm({
+  org,
+}: { org: { id: string; name: string; legal_name: string | null; tax_office: string | null; tax_no: string | null; address: string | null; phone: string | null; email: string | null } }) {
+  return (
+    <Form
+      schema={organizationUpdateSchema}
+      defaultValues={{
+        id: org.id, name: org.name, legal_name: org.legal_name ?? "", tax_office: org.tax_office ?? "", tax_no: org.tax_no ?? "",
+        email: org.email ?? "", phone: org.phone ?? "", address: org.address ?? "",
+      }}
+      action={updateOrganization}
+      resetOnSuccess={false}
+      className="space-y-4 p-5"
+    >
+      <FormGrid>
+        <TextField name="name" label="Firma adı" required />
+        <TextField name="legal_name" label="Ticari unvan" />
+        <TextField name="tax_office" label="Vergi dairesi" required />
+        <TextField name="tax_no" label="Vergi no / TC" required inputMode="numeric" maxLength={11} />
+        <TextField name="email" type="email" label="E-posta" autoComplete="off" />
+        <TextField name="phone" type="tel" label="Telefon" required />
+        <TextField name="address" label="Adres" required className="sm:col-span-2" />
+      </FormGrid>
+      <SubmitButton>Değişiklikleri kaydet</SubmitButton>
     </Form>
   );
 }
@@ -42,9 +72,9 @@ export function ProjectCreateForm({ orgs, lines, defaultOrg }: { orgs: Option[];
       <FormGrid>
         <SelectField name="organization_id" label="Firma" options={orgs} required />
         <SelectField name="service_line" label="Hizmet alanı" options={lines} required />
-        <TextField name="name" label="Proje adı" required placeholder="Örn. Atlas Plaza Güvenlik" />
+        <TextField name="name" label="Proje adı" required titleCase placeholder="Örn. Atlas Plaza Güvenlik" />
         <TextField name="code" label="Proje kodu" hint="İsteğe bağlı; benzersiz olmalı" />
-        <TextField name="address" label="Adres" className="sm:col-span-2" />
+        <TextField name="address" label="Adres" titleCase className="sm:col-span-2" />
         <TextField name="start_date" type="date" label="Başlangıç" />
         <TextField name="end_date" type="date" label="Bitiş" />
       </FormGrid>
@@ -76,7 +106,7 @@ export function ProjectEditForm({
       className="space-y-4 p-5"
     >
       <FormGrid>
-        <TextField name="name" label="Proje adı" required />
+        <TextField name="name" label="Proje adı" required titleCase />
         <TextField name="code" label="Proje kodu" />
         <SelectField
           name="status"
@@ -85,10 +115,10 @@ export function ProjectEditForm({
           options={[
             { value: "active", label: "Aktif" },
             { value: "paused", label: "Duraklatıldı" },
-            { value: "closed", label: "Kapandı (müşteri erişimi kapanır)" },
+            { value: "closed", label: "Pasif (proje bitti; müşteri erişimi kapanır)" },
           ]}
         />
-        <TextField name="address" label="Adres" />
+        <TextField name="address" label="Adres" titleCase />
         <TextField name="start_date" type="date" label="Başlangıç" />
         <TextField name="end_date" type="date" label="Bitiş" />
         <TextareaField name="notes" label="Notlar" className="sm:col-span-2" />
@@ -130,14 +160,92 @@ export function PersonnelForm({ lines, canSensitive }: { lines: Option[]; canSen
 
 export function AssignForm({ projectId, candidates }: { projectId: string; candidates: Option[] }) {
   return (
-    <Form schema={assignSchema} defaultValues={{ project_id: projectId, personnel_id: "", position: "", shift: "", start_date: "" }} action={assignPersonnel} className="space-y-4 p-5">
+    <Form schema={assignSchema} defaultValues={{ project_id: projectId, personnel_id: "", position: "", start_date: "" }} action={assignPersonnel} className="space-y-4 p-5">
       <FormGrid cols={3}>
-        <SelectField name="personnel_id" label="Personel" options={candidates} required className="sm:col-span-1" />
+        <SelectField name="personnel_id" label="Personel" options={candidates} required />
         <TextField name="position" label="Görev" placeholder="Örn. Güvenlik görevlisi" />
-        <TextField name="shift" label="Vardiya" placeholder="Örn. 08:00–20:00" />
         <TextField name="start_date" type="date" label="Başlangıç" hint="Boşsa bugün" />
       </FormGrid>
       <SubmitButton>Ata</SubmitButton>
     </Form>
+  );
+}
+
+export function PersonnelEditForm({
+  person, lines, canSensitive,
+}: {
+  person: {
+    id: string; first_name: string; last_name: string; employee_no: string | null; title: string | null; service_line: string | null;
+    hire_date: string | null; phone: string | null; email: string | null; status: "active" | "passive" | "terminated";
+    national_id: string | null; iban: string | null;
+  };
+  lines: Option[];
+  canSensitive: boolean;
+}) {
+  return (
+    <Form
+      schema={personnelUpdateSchema}
+      defaultValues={{
+        id: person.id, first_name: person.first_name, last_name: person.last_name, employee_no: person.employee_no ?? "", title: person.title ?? "",
+        service_line: person.service_line ?? "", hire_date: person.hire_date ?? "", phone: person.phone ?? "", email: person.email ?? "",
+        national_id: person.national_id ?? "", iban: person.iban ?? "", status: person.status,
+      }}
+      action={updatePersonnel}
+      resetOnSuccess={false}
+      className="space-y-4 p-5"
+    >
+      <FormGrid cols={3}>
+        <TextField name="first_name" label="Ad" required />
+        <TextField name="last_name" label="Soyad" required />
+        <TextField name="employee_no" label="Sicil no" />
+        <TextField name="title" label="Ünvan" />
+        <SelectField name="service_line" label="Hizmet alanı" options={lines} />
+        <TextField name="hire_date" type="date" label="İşe giriş" />
+        <TextField name="phone" type="tel" label="Telefon" />
+        <TextField name="email" type="email" label="E-posta" autoComplete="off" />
+        <SelectField
+          name="status" label="Durum" placeholder=""
+          options={[{ value: "active", label: "Aktif" }, { value: "passive", label: "Pasif" }, { value: "terminated", label: "Ayrıldı" }]}
+        />
+        {canSensitive && (
+          <>
+            <TextField name="national_id" label="TC kimlik no" inputMode="numeric" maxLength={11} />
+            <TextField name="iban" label="IBAN" className="sm:col-span-2" />
+          </>
+        )}
+      </FormGrid>
+      <SubmitButton>Kartı kaydet</SubmitButton>
+    </Form>
+  );
+}
+
+export function DeletePersonnelButton({ id, name }: { id: string; name: string }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  return (
+    <div>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={async () => {
+          if (!window.confirm(`${name} personel kartı kalıcı olarak silinsin mi?`)) return;
+          setBusy(true);
+          setError(null);
+          try {
+            const res = await deletePersonnel({ id });
+            if (res?.error) setError(res.error);
+          } catch (e) {
+            const digest = (e as { digest?: unknown })?.digest;
+            if (!(typeof digest === "string" && digest.startsWith("NEXT_REDIRECT"))) setError(e instanceof Error ? e.message : "Silinemedi.");
+          } finally {
+            setBusy(false);
+          }
+        }}
+        className="inline-flex h-10 items-center gap-2 rounded-lg bg-danger-soft px-4 text-sm font-medium text-danger hover:brightness-95 disabled:opacity-50"
+      >
+        {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Trash2 className="size-4" aria-hidden />} Personel kartını sil
+      </button>
+      {error && <p role="alert" className="mt-3 rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p>}
+    </div>
   );
 }

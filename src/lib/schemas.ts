@@ -12,7 +12,6 @@ const str = (label: string, max = 200) =>
   z.string().trim().min(1, `${label} zorunlu`).max(max, `${label} en fazla ${max} karakter olabilir`);
 const opt = (label: string, max = 200) => z.string().trim().max(max, `${label} en fazla ${max} karakter olabilir`);
 const uuid = (label: string) => z.string().min(1, `${label} seçin`).regex(/^[0-9a-f-]{36}$/i, `${label} geçersiz`);
-const optUuid = z.string().refine((v) => v === "" || /^[0-9a-f-]{36}$/i.test(v), "Geçersiz seçim");
 
 const date = (label: string, required = false) =>
   z
@@ -59,7 +58,6 @@ const newPassword = (required: boolean) =>
 
 /* ---------------------------------- schemas ---------------------------------- */
 export const loginSchema = z.object({
-  hat: z.string().min(1),
   username: z.string().trim().min(1, "Kullanıcı adınızı girin"),
   password: z.string().min(1, "Parolanızı girin"),
 });
@@ -67,12 +65,22 @@ export const loginSchema = z.object({
 export const organizationSchema = z.object({
   name: str("Firma adı", 120),
   legal_name: opt("Ticari unvan", 200),
-  tax_office: opt("Vergi dairesi", 80),
-  tax_no: z.string().trim().refine((v) => v === "" || isTaxNo(v), "Vergi no 10 haneli (veya geçerli TC kimlik no) olmalı"),
+  tax_office: str("Vergi dairesi", 80),
+  tax_no: z
+    .string()
+    .trim()
+    .min(1, "Vergi no zorunlu")
+    .refine((v) => isTaxNo(v), "Vergi no 10 haneli (veya geçerli TC kimlik no) olmalı"),
   email,
-  phone,
-  address: opt("Adres", 300),
+  phone: z
+    .string()
+    .trim()
+    .min(1, "Telefon zorunlu")
+    .refine((v) => /^\+?[0-9\s()-]{7,20}$/.test(v), "Geçerli bir telefon numarası girin (örn. 0532 123 45 67)"),
+  address: str("Adres", 300),
 });
+
+export const organizationUpdateSchema = organizationSchema.extend({ id: uuid("Firma") });
 
 export const projectCreateSchema = z
   .object({
@@ -122,7 +130,6 @@ export const assignSchema = z.object({
   project_id: uuid("Proje"),
   personnel_id: uuid("Personel"),
   position: opt("Görev", 80),
-  shift: opt("Vardiya", 60),
   start_date: date("Başlangıç"),
 });
 
@@ -147,34 +154,6 @@ export const leaveSchema = z.object({
   used_days: decimal("Kullanılan", { min: 0, max: 120 }),
 });
 
-export const invoiceSchema = z
-  .object({
-    project_id: uuid("Proje"),
-    invoice_no: str("Fatura no", 40),
-    issue_date: date("Fatura tarihi", true),
-    due_date: date("Vade"),
-    period_month: z.string(),
-    period_year: z.string(),
-    subtotal: decimal("Ara toplam", { required: true, min: 0 }),
-    vat_rate: decimal("KDV oranı", { required: true, min: 0, max: 100 }),
-    status: z.enum(["issued", "draft"]),
-    notes: opt("Not", 300),
-  })
-  .refine((v) => !v.due_date || !v.issue_date || v.due_date >= v.issue_date, {
-    path: ["due_date"],
-    message: "Vade, fatura tarihinden önce olamaz",
-  });
-
-export const paymentSchema = z.object({
-  project_id: uuid("Proje"),
-  paid_on: date("Ödeme tarihi", true),
-  amount: decimal("Tutar", { required: true, min: 0.01 }),
-  method: z.string(),
-  invoice_id: optUuid,
-  reference: opt("Referans", 80),
-  notes: opt("Not", 300),
-});
-
 export const threadSchema = z.object({
   project_id: uuid("Proje"),
   subject: str("Konu", 140),
@@ -186,23 +165,46 @@ export const messageSchema = z.object({
   body: str("Mesaj", 5000),
 });
 
-export const userSchema = z
+export const customerUserSchema = z
   .object({
-    kind: z.enum(["customer", "staff"]),
     full_name: str("Ad soyad", 100),
     username,
     phone,
     password: newPassword(false),
-    organization_id: z.string(),
+    organization_id: z.string().min(1, "Firma seçin"),
     project_ids: z.array(z.string()),
     role_id: z.string(),
-    staff_role_id: z.string(),
   })
   .superRefine((v, ctx) => {
-    if (v.kind === "customer" && !v.organization_id) ctx.addIssue({ code: "custom", path: ["organization_id"], message: "Firma seçin" });
-    if (v.kind === "customer" && v.project_ids.length && !v.role_id) ctx.addIssue({ code: "custom", path: ["role_id"], message: "Yetki düzeyi seçin" });
-    if (v.kind === "staff" && !v.staff_role_id) ctx.addIssue({ code: "custom", path: ["staff_role_id"], message: "Merkez rolü seçin" });
+    if (v.project_ids.length && !v.role_id) ctx.addIssue({ code: "custom", path: ["role_id"], message: "Yetki düzeyi seçin" });
   });
+
+export const staffUserSchema = z.object({
+  full_name: str("Ad soyad", 100),
+  username,
+  phone,
+  password: newPassword(false),
+  staff_role_id: z.string().min(1, "Merkez rolü seçin"),
+});
+
+export const personnelUpdateSchema = personnelSchema.extend({
+  id: uuid("Personel"),
+  status: z.enum(["active", "passive", "terminated"], "Durum seçin"),
+});
+
+const leaveTypes = ["yillik", "ucretsiz", "raporlu", "mazeret", "evlilik", "dogum", "olum", "diger"] as const;
+export const leaveRecordSchema = z
+  .object({
+    assignment: z.string().min(1, "Personel seçin"), // "personelId|projeId"
+    leave_type: z.enum(leaveTypes, "Kategori seçin"),
+    start_date: date("İzin başlangıç tarihi", true),
+    end_date: date("İzin son tarihi", true),
+    return_date: date("İşe başlama tarihi", true),
+    days: decimal("Toplam izin süresi", { required: true, min: 0.5, max: 365 }),
+    note: opt("Not", 300),
+  })
+  .refine((v) => !v.start_date || !v.end_date || v.end_date >= v.start_date, { path: ["end_date"], message: "Son tarih, başlangıçtan önce olamaz" })
+  .refine((v) => !v.end_date || !v.return_date || v.return_date > v.end_date, { path: ["return_date"], message: "İşe başlama tarihi, izin son tarihinden sonra olmalı" });
 
 export const changePasswordSchema = z
   .object({
@@ -244,11 +246,14 @@ export type PersonnelValues = z.infer<typeof personnelSchema>;
 export type AssignValues = z.infer<typeof assignSchema>;
 export type TimesheetValues = z.infer<typeof timesheetSchema>;
 export type LeaveValues = z.infer<typeof leaveSchema>;
-export type InvoiceValues = z.infer<typeof invoiceSchema>;
-export type PaymentValues = z.infer<typeof paymentSchema>;
 export type ThreadValues = z.infer<typeof threadSchema>;
 export type MessageValues = z.infer<typeof messageSchema>;
-export type UserValues = z.infer<typeof userSchema>;
+export type CustomerUserValues = z.infer<typeof customerUserSchema>;
+export type StaffUserValues = z.infer<typeof staffUserSchema>;
+export type OrganizationUpdateValues = z.infer<typeof organizationUpdateSchema>;
+export type PersonnelUpdateValues = z.infer<typeof personnelUpdateSchema>;
+export type LeaveRecordValues = z.infer<typeof leaveRecordSchema>;
+export const LEAVE_TYPES = leaveTypes;
 export type ChangePasswordValues = z.infer<typeof changePasswordSchema>;
 export type ResetPasswordValues = z.infer<typeof resetPasswordSchema>;
 export type StaffRoleValues = z.infer<typeof staffRoleSchema>;

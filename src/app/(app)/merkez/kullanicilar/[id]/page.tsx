@@ -6,7 +6,7 @@ import { MembershipForm, ResetPasswordForm, StaffRoleForm } from "@/components/f
 import { hasPermission, requireStaff } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatDateTime } from "@/lib/format";
-import { changeMembershipRole, removeMembership, setOverride, setUserActive } from "@/app/actions/users";
+import { changeMembershipRole, removeMembership, setOverride, setStaffOverride, setUserActive } from "@/app/actions/users";
 import type { Permission, Profile, Role } from "@/lib/types";
 
 type Member = {
@@ -39,7 +39,8 @@ export default async function UserDetail({ params }: PageProps<"/merkez/kullanic
     supabase.from("role_permissions").select("role_id, permission_code"),
   ]);
   const roles = (allRoles ?? []) as Role[];
-  const permissions = ((perms ?? []) as Permission[]).filter(customerGrantable);
+  const allPermissions = (perms ?? []) as Permission[];
+  const permissions = allPermissions.filter(customerGrantable);
   const customerRoles = roles.filter((r) => r.scope === "customer");
   const staffRoles = roles.filter((r) => r.scope === "staff" && (r.code !== "super_admin" || me.roleCode === "super_admin"));
   const roleGrants = new Map<string, Set<string>>();
@@ -67,6 +68,17 @@ export default async function UserDetail({ params }: PageProps<"/merkez/kullanic
   }
 
   const isSelf = me.id === u.id;
+  const staffOverrides = new Map<string, boolean>();
+  if (u.kind === "staff") {
+    const { data: so } = await supabase.from("staff_permission_overrides").select("permission_code, is_allowed").eq("user_id", id);
+    (so ?? []).forEach((o) => staffOverrides.set(o.permission_code as string, o.is_allowed as boolean));
+  }
+  const isTargetSuper = u.roles?.name === "Süper Yönetici";
+  const canEditStaffPerms = me.roleCode === "super_admin" && u.kind === "staff" && !isTargetSuper;
+  const staffBase = roleGrants.get(u.staff_role_id ?? "") ?? new Set<string>();
+  const byModule = new Map<string, Permission[]>();
+  allPermissions.forEach((p) => byModule.set(p.module, [...(byModule.get(p.module) ?? []), p]));
+  const moduleLabel: Record<string, string> = { yonetim: "Yönetim", projeler: "Projeler", personel: "Personel & izin", belgeler: "Belgeler", finans: "Finans & cari hesap", iletisim: "İletişim", raporlar: "Raporlar" };
 
   return (
     <>
@@ -112,6 +124,60 @@ export default async function UserDetail({ params }: PageProps<"/merkez/kullanic
             <p className="p-5 text-sm text-muted">Kullanıcıları yönetme yetkiniz yok.</p>
           )}
         </Card>
+
+        {u.kind === "staff" && (
+          <Card>
+            <CardHeader
+              title="Kişiye özel yetkiler"
+              description={isTargetSuper ? "Süper yönetici tüm yetkilere sahiptir; kısıtlanamaz." : "Rol bir şablondur. Aşağıdan bu kişi için tek tek izin verebilir veya engelleyebilirsiniz."}
+              action={<span className="text-sm text-muted">{staffOverrides.size} kişiye özel ayar</span>}
+            />
+            {isTargetSuper ? null : (
+              <div className="divide-y divide-border">
+                {[...byModule.entries()].map(([mod, list]) => (
+                  <details key={mod} open={list.some((p) => staffOverrides.has(p.code))} className="group">
+                    <summary className="flex cursor-pointer items-center justify-between px-5 py-3 text-sm font-semibold">
+                      {moduleLabel[mod] ?? mod}
+                      <span className="text-xs font-normal text-muted">{list.filter((p) => staffOverrides.has(p.code)).length || ""}</span>
+                    </summary>
+                    <ul className="divide-y divide-border border-t border-border bg-surface-2/40">
+                      {list.map((p) => {
+                        const state = staffOverrides.has(p.code) ? (staffOverrides.get(p.code) ? "allow" : "deny") : "default";
+                        const effective = state === "allow" || (state === "default" && staffBase.has(p.code));
+                        return (
+                          <li key={p.code} className="flex flex-wrap items-center justify-between gap-3 px-5 py-2.5 text-sm">
+                            <span>
+                              {p.description}
+                              <span className={cn("ml-2 text-xs", effective ? "text-success" : "text-muted")}>{effective ? "• yapabilir" : "• yapamaz"}</span>
+                            </span>
+                            {canEditStaffPerms ? (
+                              <form action={setStaffOverride} className="inline-flex overflow-hidden rounded-lg border border-border bg-surface text-xs">
+                                <input type="hidden" name="user_id" value={u.id} />
+                                <input type="hidden" name="permission_code" value={p.code} />
+                                {([["default", `Rol (${staffBase.has(p.code) ? "var" : "yok"})`], ["allow", "İzin ver"], ["deny", "Engelle"]] as const).map(([mode, text]) => (
+                                  <button
+                                    key={mode}
+                                    name="mode"
+                                    value={mode}
+                                    aria-pressed={state === mode}
+                                    className={cn("px-2.5 py-1.5", state === mode ? (mode === "deny" ? "bg-danger-soft text-danger" : mode === "allow" ? "bg-success-soft text-success" : "bg-brand-soft text-brand") : "text-muted hover:bg-surface-2")}
+                                  >
+                                    {text}
+                                  </button>
+                                ))}
+                              </form>
+                            ) : null}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </details>
+                ))}
+              </div>
+            )}
+            {!canEditStaffPerms && !isTargetSuper && <p className="border-t border-border px-5 py-3 text-xs text-muted">Kişiye özel yetkiyi yalnızca süper yönetici değiştirebilir.</p>}
+          </Card>
+        )}
 
         {u.kind === "customer" && (
           <>

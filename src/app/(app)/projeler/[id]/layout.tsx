@@ -6,7 +6,7 @@ import { can, getProjectContext } from "@/lib/project";
 import { getCurrentUser } from "@/lib/auth";
 import { getServiceLines } from "@/lib/lines";
 
-const statusLabel = { active: "Aktif", paused: "Duraklatıldı", closed: "Kapandı" } as const;
+const statusLabel = { active: "Aktif", paused: "Duraklatıldı", closed: "Pasif" } as const;
 const statusTone = { active: "success", paused: "warning", closed: "neutral" } as const;
 
 export default async function ProjectLayout({ children, params }: LayoutProps<"/projeler/[id]">) {
@@ -17,14 +17,14 @@ export default async function ProjectLayout({ children, params }: LayoutProps<"/
   const base = `/projeler/${id}`;
 
   const hasAnyDocs = ["personnel.files.read", "contracts.read", "payroll.read", "timesheets.read", "leaves.read", "invoices.read", "payments.read", "documents.read", "documents.manage"].some((p) => can(ctx, p));
-  const hasFinance = ["invoices.read", "payments.read", "ledger.read", "finance.manage"].some((p) => can(ctx, p));
+  const hasFinance = ["ledger.read", "finance.manage"].some((p) => can(ctx, p));
 
   const tabs: TabItem[] = [{ href: base, label: "Genel", exact: true }];
   if (can(ctx, "personnel.read")) tabs.push({ href: `${base}/personel`, label: "Personel" });
   if (can(ctx, "timesheets.read")) tabs.push({ href: `${base}/puantaj`, label: "Puantaj" });
   if (can(ctx, "leaves.read")) tabs.push({ href: `${base}/izinler`, label: "Yıllık izin" });
   if (hasAnyDocs) tabs.push({ href: `${base}/belgeler`, label: "Belgeler" });
-  if (hasFinance) tabs.push({ href: `${base}/finans`, label: "Fatura & cari hesap" });
+  if (hasFinance) tabs.push({ href: `${base}/finans`, label: "Cari hesap" });
   if (can(ctx, "imports.manage")) tabs.push({ href: `${base}/aktar`, label: "Excel aktar" });
   if (can(ctx, "messages.use") || can(ctx, "messages.manage")) tabs.push({ href: `${base}/mesajlar`, label: "Yazışma" });
 

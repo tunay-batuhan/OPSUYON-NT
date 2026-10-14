@@ -66,3 +66,23 @@ export function isoDayFromNow(offsetDays = 0): string {
 export function isoTimeFromNow(offsetMs: number): string {
   return new Date(Date.now() + offsetMs).toISOString();
 }
+
+/** "atlas PLAZA güvenlik" → "Atlas Plaza Güvenlik" (Turkish-aware, also after - / and parentheses). */
+export function toTitleCase(input: string): string {
+  return input
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLocaleLowerCase("tr")
+    .replace(/(^|[\s\-/(])(\p{L})/gu, (_, sep: string, ch: string) => sep + ch.toLocaleUpperCase("tr"));
+}
+
+export const LEAVE_TYPE_LABELS: Record<string, string> = {
+  yillik: "Yıllık İzin",
+  ucretsiz: "Ücretsiz İzin",
+  raporlu: "Raporlu (İstirahat)",
+  mazeret: "Mazeret İzni",
+  evlilik: "Evlilik İzni",
+  dogum: "Doğum İzni",
+  olum: "Ölüm İzni",
+  diger: "Diğer",
+};

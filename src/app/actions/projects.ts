@@ -5,9 +5,10 @@ import { redirect } from "next/navigation";
 import { assertStaff } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { guard, nul, pgMessage, str, validate } from "@/lib/form";
+import { toTitleCase } from "@/lib/format";
 import {
-  organizationSchema, projectCreateSchema, projectUpdateSchema,
-  type OrganizationValues, type ProjectCreateValues, type ProjectUpdateValues,
+  organizationSchema, organizationUpdateSchema, projectCreateSchema, projectUpdateSchema,
+  type OrganizationUpdateValues, type OrganizationValues, type ProjectCreateValues, type ProjectUpdateValues,
 } from "@/lib/schemas";
 import type { ActionState } from "@/lib/action-types";
 
@@ -58,11 +59,11 @@ export async function createProject(values: ProjectCreateValues): Promise<Action
     const { data, error } = await supabase
       .from("projects")
       .insert({
-        name: d.name,
+        name: toTitleCase(d.name),
         organization_id: d.organization_id,
         service_line: d.service_line,
         code: nul(d.code),
-        address: nul(d.address),
+        address: d.address ? toTitleCase(d.address) : null,
         start_date: nul(d.start_date),
         end_date: nul(d.end_date),
       })
@@ -88,10 +89,10 @@ export async function updateProject(values: ProjectUpdateValues): Promise<Action
     const { error } = await supabase
       .from("projects")
       .update({
-        name: d.name,
+        name: toTitleCase(d.name),
         status: d.status,
         code: nul(d.code),
-        address: nul(d.address),
+        address: d.address ? toTitleCase(d.address) : null,
         start_date: nul(d.start_date),
         end_date: nul(d.end_date),
         notes: nul(d.notes),
@@ -103,5 +104,35 @@ export async function updateProject(values: ProjectUpdateValues): Promise<Action
     }
     revalidatePath(`/projeler/${d.id}`, "layout");
     return { ok: true, message: "Proje güncellendi." };
+  });
+}
+
+export async function updateOrganization(values: OrganizationUpdateValues): Promise<ActionState> {
+  return guard(async () => {
+    await assertStaff("organizations.manage");
+    const v = validate(organizationUpdateSchema, values);
+    if (!v.ok) return v.state;
+    const d = v.data;
+
+    const supabase = await createClient();
+    const { error } = await supabase
+      .from("organizations")
+      .update({
+        name: d.name,
+        legal_name: nul(d.legal_name),
+        tax_office: d.tax_office,
+        tax_no: d.tax_no,
+        address: d.address,
+        phone: d.phone,
+        email: nul(d.email),
+      })
+      .eq("id", d.id);
+    if (error) {
+      if (error.code === "23505") return { error: "Bu vergi numarasıyla kayıtlı başka bir firma var.", fieldErrors: { tax_no: "Bu vergi numarası zaten kayıtlı" } };
+      return { error: pgMessage(error) };
+    }
+    revalidatePath("/merkez/firmalar");
+    revalidatePath(`/merkez/firmalar/${d.id}`);
+    return { ok: true, message: "Firma bilgileri güncellendi." };
   });
 }

@@ -12,6 +12,7 @@ const lineIcons: Record<string, LucideIcon> = {
   "shield-check": ShieldCheck,
   sparkles: Sparkles,
   briefcase: Briefcase,
+  "building-2": Building2,
 };
 export function LineIcon({ name, className }: { name?: string | null; className?: string }) {
   const Icon = (name && lineIcons[name]) || Building2;

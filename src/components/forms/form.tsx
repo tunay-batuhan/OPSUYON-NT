@@ -9,6 +9,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import type { z } from "zod";
 import { AlertCircle, CheckCircle2, ChevronDown, Eye, EyeOff, Loader2 } from "lucide-react";
 import type { ActionState } from "@/lib/action-types";
+import { toTitleCase } from "@/lib/format";
 import { btn, cn } from "@/components/ui";
 
 /* ------------------------------------------------------------------ */
@@ -117,8 +118,10 @@ function useField(name: string) {
 
 export function TextField({
   name, label, hint, required, className, disabled,
-  type = "text", placeholder, autoComplete, inputMode, prefix, suffix, maxLength,
+  type = "text", placeholder, autoComplete, inputMode, prefix, suffix, maxLength, titleCase,
 }: Common & {
+  /** Her kelimenin ilk harfini büyütür (alandan çıkınca). */
+  titleCase?: boolean;
   type?: "text" | "email" | "tel" | "date" | "number";
   placeholder?: string;
   autoComplete?: string;
@@ -128,6 +131,8 @@ export function TextField({
   maxLength?: number;
 }) {
   const { id, error, register, invalid } = useField(name);
+  const { setValue } = useFormContext();
+  const reg = register(name);
   return (
     <Shell id={id} label={label} hint={hint} required={required} error={error} className={className}>
       <div className="relative">
@@ -143,7 +148,14 @@ export function TextField({
           aria-invalid={invalid || undefined}
           aria-describedby={error ? `${id}-err` : hint ? `${id}-hint` : undefined}
           className={cn(control, "h-10", prefix && "pl-8", suffix && "pr-9")}
-          {...register(name)}
+          {...reg}
+          onBlur={(e) => {
+            if (titleCase && e.target.value) {
+              const t = toTitleCase(e.target.value);
+              if (t !== e.target.value) setValue(name, t, { shouldDirty: true, shouldValidate: true });
+            }
+            reg.onBlur(e);
+          }}
         />
         {suffix && <span className="pointer-events-none absolute inset-y-0 right-3 grid place-items-center text-sm text-muted">{suffix}</span>}
       </div>

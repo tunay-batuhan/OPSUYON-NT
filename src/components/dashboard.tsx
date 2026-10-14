@@ -46,7 +46,7 @@ export async function Dashboard({ user }: { user: CurrentUser }) {
   return (
     <div className="space-y-6">
       {/* service line cards */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(16rem, 1fr))" }}>
         {visibleLines.map(({ line, projects: pc, people }) => (
           <Link
             key={line.code}
@@ -64,7 +64,7 @@ export async function Dashboard({ user }: { user: CurrentUser }) {
           </Link>
         ))}
         {visibleLines.length === 0 && (
-          <Card className="md:col-span-3">
+          <Card className="col-span-full">
             <EmptyState title="Henüz size atanmış bir hizmet alanı yok" description="Merkez projenizi tanımladığında burada görünür." />
           </Card>
         )}

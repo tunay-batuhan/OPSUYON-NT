@@ -2,7 +2,7 @@
 // Header matching is tolerant (Turkish characters, case, spacing, synonyms),
 // so customers' own sheets usually work without renaming columns.
 
-export type ImportType = "timesheet" | "leave" | "personnel";
+export type ImportType = "timesheet" | "leave" | "personnel" | "ledger";
 
 export type ColumnDef = {
   key: string;
@@ -73,7 +73,21 @@ export const IMPORT_DEFS: Record<ImportType, ImportDef> = {
       { key: "national_id", label: "TC Kimlik No", aliases: ["tc", "tckn", "tc no", "kimlik no"], example: "", note: "Yalnızca hassas veri yetkisi olanlar" },
       { key: "iban", label: "IBAN", aliases: ["iban no"], example: "", note: "Yalnızca hassas veri yetkisi olanlar" },
       { key: "position", label: "Görev", aliases: ["projedeki görev", "görevi"], example: "Güvenlik görevlisi" },
-      { key: "shift", label: "Vardiya", aliases: ["çalışma saatleri", "mesai saatleri"], example: "08:00-20:00" },
+    ],
+  },
+  ledger: {
+    type: "ledger",
+    title: "Cari hesap ekstresi",
+    description: "Muhasebenin hazırladığı cari ekstre. Yüklenen dosya mevcut ekstrenin yerine geçer; SON satırdaki bakiye güncel bakiye olarak gösterilir.",
+    permission: "finance.manage",
+    usesPeriod: null,
+    columns: [
+      { key: "entry_date", label: "Tarih", aliases: ["işlem tarihi", "belge tarihi", "fiş tarihi"], example: "05.09.2026", required: true, note: "GG.AA.YYYY veya YYYY-AA-GG" },
+      { key: "ref_no", label: "Belge No", aliases: ["evrak no", "fiş no", "fatura no", "belge numarası", "evrak numarası"], example: "FTR-2026-0142" },
+      { key: "description", label: "Açıklama", aliases: ["işlem açıklaması", "detay", "açıklama / detay"], example: "Eylül 2026 hizmet bedeli" },
+      { key: "debit", label: "Borç", aliases: ["borç tutarı", "borc", "fatura tutarı", "debit"], example: "12.000,00", note: "Kesilen fatura / müşteri borcu" },
+      { key: "credit", label: "Alacak", aliases: ["alacak tutarı", "tahsilat", "ödeme", "credit"], example: "0", note: "Yapılan ödeme / tahsilat" },
+      { key: "balance", label: "Bakiye", aliases: ["kalan", "güncel bakiye", "bakiye tutarı", "kümülatif bakiye"], example: "12.000,00", note: "Boşsa borç − alacak ile hesaplanır. Pozitif = müşteri borçlu" },
     ],
   },
 };

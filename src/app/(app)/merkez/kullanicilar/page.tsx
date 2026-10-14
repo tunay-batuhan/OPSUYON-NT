@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { Badge, Card, CardHeader, EmptyState, PageHeader, Table, td } from "@/components/ui";
-import { UserForm } from "@/components/forms/user-forms";
+import { CustomerUserForm, StaffUserForm } from "@/components/forms/user-forms";
 import { hasPermission, requireStaff } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatDateTime } from "@/lib/format";
@@ -24,7 +24,7 @@ export default async function UsersPage({ searchParams }: PageProps<"/merkez/kul
   ]);
   const rows = (data ?? []) as unknown as Row[];
   const manage = hasPermission(user, "users.manage");
-  const allRoles = (roles ?? []) as (Pick<Role, "id" | "code" | "name" | "scope">)[];
+  const allRoles = (roles ?? []) as Pick<Role, "id" | "code" | "name" | "scope">[];
   const staffRoles = allRoles.filter((r) => r.scope === "staff" && (r.code !== "super_admin" || user.roleCode === "super_admin"));
   const customerRoles = allRoles.filter((r) => r.scope === "customer");
   const orgList = (orgs ?? []) as Pick<Organization, "id" | "name">[];
@@ -33,13 +33,13 @@ export default async function UsersPage({ searchParams }: PageProps<"/merkez/kul
     <>
       <PageHeader
         title="Kullanıcılar & hesaplar"
-        description="Müşteriler kendileri kayıt olamaz. Hesabı siz açar, kullanıcı adı ve parolayı onlara iletirsiniz."
+        description="Firmaları ve hesapları yalnızca merkez tanımlar. Müşteri, kendisine tanımlanan kullanıcı adı ve parola ile aynı giriş ekranından girer; yetkisi olan ekranlar otomatik açılır."
       />
       <div className="space-y-6">
         {manage && (
           <Card id="yeni">
             <CardHeader
-              title="Yeni hesap aç"
+              title="Müşteri hesabı aç"
               description="1) Firmayı seçin  2) Erişeceği projeleri işaretleyin  3) Oluşan kullanıcı adı ve parolayı müşteriye iletin."
             />
             {orgList.length === 0 ? (
@@ -49,15 +49,22 @@ export default async function UsersPage({ searchParams }: PageProps<"/merkez/kul
                   <Link href="/merkez/firmalar#yeni" className="font-medium underline">Firma ekle</Link>
                 </p>
               </div>
-            ) : null}
-            <UserForm
-              orgs={orgList.map((o) => ({ value: o.id, label: o.name }))}
-              projects={((projects ?? []) as { id: string; name: string; organization_id: string }[]).map((p) => ({ value: p.id, label: p.name, organization_id: p.organization_id }))}
-              customerRoles={customerRoles.map((r) => ({ value: r.id, label: r.name }))}
-              defaultRoleId={customerRoles.find((r) => r.code === "customer_manager")?.id}
-              staffRoles={staffRoles.map((r) => ({ value: r.id, label: r.name }))}
-              defaultOrgId={defaultOrgId}
-            />
+            ) : (
+              <CustomerUserForm
+                orgs={orgList.map((o) => ({ value: o.id, label: o.name }))}
+                projects={((projects ?? []) as { id: string; name: string; organization_id: string }[]).map((p) => ({ value: p.id, label: p.name, organization_id: p.organization_id }))}
+                customerRoles={customerRoles.map((r) => ({ value: r.id, label: r.name }))}
+                defaultRoleId={customerRoles.find((r) => r.code === "customer_manager")?.id}
+                defaultOrgId={defaultOrgId}
+              />
+            )}
+          </Card>
+        )}
+
+        {manage && user.roleCode === "super_admin" && (
+          <Card id="merkez">
+            <CardHeader title="Merkez personeli ekle" description="Her merkez kullanıcısına ayrı yetki verebilirsiniz: hesabı açtıktan sonra kullanıcı sayfasından tek tek izin verin veya engelleyin." />
+            <StaffUserForm staffRoles={staffRoles.map((r) => ({ value: r.id, label: r.name }))} />
           </Card>
         )}
 

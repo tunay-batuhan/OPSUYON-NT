@@ -1,6 +1,6 @@
 import Link from "next/link";
 import {
-  ArrowRight, Building2, CalendarDays, FileText, FolderOpen, Globe, Settings, ShieldCheck, Truck, UserRound,
+  ArrowRight, CalendarDays, FileText, FolderOpen, Globe, LogIn, Settings, ShieldCheck, Truck, UserRound,
 } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { btn, lineColor, LineIcon } from "@/components/ui";
@@ -30,25 +30,13 @@ export default async function Home() {
         </div>
 
         <div className="flex flex-col items-end gap-3">
-          {user ? (
-            <Link href={homePathFor(user)} className={btn("primary", "lg")}>
-              Panele git <ArrowRight className="size-5" aria-hidden />
-            </Link>
-          ) : (
-            <Link
-              href="/giris/merkez"
-              className="group flex items-center gap-3 rounded-2xl border border-border bg-surface px-4 py-2.5 shadow-card transition hover:-translate-y-0.5 hover:border-brand sm:px-5 sm:py-3"
-            >
-              <span className="grid size-10 place-items-center rounded-xl bg-navy text-white" aria-hidden>
-                <Building2 className="size-5" />
-              </span>
-              <span className="text-left leading-tight">
-                <span className="block text-base font-semibold sm:text-lg">Merkez girişi</span>
-                <span className="hidden text-xs text-muted sm:block">Yönetim paneli</span>
-              </span>
-              <ArrowRight className="size-5 text-brand transition-transform group-hover:translate-x-1" aria-hidden />
-            </Link>
-          )}
+          <Link href={user ? homePathFor(user) : "/giris"} className={btn("primary", "lg", "px-8 text-base shadow-card")}>
+            {user ? (
+              <>Panele git <ArrowRight className="size-5" aria-hidden /></>
+            ) : (
+              <><LogIn className="size-5" aria-hidden /> Giriş Yap</>
+            )}
+          </Link>
           <p className="hidden max-w-xs text-right text-2xl font-semibold italic leading-snug text-navy md:block">
             {BRAND_SLOGAN}
             <span aria-hidden className="mt-1 block h-1 w-48 -rotate-2 rounded-full bg-accent md:ml-auto" />
@@ -65,25 +53,21 @@ export default async function Home() {
             <Globe className="size-5" aria-hidden /> {BRAND_DOMAIN}
           </span>
 
-          <p className="mb-3 mt-12 text-sm font-semibold uppercase tracking-wider text-muted">Hizmet alanınızı seçerek giriş yapın</p>
-          <div className="grid gap-4 md:grid-cols-3">
+          <p className="mb-3 mt-12 text-sm font-semibold uppercase tracking-wider text-muted">Hizmet alanlarımız</p>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {lines.map((line) => (
-              <Link
+              <div
                 key={line.code}
-                href={`/giris/${line.code}`}
-                className="group relative flex min-h-40 flex-col justify-between overflow-hidden rounded-2xl p-6 text-white shadow-card transition hover:-translate-y-1"
+                className="relative flex min-h-40 flex-col justify-between overflow-hidden rounded-2xl p-6 text-white shadow-card"
                 style={{ background: `linear-gradient(135deg, ${lineColor(line.code)}, color-mix(in oklab, ${lineColor(line.code)} 76%, black))` }}
               >
-                <LineIcon name={line.icon} className="size-11" />
+                <LineIcon name={line.icon} className="size-10" />
                 <div>
-                  <h2 className="text-xl font-semibold">{line.name} Yönetimi</h2>
+                  <h2 className="text-lg font-semibold">{line.name} Yönetimi</h2>
                   <p className="mt-1 text-sm text-white/85">{line.description}</p>
                 </div>
-                <span className="absolute right-5 top-5 inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1 text-sm font-medium backdrop-blur">
-                  Giriş yap <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" aria-hidden />
-                </span>
-                <span aria-hidden className="pointer-events-none absolute -bottom-10 -right-8 size-36 rounded-full bg-white/10" />
-              </Link>
+                <span aria-hidden className="pointer-events-none absolute -bottom-10 -right-8 size-32 rounded-full bg-white/10" />
+              </div>
             ))}
           </div>
         </section>

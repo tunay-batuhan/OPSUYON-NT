@@ -8,8 +8,9 @@ import { ImportWizard } from "./import-wizard";
 
 type Rec = { id: string; kind: string; file_name: string; status: string; total_rows: number | null; success_rows: number | null; error_rows: number | null; created_at: string };
 
-export default async function ImportPage({ params }: PageProps<"/projeler/[id]/aktar">) {
+export default async function ImportPage({ params, searchParams }: PageProps<"/projeler/[id]/aktar">) {
   const { id } = await params;
+  const sp = await searchParams;
   const ctx = await getProjectContext(id);
   if (!can(ctx, "imports.manage")) notFound();
 
@@ -38,7 +39,7 @@ export default async function ImportPage({ params }: PageProps<"/projeler/[id]/a
           title="Excel ile toplu aktarım"
           description="Dosyayı yükleyin, önizlemede hataları görün, onaylayınca projeye işlensin. Hatalı satırlar atlanır; diğerleri aktarılır."
         />
-        <ImportWizard projectId={id} defs={defs} />
+        <ImportWizard projectId={id} defs={defs} defaultType={typeof sp.tur === "string" ? sp.tur : undefined} />
       </Card>
 
       <Card>

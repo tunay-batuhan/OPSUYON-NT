@@ -77,7 +77,7 @@ export default async function ProjectsListPage({ searchParams }: PageProps<"/pro
                     <LineIcon name={line?.icon} className="size-5" />
                   </span>
                   <Badge tone={p.status === "active" ? "success" : p.status === "paused" ? "warning" : "neutral"}>
-                    {p.status === "active" ? "Aktif" : p.status === "paused" ? "Duraklatıldı" : "Kapandı"}
+                    {p.status === "active" ? "Aktif" : p.status === "paused" ? "Duraklatıldı" : "Pasif"}
                   </Badge>
                 </div>
                 <h2 className="mt-4 font-semibold">{p.name}</h2>

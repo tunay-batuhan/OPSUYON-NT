@@ -30,7 +30,12 @@ export async function prepareUpload(input: {
   fileName: string;
 }): Promise<{ error: string } | PreparedUpload> {
   try {
-    await assertStaff("documents.manage");
+    // belge yöneticisi veya izin yöneticisi (izin evrakı yüklemek için) yükleyebilir
+    try {
+      await assertStaff("documents.manage");
+    } catch {
+      await assertStaff("leaves.manage");
+    }
     if (!/^[0-9a-f-]{36}$/i.test(input.projectId) || !/^[a-z][a-z0-9_]*$/.test(input.category)) {
       return { error: "Geçersiz istek." };
     }

@@ -25,6 +25,15 @@ Veritabanı şeması `supabase/migrations/` altındadır ve sırayla uygulanır:
 | `…0500_operations_finance` | puantaj, izin, fatura, ödeme, cari hesap, içe aktarma kayıtları |
 | `…0600_messaging_audit` | merkez ile yazışma, işlem geçmişi |
 | `…0700_public_landing` | açılış sayfası için halka açık hizmet alanları |
+| `…0800_shifts_reports_notifications` | vardiya planı, raporlar, bildirim sayaçları |
+| `…0900_notes_round` | Danışma ve Tesis hizmet alanı, kişiye özel merkez yetkisi, Excel cari ekstre, izin kayıtları, otomatik pasife alma |
+
+Test / demo hesapları (müşteri denemesi için):
+
+```bash
+node --env-file=.env scripts/seed-demo.mjs           # kurar (varsa dokunmaz)
+node --env-file=.env scripts/seed-demo.mjs --reset   # silip yeniden kurar
+```
 
 İlk süper yönetici:
 
@@ -34,8 +43,9 @@ node --env-file=.env scripts/bootstrap-admin.mjs --username=admin --name="Ad Soy
 
 ## Mimari notlar
 
-- **Giriş:** kullanıcı adı + parola. Supabase Auth e-posta ister; `kullanici@portal.opsuyon.com`
+- **Giriş:** tek ekran (`/giris`), kullanıcı adı + parola; hesabın türü ve yetkisi açılacak ekranları belirler. Supabase Auth e-posta ister; `kullanici@portal.opsuyon.com`
   biçiminde iç bir adres türetilir (e-posta gönderilmez). Açık kayıt kapalıdır.
+- **Cari hesap:** muhasebe Excel ekstreyi yükler (Proje → Excel aktar); son satırın bakiyesi güncel bakiyedir.
 - **Yetki modeli:** `permissions` (katalog) → `roles` → `role_permissions`. Müşteri erişimi
   `project_members` (proje başına rol) + `member_permission_overrides` (kişiye özel izin ver / engelle).
   Güvenlik **RLS** ile veritabanında sağlanır; arayüzdeki gizlemeler yalnızca kolaylıktır.
