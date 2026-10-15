@@ -65,7 +65,7 @@ export default async function LedgerPage({ params }: PageProps<"/projeler/[id]/f
             description={manage ? "Muhasebenin hazırladığı Excel cari ekstresini yükleyin; son satırdaki bakiye güncel bakiye olur." : "Merkez cari ekstresini yüklediğinde burada görünür."}
           />
         ) : (
-          <Table head={["Tarih", "Tür", "Belge no", "Açıklama", "Borç", "Alacak", "Bakiye"]}>
+          <Table numeric={[4, 5, 6]} head={["Tarih", "Tür", "Belge no", "Açıklama", "Borç", "Alacak", "Bakiye"]}>
             {statement.map((r, i) => (
               <tr key={i} className={i === statement.length - 1 ? "bg-brand-soft/40 font-medium" : undefined}>
                 <td className={td}>{formatDate(r.entry_date)}</td>

@@ -65,7 +65,7 @@ export default async function LeavesPage({ params, searchParams }: PageProps<"/p
         {rows.length === 0 ? (
           <EmptyState title="Bu yıl için izin bilgisi girilmemiş" />
         ) : (
-          <Table head={["Personel", "Hak edilen", "Devreden", "Kullanılan", "Kalan"]}>
+          <Table numeric={[1, 2, 3, 4]} head={["Personel", "Hak edilen", "Devreden", "Kullanılan", "Kalan"]}>
             {rows.map((r) => (
               <tr key={r.id}>
                 <td className={cn(td, "font-medium")}>{r.personnel?.full_name}</td>

@@ -101,7 +101,7 @@ export default async function PersonnelDetail({ params }: PageProps<"/merkez/per
           {(leaves ?? []).length === 0 ? (
             <EmptyState title="İzin kaydı yok" />
           ) : (
-            <Table head={["Yıl", "Hak edilen", "Devreden", "Kullanılan", "Kalan"]}>
+            <Table numeric={[1, 2, 3, 4]} head={["Yıl", "Hak edilen", "Devreden", "Kullanılan", "Kalan"]}>
               {((leaves ?? []) as LeaveBalance[]).map((l) => (
                 <tr key={l.id}>
                   <td className={td}>{l.year}</td>

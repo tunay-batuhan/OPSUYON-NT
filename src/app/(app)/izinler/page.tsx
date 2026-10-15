@@ -87,7 +87,7 @@ export default async function LeavesAllPage({ searchParams }: PageProps<"/izinle
           {records.length === 0 ? (
             <EmptyState title="Bu yıl için izin kaydı yok" description={manage ? "Aşağıdaki formdan izin ekleyebilirsiniz." : undefined} />
           ) : (
-            <Table head={["Personel", "Kategori", "Başlangıç", "Son tarih", "İşe başlama", "Süre", "Kalan izin", "Evrak", manage ? "" : null].filter((h) => h !== null)}>
+            <Table numeric={[5, 6]} head={["Personel", "Kategori", "Başlangıç", "Son tarih", "İşe başlama", "Süre", "Kalan izin", "Evrak", manage ? "" : null].filter((h) => h !== null)}>
               {records.map((r) => {
                 const left = remainingFor(r.personnel_id);
                 return (
@@ -123,7 +123,7 @@ export default async function LeavesAllPage({ searchParams }: PageProps<"/izinle
           {balances.length === 0 ? (
             <EmptyState title="Bu yıl için izin bakiyesi yok" />
           ) : (
-            <Table head={["Personel", "Proje", "Hak edilen", "Devreden", "Kullanılan", "Kalan (kayıtlar dahil)"]}>
+            <Table numeric={[2, 3, 4, 5]} head={["Personel", "Proje", "Hak edilen", "Devreden", "Kullanılan", "Kalan (kayıtlar dahil)"]}>
               {balances.map((b) => {
                 const left = remainingFor(b.personnel_id) ?? Number(b.remaining_days);
                 return (

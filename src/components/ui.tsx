@@ -200,14 +200,14 @@ export function Notice({ tone = "warning", children }: { tone?: "warning" | "dan
 /* ------------------------------------------------------------------ */
 /* Tables                                                              */
 /* ------------------------------------------------------------------ */
-export function Table({ head, children, className }: { head: ReactNode[]; children: ReactNode; className?: string }) {
+export function Table({ head, children, className, numeric = [] }: { head: ReactNode[]; children: ReactNode; className?: string; numeric?: number[] }) {
   return (
     <div className={cn("overflow-x-auto", className)}>
       <table className="w-full text-left text-sm">
         <thead>
           <tr className="border-b border-border bg-surface-2/60 text-xs uppercase tracking-wide text-muted">
             {head.map((h, i) => (
-              <th key={i} scope="col" className="whitespace-nowrap px-5 py-3 font-medium">
+              <th key={i} scope="col" className={cn("whitespace-nowrap px-5 py-3 font-medium", numeric.includes(i) && "text-right")}>
                 {h}
               </th>
             ))}

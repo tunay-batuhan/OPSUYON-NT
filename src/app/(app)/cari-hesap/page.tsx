@@ -37,7 +37,7 @@ export default async function LedgerAllPage() {
         {list.length === 0 ? (
           <EmptyState title="Görüntülenecek cari hesap yok" description="Merkez cari ekstresini yüklediğinde burada görünür." />
         ) : (
-          <Table head={["Proje", "Firma", "Ekstre tarihi", "Son güncelleme", "Güncel bakiye"]}>
+          <Table numeric={[4]} head={["Proje", "Firma", "Ekstre tarihi", "Son güncelleme", "Güncel bakiye"]}>
             {list.map(({ project, stmt }) => (
               <tr key={project.id}>
                 <td className={td}><Link href={`/projeler/${project.id}/finans`} className="font-medium hover:text-brand">{project.name}</Link></td>

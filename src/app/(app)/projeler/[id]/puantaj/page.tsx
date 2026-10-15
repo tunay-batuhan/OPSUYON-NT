@@ -89,7 +89,7 @@ export default async function TimesheetsPage({ params, searchParams }: PageProps
             action={<Link href={`/projeler/${id}/belgeler?kategori=puantaj`} className="text-sm font-medium text-brand">Puantaj belgelerine git</Link>}
           />
         ) : (
-          <Table head={["Personel", "Çalışılan gün", "İzin", "Devamsızlık", "Fazla mesai (sa)", "Not"]}>
+          <Table numeric={[1, 2, 3, 4]} head={["Personel", "Çalışılan gün", "İzin", "Devamsızlık", "Fazla mesai (sa)", "Not"]}>
             {rows.map((r) => (
               <tr key={r.id}>
                 <td className={cn(td, "font-medium")}>{r.personnel?.full_name}</td>

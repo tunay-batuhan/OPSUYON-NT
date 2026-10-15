@@ -58,7 +58,7 @@ export default async function TimesheetsAllPage({ searchParams }: PageProps<"/pu
         {rows.length === 0 ? (
           <EmptyState title="Bu dönem için puantaj yok" description={manage ? "Proje sayfasından girebilir veya Excel ile toplu aktarabilirsiniz." : undefined} />
         ) : (
-          <Table head={["Proje", "Personel", "Çalışılan gün", "İzin", "Devamsızlık", "Fazla mesai (sa)", manage ? "" : null].filter((h) => h !== null)}>
+          <Table numeric={[2, 3, 4, 5]} head={["Proje", "Personel", "Çalışılan gün", "İzin", "Devamsızlık", "Fazla mesai (sa)", manage ? "" : null].filter((h) => h !== null)}>
             {rows.map((r) => (
               <tr key={r.id}>
                 <td className={td}>{r.projects?.name}</td>

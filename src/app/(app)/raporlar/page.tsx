@@ -79,7 +79,7 @@ export default async function ReportsPage({ searchParams }: PageProps<"/raporlar
         {report.rows.length === 0 ? (
           <EmptyState title="Bu filtrelerle sonuç yok" />
         ) : (
-          <Table head={report.columns.map((c) => c.label)}>
+          <Table numeric={report.columns.flatMap((c, i) => (c.type === "number" || c.type === "money" ? [i] : []))} head={report.columns.map((c) => c.label)}>
             {report.rows.slice(0, 300).map((r, i) => (
               <tr key={i}>
                 {r.map((v, j) => {

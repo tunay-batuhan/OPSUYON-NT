@@ -47,7 +47,7 @@ export default async function ImportPage({ params, searchParams }: PageProps<"/p
         {history.length === 0 ? (
           <EmptyState title="Henüz aktarım yapılmadı" />
         ) : (
-          <Table head={["Dosya", "Tür", "Satır", "Aktarılan", "Hatalı", "Durum", "Tarih"]}>
+          <Table numeric={[2, 3, 4]} head={["Dosya", "Tür", "Satır", "Aktarılan", "Hatalı", "Durum", "Tarih"]}>
             {history.map((h) => (
               <tr key={h.id}>
                 <td className={td + " font-medium"}>{h.file_name}</td>
