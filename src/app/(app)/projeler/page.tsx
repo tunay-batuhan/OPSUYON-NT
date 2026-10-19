@@ -4,6 +4,7 @@ import { ArrowRight, MapPin } from "lucide-react";
 import { Badge, Card, EmptyState, PageHeader, cn, lineColor, LineIcon } from "@/components/ui";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
+import { requireModule } from "@/lib/modules";
 import { getServiceLines } from "@/lib/lines";
 import { createClient } from "@/lib/supabase/server";
 import type { Project } from "@/lib/types";
@@ -12,6 +13,7 @@ export const metadata: Metadata = { title: "Projeler" };
 
 export default async function ProjectsListPage({ searchParams }: PageProps<"/projeler">) {
   const user = await requireUser();
+  await requireModule("projeler");
   const { hat } = await searchParams;
   const activeLine = typeof hat === "string" ? hat : undefined;
   if (user.kind === "staff") redirect(activeLine ? `/merkez/projeler?hat=${encodeURIComponent(activeLine)}` : "/merkez/projeler");

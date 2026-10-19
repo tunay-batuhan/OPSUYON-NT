@@ -128,11 +128,11 @@ export function ProjectEditForm({
   );
 }
 
-export function PersonnelForm({ lines, canSensitive }: { lines: Option[]; canSensitive: boolean }) {
+export function PersonnelForm({ lines, orgs, canSensitive }: { lines: Option[]; orgs: Option[]; canSensitive: boolean }) {
   return (
     <Form
       schema={personnelSchema}
-      defaultValues={{ first_name: "", last_name: "", employee_no: "", title: "", service_line: "", hire_date: "", phone: "", email: "", national_id: "", iban: "" }}
+      defaultValues={{ first_name: "", last_name: "", employee_no: "", title: "", service_line: "", organization_id: "", hire_date: "", phone: "", email: "", national_id: "", iban: "" }}
       action={createPersonnel}
       className="space-y-4 p-5"
     >
@@ -142,10 +142,10 @@ export function PersonnelForm({ lines, canSensitive }: { lines: Option[]; canSen
         <TextField name="employee_no" label="Sicil no" />
         <TextField name="title" label="Ünvan" placeholder="Örn. Güvenlik görevlisi" />
         <SelectField name="service_line" label="Hizmet alanı" options={lines} />
+        <SelectField name="organization_id" label="Çalıştığı firma" options={orgs} hint="Personelin kadrosunda olduğu müşteri. Boşsa ilk atandığı projenin firması yazılır." />
         <TextField name="hire_date" type="date" label="İşe giriş" />
         <TextField name="phone" type="tel" label="Telefon" placeholder="0532 000 00 00" />
         <TextField name="email" type="email" label="E-posta" autoComplete="off" />
-        <span className="hidden sm:block" />
         {canSensitive && (
           <>
             <TextField name="national_id" label="TC kimlik no" inputMode="numeric" maxLength={11} hint="Algoritma ile doğrulanır; yalnızca yetkili merkez kullanıcıları görür" />
@@ -172,14 +172,15 @@ export function AssignForm({ projectId, candidates }: { projectId: string; candi
 }
 
 export function PersonnelEditForm({
-  person, lines, canSensitive,
+  person, lines, orgs, canSensitive,
 }: {
   person: {
     id: string; first_name: string; last_name: string; employee_no: string | null; title: string | null; service_line: string | null;
-    hire_date: string | null; phone: string | null; email: string | null; status: "active" | "passive" | "terminated";
+    organization_id: string | null; hire_date: string | null; phone: string | null; email: string | null; status: "active" | "passive" | "terminated";
     national_id: string | null; iban: string | null;
   };
   lines: Option[];
+  orgs: Option[];
   canSensitive: boolean;
 }) {
   return (
@@ -187,7 +188,7 @@ export function PersonnelEditForm({
       schema={personnelUpdateSchema}
       defaultValues={{
         id: person.id, first_name: person.first_name, last_name: person.last_name, employee_no: person.employee_no ?? "", title: person.title ?? "",
-        service_line: person.service_line ?? "", hire_date: person.hire_date ?? "", phone: person.phone ?? "", email: person.email ?? "",
+        service_line: person.service_line ?? "", organization_id: person.organization_id ?? "", hire_date: person.hire_date ?? "", phone: person.phone ?? "", email: person.email ?? "",
         national_id: person.national_id ?? "", iban: person.iban ?? "", status: person.status,
       }}
       action={updatePersonnel}
@@ -200,6 +201,7 @@ export function PersonnelEditForm({
         <TextField name="employee_no" label="Sicil no" />
         <TextField name="title" label="Ünvan" />
         <SelectField name="service_line" label="Hizmet alanı" options={lines} />
+        <SelectField name="organization_id" label="Çalıştığı firma" options={orgs} hint="Projeye atanmış personelin firması değiştirilemez." />
         <TextField name="hire_date" type="date" label="İşe giriş" />
         <TextField name="phone" type="tel" label="Telefon" />
         <TextField name="email" type="email" label="E-posta" autoComplete="off" />

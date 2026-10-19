@@ -26,12 +26,14 @@ export default async function PersonnelDetail({ params }: PageProps<"/merkez/per
   const sensitive = hasPermission(user, "personnel.sensitive.read");
   const manage = hasPermission(user, "personnel.manage");
   const lines = await getServiceLines();
-  const [{ data: person }, { data: assignments }, { data: leaves }, priv] = await Promise.all([
+  const [{ data: person }, { data: assignments }, { data: leaves }, priv, { data: orgRows }] = await Promise.all([
     supabase.from("personnel").select("*").eq("id", id).maybeSingle(),
     supabase.from("personnel_assignments").select("id, position, start_date, end_date, projects(id, name, organizations(name))").eq("personnel_id", id).order("start_date", { ascending: false }),
     supabase.from("leave_balances").select("*").eq("personnel_id", id).order("year", { ascending: false }),
     sensitive ? supabase.from("personnel_private").select("*").eq("personnel_id", id).maybeSingle() : null,
+    supabase.from("organizations").select("id, name").order("name"),
   ]);
+  const orgs = (orgRows ?? []) as { id: string; name: string }[];
   if (!person) notFound();
   const p = person as Personnel;
   const rows = (assignments ?? []) as unknown as Assignment[];
@@ -41,7 +43,7 @@ export default async function PersonnelDetail({ params }: PageProps<"/merkez/per
       <PageHeader
         eyebrow={<Link href="/merkez/personel" className="inline-flex items-center gap-1 hover:text-fg"><ChevronLeft className="size-4" aria-hidden /> Personel</Link>}
         title={p.full_name}
-        description={[p.title, p.employee_no && `Sicil ${p.employee_no}`].filter(Boolean).join(" · ")}
+        description={[p.title, orgs.find((o) => o.id === p.organization_id)?.name, p.employee_no && `Sicil ${p.employee_no}`].filter(Boolean).join(" · ")}
         actions={<Badge tone={p.status === "active" ? "success" : "neutral"}>{p.status === "active" ? "Aktif" : p.status === "passive" ? "Pasif" : "Ayrıldı"}</Badge>}
       />
 
@@ -51,11 +53,12 @@ export default async function PersonnelDetail({ params }: PageProps<"/merkez/per
             <CardHeader title="Personel kartı" description="Bilgileri düzenleyebilirsiniz. Ayrılan personel için durumu 'Ayrıldı' yapın." />
             <PersonnelEditForm
               person={{
-                id: p.id, first_name: p.first_name, last_name: p.last_name, employee_no: p.employee_no, title: p.title, service_line: p.service_line,
+                id: p.id, first_name: p.first_name, last_name: p.last_name, employee_no: p.employee_no, title: p.title, service_line: p.service_line, organization_id: p.organization_id,
                 hire_date: p.hire_date, phone: p.phone, email: p.email, status: p.status,
                 national_id: priv?.data?.national_id ?? null, iban: priv?.data?.iban ?? null,
               }}
               lines={lines.map((l) => ({ value: l.code, label: l.name }))}
+              orgs={orgs.map((o) => ({ value: o.id, label: o.name }))}
               canSensitive={sensitive}
             />
           </Card>

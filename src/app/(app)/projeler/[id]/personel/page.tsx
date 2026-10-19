@@ -42,7 +42,7 @@ export default async function ProjectPersonnel({ params, searchParams }: PagePro
   const manage = can(ctx, "personnel.manage");
   const assignedIds = new Set(all.filter((r) => !r.end_date).map((r) => r.personnel?.id));
   const candidates = manage
-    ? ((await supabase.from("personnel").select("id, full_name, title").neq("status", "terminated").order("full_name")).data ?? []).filter(
+    ? ((await supabase.from("personnel").select("id, full_name, title").neq("status", "terminated").or(`organization_id.is.null,organization_id.eq.${ctx.project.organization_id}`).order("full_name")).data ?? []).filter(
         (p) => !assignedIds.has(p.id),
       )
     : [];
@@ -111,7 +111,7 @@ export default async function ProjectPersonnel({ params, searchParams }: PagePro
 
       {manage && (
         <Card>
-          <CardHeader title="Personel ata" description="Merkezdeki personel havuzundan projeye görevlendirin." />
+          <CardHeader title="Personel ata" description="Bu projenin firmasının kadrosundaki (veya henüz bir firmaya bağlanmamış) personeli görevlendirin." />
           <AssignForm projectId={id} candidates={candidates.map((p) => ({ value: p.id, label: p.title ? `${p.full_name} — ${p.title}` : p.full_name }))} />
         </Card>
       )}

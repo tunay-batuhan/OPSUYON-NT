@@ -21,14 +21,15 @@ export default async function PersonnelPage({ searchParams }: PageProps<"/merkez
 
   let query = supabase.from("personnel").select("*").order("full_name").limit(300);
   if (q) query = query.ilike("full_name", `%${q.replace(/[%_]/g, "")}%`);
-  const [{ data }, lines] = await Promise.all([query, getServiceLines()]);
+  const [{ data }, lines, { data: orgRows }] = await Promise.all([query, getServiceLines(), supabase.from("organizations").select("id, name").order("name")]);
+  const orgs = (orgRows ?? []) as { id: string; name: string }[];
   const list = (data ?? []) as Personnel[];
   const manage = hasPermission(user, "personnel.manage");
   const sensitive = hasPermission(user, "personnel.sensitive.read");
 
   return (
     <>
-      <PageHeader title="Personel" description="Merkezin personel havuzu. Projelere atamalar proje sayfasından yapılır." />
+      <PageHeader title="Personel" description="Müşteri firmaların kadrosundaki personel. Projelere atamalar proje sayfasından yapılır." />
       <div className="space-y-6">
         <Card>
           <CardHeader
@@ -43,10 +44,11 @@ export default async function PersonnelPage({ searchParams }: PageProps<"/merkez
           {list.length === 0 ? (
             <EmptyState title="Personel bulunamadı" />
           ) : (
-            <Table head={["Ad soyad", "Sicil", "Ünvan", "Hizmet alanı", "İşe giriş", "Durum"]}>
+            <Table head={["Ad soyad", "Çalıştığı firma", "Sicil", "Ünvan", "Hizmet alanı", "İşe giriş", "Durum"]}>
               {list.map((p) => (
                 <tr key={p.id} className="hover:bg-surface-2">
                   <td className={td}><Link href={`/merkez/personel/${p.id}`} className="font-medium hover:text-brand">{p.full_name}</Link></td>
+                  <td className={td}>{orgs.find((o) => o.id === p.organization_id)?.name ?? "—"}</td>
                   <td className={td}>{p.employee_no ?? "—"}</td>
                   <td className={td}>{p.title ?? "—"}</td>
                   <td className={td}>{lines.find((l) => l.code === p.service_line)?.name ?? "—"}</td>
@@ -61,7 +63,7 @@ export default async function PersonnelPage({ searchParams }: PageProps<"/merkez
         {manage && (
           <Card id="yeni">
             <CardHeader title="Yeni personel" />
-            <PersonnelForm lines={lines.map((l) => ({ value: l.code, label: l.name }))} canSensitive={sensitive} />
+            <PersonnelForm lines={lines.map((l) => ({ value: l.code, label: l.name }))} orgs={orgs.map((o) => ({ value: o.id, label: o.name }))} canSensitive={sensitive} />
           </Card>
         )}
       </div>

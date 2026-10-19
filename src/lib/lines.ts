@@ -23,3 +23,8 @@ export async function getServiceLines(): Promise<ServiceLine[]> {
     return FALLBACK;
   }
 }
+
+/** { guvenlik: "Güvenlik", … } */
+export async function getLineNames(): Promise<Record<string, string>> {
+  return Object.fromEntries((await getServiceLines()).map((l) => [l.code, l.name]));
+}

@@ -4,6 +4,7 @@ import { Tabs, type TabItem } from "@/components/tabs";
 import { Badge, PageHeader, lineColor } from "@/components/ui";
 import { can, getProjectContext } from "@/lib/project";
 import { getCurrentUser } from "@/lib/auth";
+import { requireModule } from "@/lib/modules";
 import { getServiceLines } from "@/lib/lines";
 
 const statusLabel = { active: "Aktif", paused: "Duraklatıldı", closed: "Pasif" } as const;
@@ -11,6 +12,7 @@ const statusTone = { active: "success", paused: "warning", closed: "neutral" } a
 
 export default async function ProjectLayout({ children, params }: LayoutProps<"/projeler/[id]">) {
   const { id } = await params;
+  await requireModule("projeler");
   const [ctx, user, lines] = await Promise.all([getProjectContext(id), getCurrentUser(), getServiceLines()]);
   const { project } = ctx;
   const line = lines.find((l) => l.code === project.service_line);

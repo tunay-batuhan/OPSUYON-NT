@@ -27,12 +27,15 @@ Veritabanı şeması `supabase/migrations/` altındadır ve sırayla uygulanır:
 | `…0700_public_landing` | açılış sayfası için halka açık hizmet alanları |
 | `…0800_shifts_reports_notifications` | vardiya planı, raporlar, bildirim sayaçları |
 | `…0900_notes_round` | Danışma ve Tesis hizmet alanı, kişiye özel merkez yetkisi, Excel cari ekstre, izin kayıtları, otomatik pasife alma |
+| `20261019…customer_modules` | müşteri modül anahtarları (`app_modules`), Teknik Personel hizmeti, kıyafet / savunma / denetim / risk / cari ekstre belge türleri, personel → işveren firma |
+| `20261019…opsuyon_ai` | Opsüyon AI modül anahtarı |
 
 Test / demo hesapları (müşteri denemesi için):
 
 ```bash
 node --env-file=.env scripts/seed-demo.mjs           # kurar (varsa dokunmaz)
 node --env-file=.env scripts/seed-demo.mjs --reset   # silip yeniden kurar
+node --env-file=.env scripts/seed-docs.mjs           # ek örnek belgeler (denetim, kıyafet, savunma, izin formu…); tekrar çalıştırılabilir
 ```
 
 İlk süper yönetici:
@@ -49,6 +52,10 @@ node --env-file=.env scripts/bootstrap-admin.mjs --username=admin --name="Ad Soy
 - **Yetki modeli:** `permissions` (katalog) → `roles` → `role_permissions`. Müşteri erişimi
   `project_members` (proje başına rol) + `member_permission_overrides` (kişiye özel izin ver / engelle).
   Güvenlik **RLS** ile veritabanında sağlanır; arayüzdeki gizlemeler yalnızca kolaylıktır.
+- **Müşteri modülleri:** müşteri panelindeki her ekran `app_modules` tablosunda bir modüldür. Kapalı modül müşteri menüsünde görünmez
+  ve adresi 404 verir; merkez her zaman erişir. Açıp kapatmak için Merkez → *Müşteri modülleri* (yeniden yayın gerekmez).
+  Müşterinin yazılı isteği ve aşamalar: `docs/yol-haritasi.md`.
+- **Opsüyon AI (yardım asistanı):** sağ altta açılan, portalın ekranlarını bilen sohbet asistanı (yalnızca test aşaması). Claude Haiku kullanır; anahtar `CLAUDE_API_KEY` (yalnızca sunucu; Vercel'e de eklenmeli). Bilgisi `src/lib/assistant/guide.ts` içindedir ve **özellik eklendikçe/değiştikçe güncellenmelidir**. Soran kişinin menüsü de modele verilir; veritabanına erişmez, sohbet kaydedilmez. Canlıya çıkarken Merkez → Müşteri modülleri → *Opsüyon AI* anahtarını kapatın.
 - **Yeni özellik eklemek:** yeni izin = `permissions` satırı; yeni belge türü = `document_categories`
   satırı; yeni hizmet alanı = `service_lines` satırı. Yeni tablo → RLS aç, politikaları
   `app.has_project_permission(...)` ile yaz, `app.audit_row()` tetikleyicisini bağla.

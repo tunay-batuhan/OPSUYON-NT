@@ -236,10 +236,13 @@ async function prepareLeave(rows: Parsed["rows"], ctx: Ctx): Promise<Prepared[]>
 }
 
 async function preparePersonnel(rows: Parsed["rows"], ctx: Ctx): Promise<Prepared[]> {
-  const [{ data: all }, { data: assigned }] = await Promise.all([
+  const [{ data: all }, { data: assigned }, { data: proj }] = await Promise.all([
     ctx.supabase.from("personnel").select("id, employee_no").not("employee_no", "is", null).limit(10000),
     ctx.supabase.from("personnel_assignments").select("personnel_id").eq("project_id", ctx.projectId).is("end_date", null),
+    ctx.supabase.from("projects").select("organization_id").eq("id", ctx.projectId).maybeSingle(),
   ]);
+  // Personel, projenin firmasının kadrosuna eklenir
+  const orgId = (proj?.organization_id as string | undefined) ?? null;
   const byNo = new Map((all ?? []).map((p) => [normKey(p.employee_no as string), p.id as string]));
   const assignedIds = new Set((assigned ?? []).map((a) => a.personnel_id as string));
   const seenNo = new Set<string>();
@@ -271,6 +274,7 @@ async function preparePersonnel(rows: Parsed["rows"], ctx: Ctx): Promise<Prepare
           first_name: v.first_name, last_name: v.last_name, employee_no: v.employee_no || null,
           title: v.title || null, phone: v.phone || null, email: v.email || null, hire_date: hire,
         };
+        if (!existingId && orgId) fields.organization_id = orgId;
         let personId = existingId;
         if (personId) {
           const patch = Object.fromEntries(Object.entries(fields).filter(([k, val]) => val !== null || k === "first_name" || k === "last_name"));

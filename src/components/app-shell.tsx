@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
-import { Bell, LogOut, Menu, MessageSquare, Search, UserRound, X } from "lucide-react";
+import { Bell, Home, LogOut, Menu, MessageSquare, Search, UserRound, X } from "lucide-react";
+import { Assistant } from "@/components/assistant";
 import { Logo } from "@/components/logo";
 import { Nav, type NavItem } from "@/components/nav";
 import { logoutAction } from "@/app/actions/auth";
@@ -23,7 +24,7 @@ function SidebarBody({ items, home, onNavigate, onClose }: { items: NavItem[]; h
         )}
       </div>
 
-      <div className="-mx-1 flex-1 overflow-y-auto px-1">
+      <div className="side-scroll -mx-1 flex-1 overflow-y-auto px-1">
         <Nav items={items} onNavigate={onNavigate} />
       </div>
 
@@ -52,8 +53,8 @@ function Badge({ n }: { n: number }) {
  * Mobile/tablet: navy top bar with hamburger + drawer, and a bottom tab bar (Mesajlar, Bildirimler, Profil).
  */
 export function AppShell({
-  items, user, home, notifications, unreadMessages, children,
-}: { items: NavItem[]; user: ShellUser; home: string; notifications: number; unreadMessages: number; children: ReactNode }) {
+  items, user, home, kind, notifications, unreadMessages, assistant = false, children,
+}: { items: NavItem[]; user: ShellUser; home: string; kind: "staff" | "customer"; notifications: number; unreadMessages: number; assistant?: boolean; children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
 
@@ -68,8 +69,11 @@ export function AppShell({
     };
   }, [open]);
 
+  // Müşteride Mesajlar menüsü kapalı (ana sayfada görünür): alt çubuk Ana Sayfa · Bildirimler · Profil
   const tabs = [
-    { href: "/mesajlar", label: "Mesajlar", Icon: MessageSquare, badge: unreadMessages },
+    kind === "staff"
+      ? { href: "/mesajlar", label: "Mesajlar", Icon: MessageSquare, badge: unreadMessages }
+      : { href: home, label: "Ana Sayfa", Icon: Home, badge: unreadMessages },
     { href: "/bildirimler", label: "Bildirimler", Icon: Bell, badge: notifications },
     { href: "/profil", label: "Profil", Icon: UserRound, badge: 0 },
   ];
@@ -170,6 +174,8 @@ export function AppShell({
           );
         })}
       </nav>
+
+      {assistant && <Assistant kind={kind} />}
     </div>
   );
 }

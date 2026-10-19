@@ -63,6 +63,7 @@ export type Personnel = {
   full_name: string;
   title: string | null;
   service_line: string | null;
+  organization_id: string | null;
   phone: string | null;
   email: string | null;
   hire_date: string | null;

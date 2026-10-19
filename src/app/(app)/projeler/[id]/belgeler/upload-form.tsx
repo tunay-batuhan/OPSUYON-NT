@@ -92,6 +92,7 @@ function UploadInner({
       defaultValues={{
         project_id: projectId, category_code: first, title: "", personnel_id: "", period_month: String(month), period_year: String(year),
         description: "", customer_visible: false, storage_path: "", file_name: "", mime_type: "", size_bytes: "",
+        inspection_date: "", inspection_shift: "",
       }}
       action={registerDocument}
       onSuccess={() => setFileReset((k) => k + 1)}
@@ -107,7 +108,16 @@ function UploadInner({
         {cat?.scope === "personnel" && (
           <SelectField name="personnel_id" label="Personel" required className="sm:col-span-3" options={people.map((p) => ({ value: p.id, label: p.full_name }))} />
         )}
-        {cat?.requires_period && (
+        {category === "denetim" && (
+          <>
+            <TextField name="inspection_date" label="Denetim tarihi" type="date" required className="sm:col-span-3" />
+            <SelectField
+              name="inspection_shift" label="Vardiya" required className="sm:col-span-3"
+              options={[{ value: "gece", label: "Gece" }, { value: "gunduz", label: "Gündüz" }]}
+            />
+          </>
+        )}
+        {cat?.requires_period && category !== "denetim" && (
           <>
             <SelectField name="period_month" label="Ay" placeholder="" className="sm:col-span-2" options={MONTHS.map((m, i) => ({ value: String(i + 1), label: m }))} />
             <TextField name="period_year" label="Yıl" inputMode="numeric" className="sm:col-span-1" />

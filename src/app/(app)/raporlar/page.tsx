@@ -5,6 +5,7 @@ import { Download } from "lucide-react";
 import { Card, CardHeader, EmptyState, PageHeader, Table, btn, cn, td, tdNum } from "@/components/ui";
 import { FilterBar, yearOptions, type FilterField } from "@/components/filter-bar";
 import { canAnywhere, requireUser } from "@/lib/auth";
+import { requireModule } from "@/lib/modules";
 import { getAccessibleProjects, str1 } from "@/lib/lookups";
 import { createClient } from "@/lib/supabase/server";
 import { REPORT_DEFS, buildReport, type Cell, type ColType, type ReportType } from "@/lib/reports";
@@ -22,6 +23,7 @@ const fmt = (v: Cell, t: ColType) => {
 
 export default async function ReportsPage({ searchParams }: PageProps<"/raporlar">) {
   const user = await requireUser();
+  await requireModule("raporlar");
   if (!canAnywhere(user, "reports.read")) notFound();
   const sp = await searchParams;
 

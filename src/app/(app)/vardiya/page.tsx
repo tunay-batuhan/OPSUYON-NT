@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Card, EmptyState, PageHeader } from "@/components/ui";
 import { FilterBar, yearOptions } from "@/components/filter-bar";
 import { canAnywhere, requireUser } from "@/lib/auth";
+import { requireModule } from "@/lib/modules";
 import { getAccessibleProjects, isUuid, str1 } from "@/lib/lookups";
 import { createClient } from "@/lib/supabase/server";
 import { MONTHS } from "@/lib/format";
@@ -11,6 +12,7 @@ export const metadata: Metadata = { title: "Vardiya Planı" };
 
 export default async function ShiftsPage({ searchParams }: PageProps<"/vardiya">) {
   const user = await requireUser();
+  await requireModule("vardiya");
   const sp = await searchParams;
   const now = new Date();
   const year = Number(str1(sp.yil) ?? now.getFullYear());

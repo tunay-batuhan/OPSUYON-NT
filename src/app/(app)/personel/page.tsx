@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { Badge, Card, CardHeader, EmptyState, PageHeader, Table, td } from "@/components/ui";
 import { FilterBar } from "@/components/filter-bar";
 import { requireUser } from "@/lib/auth";
+import { getEnabledModules } from "@/lib/modules";
 import { getAccessibleProjects, isUuid, str1 } from "@/lib/lookups";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/format";
@@ -19,6 +20,13 @@ type Row = {
 export default async function PersonnelListPage({ searchParams }: PageProps<"/personel">) {
   const user = await requireUser();
   if (user.kind === "staff") redirect("/merkez/personel");
+  // Müşteri: Personel menüsü alt ekranlara açılır; ilk açık olana git
+  const on = await getEnabledModules();
+  const first = [
+    ["personel_sozlesme", "/personel/sozlesmeler"], ["personel_ozluk", "/personel/ozluk"], ["personel_bordro", "/personel/bordrolar"],
+    ["personel_izin", "/personel/izinler"], ["personel_kiyafet", "/personel/kiyafet"], ["personel_savunma", "/personel/savunmalar"],
+  ].find(([m]) => on.has(m));
+  if (first) redirect(first[1]);
   const sp = await searchParams;
   const projectId = str1(sp.proje);
   const projects = await getAccessibleProjects();

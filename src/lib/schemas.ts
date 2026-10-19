@@ -119,6 +119,8 @@ export const personnelSchema = z.object({
   employee_no: opt("Sicil no", 30),
   title: opt("Ünvan", 80),
   service_line: opt("Hizmet alanı", 40),
+  /** Personelin kadrosunda olduğu (işveren) müşteri firma; boşsa ilk atandığı projenin firması */
+  organization_id: z.string(),
   hire_date: date("İşe giriş"),
   phone,
   email,
@@ -231,6 +233,14 @@ export const documentSchema = z
     file_name: z.string(),
     mime_type: z.string(),
     size_bytes: z.string(),
+    /** Yalnızca "denetim" kategorisinde: denetimin yapıldığı gün ve vardiya */
+    inspection_date: z.string(),
+    inspection_shift: z.string(),
+  })
+  .superRefine((v, ctx) => {
+    if (v.category_code !== "denetim") return;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(v.inspection_date)) ctx.addIssue({ code: "custom", path: ["inspection_date"], message: "Denetim tarihini girin" });
+    if (!["gece", "gunduz"].includes(v.inspection_shift)) ctx.addIssue({ code: "custom", path: ["inspection_shift"], message: "Gece veya gündüz seçin" });
   });
 
 export const importSchema = z.object({

@@ -32,6 +32,7 @@ export async function createPersonnel(values: PersonnelValues): Promise<ActionSt
         employee_no: nul(d.employee_no),
         title: nul(d.title),
         service_line: nul(d.service_line),
+        organization_id: nul(d.organization_id),
         phone: nul(d.phone),
         email: nul(d.email),
         hire_date: nul(d.hire_date),
@@ -145,6 +146,15 @@ export async function updatePersonnel(values: PersonnelUpdateValues): Promise<Ac
     const canSensitive = actor.roleCode === "super_admin" || actor.permissions.includes("personnel.sensitive.read");
 
     const supabase = await createClient();
+    // Atamaları olan personelin firması değiştirilemez (kadro bütünlüğü)
+    const newOrg = nul(d.organization_id);
+    const { data: cur } = await supabase.from("personnel").select("organization_id").eq("id", d.id).maybeSingle();
+    if (cur && (cur.organization_id ?? null) !== newOrg) {
+      const { count } = await supabase.from("personnel_assignments").select("id", { count: "exact", head: true }).eq("personnel_id", d.id);
+      if ((count ?? 0) > 0) {
+        return { error: "Projeye atanmış personelin firması değiştirilemez.", fieldErrors: { organization_id: "Atamaları olan personelin firması değişmez" } };
+      }
+    }
     const { error } = await supabase
       .from("personnel")
       .update({
@@ -153,6 +163,7 @@ export async function updatePersonnel(values: PersonnelUpdateValues): Promise<Ac
         employee_no: nul(d.employee_no),
         title: nul(d.title),
         service_line: nul(d.service_line),
+        organization_id: newOrg,
         phone: nul(d.phone),
         email: nul(d.email),
         hire_date: nul(d.hire_date),

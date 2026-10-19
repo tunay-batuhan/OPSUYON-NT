@@ -1,0 +1,136 @@
+# OPSÜYON — Müşteri çalışmasına göre yol haritası
+
+Kaynak: `docs/` klasöründeki müşteri çalışması (18–19 Ekim 2026)
+- 5 görsel: 2 ekran düzenlemesi (Puantaj, Denetimler), 3 el yazısı sayfa (menü yapısı, devam, ileri özellikler)
+- 5 PDF form örneği: Kıyafet Teslim Tutanağı, Savunma Tutanağı, İzin Talep / İzin Kullanım / İzin Ücreti Talep formları
+
+**İlke:** Şimdiye kadar yapılanlar tahmine dayalıydı. Bundan sonra yalnızca müşterinin **yazılı olarak istediği** ekranlar müşteri panelinde açık olur. İstenmeyenler silinmez, **modül anahtarıyla kapalı** tutulur ve müşteri isteyince tek tıkla açılır (Merkez → Müşteri modülleri). Böylece müşteri sadece istediği şeyi test eder.
+
+---
+
+## 0. Projenin asıl amacı (müşteriden, 19 Ekim)
+
+Siteler ve hastaneler güvenlik ve temizlik çalışanlarına ihtiyaç duyar. Bu firma şimdiye kadar onlara personel sağlayıp denetimi de yapıyordu; bu, sitelere **yüksek vergi yükü ve maliyet** getiriyor.
+
+**Yeni model:** Güvenlik ve temizlik personeli, hizmeti isteyen kurumun **kendi altyapısında, kendi bünyesinde** çalışır (işveren = site/hastane). **Yönetim yine bu firmada kalır.** Aradaki vergi/maliyet farkı büyük olduğu için kurumlar bu hizmeti satın alır.
+
+### Bunun tasarıma etkisi
+| Sonuç | Sistemde karşılığı |
+|---|---|
+| Personelin işvereni müşteri kurumdur | Her personel bir **işveren firmaya** bağlı; başka firmanın projesine atanamaz |
+| Sözleşme, özlük, bordro müşterinin İK belgeleridir; merkez onun adına hazırlar | Bordro **hizmet bazında toplu** yüklenir (müşterinin notuyla uyumlu) |
+| Firmanın işi: yönetim, denetim, disiplin, ekipman, risk | Ürünün çekirdeği: **Denetimler, Savunmalar, Kıyafet/Ekipman, Risk Analizi, Devriye, Puantaj** |
+| Müşteri firmaya "yönetim hizmeti" öder | **Cari hesap / faturalar** yönetim hizmeti bedelidir; Banka entegrasyonu bu tahsilatı otomatikleştirir |
+| Dil önemli | "Personel tedariki" ifadesi yeni yapıyı yanlış anlatabilir → ana sayfa ve menülerde "personel yönetimi / operasyon yönetimi" dili önerilir |
+
+> **Dikkat (ürünün dışında ama kritik):** Vergi avantajı, yapının hukuken doğru kurulmasına bağlıdır (işveren kim, sözleşmeleri kim imzalıyor, hizmet "yönetim/danışmanlık" mı "personel temini" mi, özel güvenlik mevzuatı, muvazaa riski). Bunu **mali müşavir ve hukukçuyla** netleştirmenizi öneririm; sistem de bu yapıya uygun belge ve alanlarla kurulacak.
+
+---
+
+## 1. Müşterinin isteği (görsellerden)
+
+### Hedef müşteri menüsü
+```
+Ana Sayfa
+Personel  ▾
+   Personel Sözleşmeleri
+   Özlük Dosyaları
+   Bordrolar
+   Yıllık İzinler
+   Kıyafet ve Ekipman
+   Personele Savunmalar
+Puantaj
+Denetimler
+Cari Hesap  ▾
+   Faturalar
+```
+
+### Kaldırılacak (müşteri panelinden)
+Projeler · Vardiya Planı · İzin Yönetimi · Sözleşmeler (ana menüdeki) · Bordrolar (ana menüdeki) · Faturalar (ana menüdeki, Cari Hesap altına taşınıyor) · Raporlar · Mesajlar (menüden; ana sayfada zaten görünüyor)
+
+### Ekran ekran istekler
+| Ekran | İstek |
+|---|---|
+| **Hizmet filtresi** (hepsinde ortak) | Güvenlik · Temizlik · Danışma · Teknik Personel |
+| **Personel Sözleşmeleri** | Üstte hizmet filtresi; altta tüm personel listesi (filtreye göre değişir); her satırda PDF indir ikonu |
+| **Özlük Dosyaları** | Personel Sözleşmeleri ile aynı |
+| **Bordrolar** | Üstte filtre (hizmet); bizim yüklediğimiz bordro altta PDF olarak listelenir, yanında PDF indir. **Bordro kişi bazlı değil, hizmet bazında toplu yüklenir** (Güvenlik, Temizlik, Danışma, Teknik Personel) |
+| **Yıllık İzinler** | Üstte hizmet filtresi; altta personel satırları: işe giriş tarihi · hak edilen izin süresi · kullanılan izin gün sayısı · kalan izin. Personel adına tıklayınca altında o personelin yüklenmiş **PDF izin formları** açılır, yanında indir |
+| **Kıyafet ve Ekipman** | Personel listesi + hizmet filtresi; personel seçince altında kıyafet/ekipman teslim tutanakları (PDF, indirilebilir) |
+| **Personele Savunmalar** | Aynı kalıp: personel listesi → savunma tutanakları (PDF) |
+| **Puantaj** | Üstte filtre: Hizmet · Ay · Yıl. Seçime göre altta ilgili PDF puantaj görünür, yanında PDF indir (görselde sayfa içinde önizleme + "Excel Aç") |
+| **Denetimler** *(yeni, Test Site kullanıcısı için)* | Filtre: Proje · Ay · Yıl. Liste: Tarih · Gece/Gündüz · Denetim Raporu (PDF ikonu) |
+| **Cari Hesap** | Tıklayınca son yüklenen cari ekstre (PDF indirilebilir) |
+| **Cari Hesap → Faturalar** | Üstte Ay ve Yıl filtresi; altta o aya ait fatura satırı + PDF indir |
+| **Ana sayfa** | Mesajlar görünür; **Risk Analizi Raporu** (PDF, biz yükleyeceğiz) |
+
+### Daha sonra (not düşülmüş, henüz tasarlanmadı)
+| İstek | Not |
+|---|---|
+| **Devriye sistemi** | Güvenlik / danışma devriyede noktalar yerine **barkod okutacak**; devriye raporu günlük belirlenen **cep telefonlarına** gidecek; personel durum fotoğrafı ekleyebilecek |
+| **Banka entegrasyonu** | Müşteri havale/EFT yapınca program otomatik işlem yapacak |
+
+---
+
+## 2. Aşamalar
+
+### Faz 0 — Temel (önce) · ✅ tamamlandı
+- **Modül anahtarları:** müşteri panelindeki her ekran bir modül; açık/kapalı durumu veritabanında. Merkez → Müşteri modülleri sayfasından açılıp kapatılır, yeniden yayına gerek yoktur.
+- Müşteri menüsüne **alt menü** (aç/kapa) desteği.
+- Yeni hizmet alanı **Teknik Personel**; yeni belge türleri: Kıyafet ve Ekipman Teslim Tutanağı, Personel Savunması, Denetim Raporu, Risk Analizi Raporu, Cari Ekstre (PDF).
+- Bordro: kişi bazlı değil **hizmet/proje bazlı toplu** belge.
+- **Personel → işveren firma** bağı (personel müşteri firmanın kadrosunda; başka firmaya atanamaz).
+
+### Faz 1 — Müşteri paneli · ✅ tamamlandı
+Hedef menü ağacındaki bütün ekranlar + filtreler + PDF indirme + sayfa içi PDF önizleme.
+Kabul ölçütü: her ekran, ilgili belge yüklenince görünür; yetkisi olmayan hesap göremez; mobil uyumlu.
+
+### Faz 2 — Merkez tarafı kolaylaştırma · kısmen
+- Toplu yükleme (aynı belgeyi birden çok personele / çoklu dosya) — *bekliyor*
+- ✅ Denetim yüklerken tarih + Gece/Gündüz alanı (Merkez → proje → Belgeler)
+- Puantaj sayfasında Excel dosyasını tabloya çevirip önizleme (görseldeki gibi) — *bekliyor*
+- Müşteriye göre hangi modüllerin açık olduğu (firma bazlı anahtar) — *bekliyor; şu an anahtarlar tüm müşteriler için ortak*
+
+### Faz 3 — Müşteri isteyince (kod yazılmaz, önce netleşir)
+- **Devriye sistemi:** barkod/QR noktaları, okutma kaydı, günlük rapor, cep telefonuna bildirim, fotoğraf. *Gerekenler:* nokta listesi, hangi telefonlara (WhatsApp / SMS / e-posta?), rapor şablonu.
+- **Banka entegrasyonu:** *Gerekenler:* hangi banka(lar), API / hesap hareketi erişimi (açık bankacılık), eşleştirme kuralı (açıklama / IBAN / tutar).
+- **Form üretimi:** İzin talep / kullanım / ücret talep, kıyafet teslim, savunma formlarının sistemden doldurulup PDF üretilmesi (şu an müşteri hazır PDF yüklüyor).
+
+---
+
+## 3. Modül anahtarları (varsayılan)
+| Modül | Müşteri panelinde | Not |
+|---|---|---|
+| Personel Sözleşmeleri, Özlük, Bordro, Yıllık İzin, Kıyafet ve Ekipman, Savunma | **Açık** | İstendi |
+| Puantaj, Denetimler, Cari Hesap, Faturalar | **Açık** | İstendi |
+| Risk Analizi Raporu (ana sayfa) | **Açık** | İstendi |
+| Projeler, Vardiya Planı, İzin Yönetimi (kayıt ekranı), Raporlar, Mesajlar (menü) | **Kapalı** | "Kaldırılacak" denildi; istenirse açılır |
+| Devriye Sistemi, Banka Entegrasyonu | **Planlandı** | Faz 3 |
+
+Merkez (yönetici) tarafında bu ekranlar çalışmaya devam eder; çünkü müşterinin göreceği belgeleri merkez yükler.
+
+---
+
+## 4. Netleştirilecek sorular
+1. **Teknik Personel**, Kurumsal Tedarik'in yerine mi geçiyor, yoksa yanına mı ekleniyor? (Şimdilik ikisi de var.)
+2. **Cari ekstre:** PDF ekstre proje bazında mı, firma bazında mı yüklenecek? (Şimdilik proje bazında; Excel ekstreden gelen bakiye de duruyor.)
+3. **Devriye notundaki "personel ... resmi":** durum/olay fotoğrafı mı demek?
+4. **Savunmalar** için notta alt madde yok; Kıyafet ile aynı kalıpta (personel → PDF tutanaklar) yaptım. Doğru mu?
+5. Banka entegrasyonu için hangi banka ve nasıl bir erişim (API) mümkün?
+6. Ana sayfa dili: "Personel Tedariki" / "Kurumsal Tedarik" ifadeleri, personelin müşterinin kendi bünyesinde çalıştığı yeni yapıyı yanlış anlatır mı? Önerim: "Personel ve Operasyon Yönetimi".
+7. Sözleşme ve bordro belgelerinde işveren olarak **müşteri kurum** adı mı görünecek? (Sistem buna göre kurulacak.)
+8. "**Verso**" (ilk notlarda) hâlâ okunamadı.
+
+---
+
+## 5. Uygulama durumu (19 Ekim)
+| Parça | Durum |
+|---|---|
+| Modül anahtarları (`app_modules`) + Merkez → Müşteri modülleri | ✅ |
+| Müşteri menüsü: alt menüler (Personel ▾, Cari Hesap ▾), kapalı modül = menüde ve adreste yok (404) | ✅ |
+| Personel: Sözleşmeler, Özlük, Bordrolar, Yıllık İzinler (işe giriş / hak / kullanılan / kalan + formlar), Kıyafet, Savunmalar | ✅ |
+| Puantaj (Hizmet + Ay + Yıl, sayfa içi PDF önizleme), Denetimler (Proje + Ay + Yıl; Tarih · Gece/Gündüz · PDF), Cari Hesap (son ekstre), Faturalar (Ay + Yıl) | ✅ |
+| Ana sayfa: Risk Analizi Raporu kartı, hizmet kartları (4 hizmet, Teknik Personel dahil) | ✅ |
+| Personel → işveren firma (`personnel.organization_id`, başka firmaya atama veritabanında reddedilir) | ✅ |
+| Demo veri: `scripts/seed-docs.mjs` (Teknik Personel projesi, denetim/kıyafet/savunma/izin formları, toplu bordro, puantaj, ekstre, risk) | ✅ |
+| Devriye, Banka entegrasyonu | ⏳ Faz 3 — müşteri istediğinde |

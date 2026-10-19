@@ -1,6 +1,7 @@
 import { AppShell } from "@/components/app-shell";
 import { menuFor } from "@/lib/menu";
 import { requireUser } from "@/lib/auth";
+import { getEnabledModules } from "@/lib/modules";
 import { getNotificationCounts } from "@/lib/notifications";
 
 const initials = (name: string) =>
@@ -8,14 +9,16 @@ const initials = (name: string) =>
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await requireUser();
-  const counts = await getNotificationCounts();
+  const [counts, enabled] = await Promise.all([getNotificationCounts(), getEnabledModules()]);
 
   return (
     <AppShell
-      items={menuFor(user)}
+      items={menuFor(user, enabled)}
       home={user.kind === "staff" ? "/merkez" : "/panel"}
+      kind={user.kind}
       notifications={counts.total}
       unreadMessages={counts.unread_threads}
+      assistant={enabled.has("opsuyon_ai")}
       user={{
         fullName: user.full_name,
         username: user.username,

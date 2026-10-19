@@ -4,6 +4,8 @@ import { Download } from "lucide-react";
 import { Card, CardHeader, EmptyState, PageHeader, Table, btn, cn, td, tdNum } from "@/components/ui";
 import { FilterBar, yearOptions } from "@/components/filter-bar";
 import { canAnywhere, requireUser } from "@/lib/auth";
+import { ServiceDocuments } from "@/components/service-documents";
+import { requireAccess } from "@/lib/modules";
 import { getAccessibleProjects, isUuid, str1 } from "@/lib/lookups";
 import { createClient } from "@/lib/supabase/server";
 import { MONTHS, formatNumber } from "@/lib/format";
@@ -18,6 +20,21 @@ type Row = {
 export default async function TimesheetsAllPage({ searchParams }: PageProps<"/puantaj">) {
   const user = await requireUser();
   const sp = await searchParams;
+  if (user.kind === "customer") {
+    await requireAccess("puantaj", "timesheets.read");
+    return (
+      <ServiceDocuments
+        category="puantaj"
+        title="Puantaj"
+        description="Hizmet, ay ve yıl seçin; ilgili puantaj aşağıda görünür. PDF olarak indirebilirsiniz."
+        path="/puantaj"
+        searchParams={sp}
+        filters={{ hat: true, period: true }}
+        preview
+        emptyText="Seçtiğiniz hizmet ve dönem için puantaj yüklenmemiş."
+      />
+    );
+  }
   const now = new Date();
   const year = Number(str1(sp.yil) ?? now.getFullYear());
   const month = Number(str1(sp.ay) ?? now.getMonth() + 1);

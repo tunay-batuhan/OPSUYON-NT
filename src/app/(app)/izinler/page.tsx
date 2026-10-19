@@ -4,7 +4,9 @@ import { Trash2 } from "lucide-react";
 import { Badge, Card, CardHeader, EmptyState, PageHeader, Table, cn, td, tdNum } from "@/components/ui";
 import { FilterBar, yearOptions } from "@/components/filter-bar";
 import { LeaveDocCell, LeaveRecordForm } from "@/components/forms/leave-forms";
+import { redirect } from "next/navigation";
 import { canAnywhere, requireUser } from "@/lib/auth";
+import { getEnabledModules } from "@/lib/modules";
 import { getAccessibleProjects, isUuid, str1 } from "@/lib/lookups";
 import { createClient } from "@/lib/supabase/server";
 import { LEAVE_TYPE_LABELS, formatDate, formatNumber } from "@/lib/format";
@@ -26,6 +28,7 @@ type AssignmentRow = { project_id: string; personnel: { id: string; full_name: s
 /** Üstte kayıtlı izinler (tek satır, kalan süre, evrak); altta yeni izin girişi. */
 export default async function LeavesAllPage({ searchParams }: PageProps<"/izinler">) {
   const user = await requireUser();
+  if (user.kind === "customer" && !(await getEnabledModules()).has("izin_yonetimi")) redirect("/personel/izinler");
   const sp = await searchParams;
   const year = Number(str1(sp.yil) ?? new Date().getFullYear());
   const projectId = str1(sp.proje);

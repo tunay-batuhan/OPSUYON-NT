@@ -62,6 +62,8 @@ export async function registerDocument(values: DocumentValues): Promise<ActionSt
     const d = v.data;
     if (!d.storage_path.startsWith(`${d.project_id}/`)) return { error: "Geçersiz dosya yolu." };
 
+    // Denetim raporu: dönem, denetim tarihinden türetilir; tarih ve vardiya metadata'da tutulur
+    const inspection = d.category_code === "denetim";
     const supabase = await createClient();
     const { error } = await supabase.from("documents").insert({
       project_id: d.project_id,
@@ -72,8 +74,9 @@ export async function registerDocument(values: DocumentValues): Promise<ActionSt
       mime_type: nul(d.mime_type),
       size_bytes: toNumber(d.size_bytes),
       personnel_id: nul(d.personnel_id),
-      period_year: toNumber(d.period_year),
-      period_month: toNumber(d.period_month),
+      period_year: inspection ? Number(d.inspection_date.slice(0, 4)) : toNumber(d.period_year),
+      period_month: inspection ? Number(d.inspection_date.slice(5, 7)) : toNumber(d.period_month),
+      metadata: inspection ? { inspection_date: d.inspection_date, inspection_shift: d.inspection_shift } : {},
       description: nul(d.description),
       customer_visible: d.customer_visible,
       uploaded_by: user.id,
