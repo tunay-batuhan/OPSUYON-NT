@@ -18,7 +18,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       kind={user.kind}
       notifications={counts.total}
       unreadMessages={counts.unread_threads}
-      assistant={enabled.has("opsuyon_ai")}
+      assistant={enabled.has("opsuyon_ai") && Boolean(process.env.CLAUDE_API_KEY)}
       user={{
         fullName: user.full_name,
         username: user.username,
