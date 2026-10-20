@@ -78,7 +78,7 @@ export default async function UserDetail({ params }: PageProps<"/merkez/kullanic
   const staffBase = roleGrants.get(u.staff_role_id ?? "") ?? new Set<string>();
   const byModule = new Map<string, Permission[]>();
   allPermissions.forEach((p) => byModule.set(p.module, [...(byModule.get(p.module) ?? []), p]));
-  const moduleLabel: Record<string, string> = { yonetim: "Yönetim", projeler: "Projeler", personel: "Personel & izin", belgeler: "Belgeler", finans: "Finans & cari hesap", iletisim: "İletişim", raporlar: "Raporlar" };
+  const moduleLabel: Record<string, string> = { yonetim: "Yönetim", projeler: "Projeler", personel: "Personel & izin", belgeler: "Belgeler", finans: "Finans & cari hesap", iletisim: "İletişim", raporlar: "Raporlar", devriye: "Devriye" };
 
   return (
     <>

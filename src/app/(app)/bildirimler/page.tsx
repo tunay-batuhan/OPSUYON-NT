@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { CalendarClock, FileText, MessageSquare } from "lucide-react";
 import { Card, CardHeader, EmptyState, PageHeader } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
+import { getEnabledModules } from "@/lib/modules";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatDateTime, isoDayFromNow, isoTimeFromNow } from "@/lib/format";
 
@@ -12,6 +13,7 @@ type Msg = { thread_id: string; body: string; sender_name: string; created_at: s
 
 export default async function NotificationsPage() {
   const user = await requireUser();
+  const showContracts = user.kind === "staff" || (await getEnabledModules()).has("yaklasan_sozlesme");
   const supabase = await createClient();
   const today = isoDayFromNow(0);
   const soon = isoDayFromNow(60);
@@ -32,7 +34,7 @@ export default async function NotificationsPage() {
     if (new Date(m.created_at).getTime() > (readMap.get(m.thread_id) ?? 0) && !unread.has(m.thread_id)) unread.set(m.thread_id, m);
   }
   const threads = [...unread.values()];
-  const contractRows = (contracts ?? []) as unknown as { id: string; name: string; end_date: string; organizations: { name: string } | null }[];
+  const contractRows = !showContracts ? [] : (contracts ?? []) as unknown as { id: string; name: string; end_date: string; organizations: { name: string } | null }[];
   const docRows = (docs ?? []) as unknown as { id: string; title: string; created_at: string; project_id: string; projects: { name: string } | null }[];
   const nothing = threads.length + contractRows.length + docRows.length === 0;
 

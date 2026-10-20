@@ -5,7 +5,10 @@ export type FilterField = {
   name: string;
   label: string;
   value?: string;
-  options: { value: string; label: string }[];
+  /** "text": serbest arama kutusu (birkaç harf yazılır); varsayılan açılır liste. */
+  kind?: "select" | "text";
+  placeholder?: string;
+  options?: { value: string; label: string }[];
   /** Label for the "everything" choice; omit to force a selection. */
   all?: string;
 };
@@ -17,10 +20,22 @@ export function FilterBar({ action, fields, children }: { action: string; fields
       {fields.map((f) => (
         <label key={f.name} className="block text-sm">
           <span className="mb-1 block text-xs font-medium text-muted">{f.label}</span>
-          <select name={f.name} defaultValue={f.value ?? ""} className={cn(inputCls, "h-9 min-w-36 w-auto pr-8")}>
-            {f.all !== undefined && <option value="">{f.all}</option>}
-            {f.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
+          {f.kind === "text" ? (
+            <input
+              name={f.name}
+              type="search"
+              defaultValue={f.value ?? ""}
+              placeholder={f.placeholder}
+              autoComplete="off"
+              maxLength={60}
+              className={cn(inputCls, "h-9 w-48")}
+            />
+          ) : (
+            <select name={f.name} defaultValue={f.value ?? ""} className={cn(inputCls, "h-9 min-w-36 w-auto pr-8")}>
+              {f.all !== undefined && <option value="">{f.all}</option>}
+              {(f.options ?? []).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          )}
         </label>
       ))}
       <button className={btn("primary", "sm", "h-9")}>

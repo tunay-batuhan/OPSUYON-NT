@@ -5,7 +5,7 @@ import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Banknote, BarChart3, Bell, BookOpen, Building2, CalendarClock, CalendarOff, CalendarCheck, ChevronDown, ClipboardCheck,
-  FileSignature, FolderKanban, History, Home, Loader2, MessageSquare, Receipt, SlidersHorizontal, UserCog, UserRound, Users,
+  FileSignature, FileStack, FolderKanban, History, Home, Loader2, MessageSquare, Receipt, Route, ShieldAlert, SlidersHorizontal, UserCog, UserRound, Users,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/components/ui";
@@ -36,6 +36,9 @@ export const navIcons: Record<string, LucideIcon> = {
   profile: UserRound,
   inspections: ClipboardCheck,
   modules: SlidersHorizontal,
+  forms: FileStack,
+  risk: ShieldAlert,
+  patrol: Route,
 };
 
 export type NavChild = { href: string; label: string; exact?: boolean };
@@ -49,6 +52,8 @@ export type NavItem = {
   match?: string[];
   /** Alt menü (tıklayınca açılır). */
   children?: NavChild[];
+  /** Etiketin yanında küçük rozet (örn. "Demo": henüz onaylanmamış bölüm). */
+  badge?: string;
 };
 
 export function isActive(pathname: string, item: Pick<NavItem, "href" | "exact" | "match">) {
@@ -63,6 +68,11 @@ const linkCls = (active: boolean) =>
       ? "bg-[var(--side-active)] text-[color:var(--side-active-fg)] shadow-sm"
       : "text-[color:var(--side-fg)] hover:bg-[var(--side-hover)] hover:text-[color:var(--side-fg-strong)]",
   );
+
+function Badge({ text }: { text?: string }) {
+  if (!text) return null;
+  return <span className="rounded-full bg-[var(--tone-amber)] px-1.5 py-px text-[10px] font-bold uppercase leading-4 tracking-wide text-white">{text}</span>;
+}
 
 function NavGroup({ item, onNavigate }: { item: NavItem; onNavigate?: () => void }) {
   const pathname = usePathname();
@@ -79,6 +89,7 @@ function NavGroup({ item, onNavigate }: { item: NavItem; onNavigate?: () => void
         <Link href={item.href} onClick={onNavigate} aria-current={parentActive ? "page" : undefined} className={cn(linkCls(parentActive), "flex-1", childActive && "text-[color:var(--side-fg-strong)]")}>
           <Icon className="size-[18px] shrink-0" aria-hidden />
           {item.label}
+          <Badge text={item.badge} />
           <Pending />
         </Link>
         <button
@@ -139,6 +150,7 @@ export function Nav({ items, onNavigate }: { items: NavItem[]; onNavigate?: () =
               <Link href={item.href} onClick={onNavigate} aria-current={isActive(pathname, item) ? "page" : undefined} className={linkCls(isActive(pathname, item))}>
                 <Icon className="size-[18px] shrink-0" aria-hidden />
                 {item.label}
+                <Badge text={item.badge} />
                 <Pending />
               </Link>
             )}

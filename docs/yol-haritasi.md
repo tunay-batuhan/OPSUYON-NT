@@ -105,7 +105,10 @@ Kabul ölçütü: her ekran, ilgili belge yüklenince görünür; yetkisi olmaya
 | Puantaj, Denetimler, Cari Hesap, Faturalar | **Açık** | İstendi |
 | Risk Analizi Raporu (ana sayfa) | **Açık** | İstendi |
 | Projeler, Vardiya Planı, İzin Yönetimi (kayıt ekranı), Raporlar, Mesajlar (menü) | **Kapalı** | "Kaldırılacak" denildi; istenirse açılır |
-| Devriye Sistemi, Banka Entegrasyonu | **Planlandı** | Faz 3 |
+| Formlar, Risk Analizi (menü) | **Açık** | 19 Ekim notları |
+| Devriye Sistemi | **Açık — DEMO** | Onaylanmadı; rozet ve uyarıyla gösterim amaçlı |
+| Yaklaşan Sözleşme (ana sayfa kutusu) | **Kapalı** | "Kalkacak" denildi; merkezde durur |
+| Banka Entegrasyonu | **Planlandı** | Faz 3 |
 
 Merkez (yönetici) tarafında bu ekranlar çalışmaya devam eder; çünkü müşterinin göreceği belgeleri merkez yükler.
 
@@ -133,4 +136,34 @@ Merkez (yönetici) tarafında bu ekranlar çalışmaya devam eder; çünkü mü�
 | Ana sayfa: Risk Analizi Raporu kartı, hizmet kartları (4 hizmet, Teknik Personel dahil) | ✅ |
 | Personel → işveren firma (`personnel.organization_id`, başka firmaya atama veritabanında reddedilir) | ✅ |
 | Demo veri: `scripts/seed-docs.mjs` (Teknik Personel projesi, denetim/kıyafet/savunma/izin formları, toplu bordro, puantaj, ekstre, risk) | ✅ |
-| Devriye, Banka entegrasyonu | ⏳ Faz 3 — müşteri istediğinde |
+| Banka entegrasyonu | ⏳ Faz 3 — müşteri istediğinde |
+
+---
+
+## 6. 19 Ekim el yazısı notları (3. tur) ve örnek bordro
+| İstek | Durum |
+|---|---|
+| Ana sayfa: "Yaklaşan sözleşmeler kalkacak" | ✅ Müşteri ana sayfasından ve bildirimlerinden kalktı (`yaklasan_sozlesme` modülü kapalı; merkezde durur) |
+| Bordrolar: üstte Hizmet Türü · Ay · Yıl filtresi; altta bordro; tek personel için değil **toplu** | ✅ Filtreler hazırdı; liste altında bordro dosyası sayfada önizleniyor (PDF / görsel; Excel ise "Excel Aç"). Demo bordro, müşterinin örnek tablosunun sütunlarıyla (kurgusal isimler) üretildi |
+| Yıllık İzin · Kıyafet Ekipman · Savunmalar: üstte Hizmet Türü ve **Personel Adı** filtresi | ✅ Personel adı arama kutusu (birkaç harf yeter; Türkçe karakter/büyük-küçük harf fark etmez) |
+| "Personele Savunmalar" başlığı **Savunmalar** olacak | ✅ Menü, sayfa ve modül adı değişti |
+| **Formlar** eklenecek; filtre kısmı birkaç harf ile arama | ✅ Form şablonları kütüphanesi: arama kutusuna birkaç harf yazınca liste anında süzülür, İndir. Merkez "Form ekle" ile yükler |
+| **Devriye Sistemi**: noktalarda telefonla barkod okutma, günlük devriye raporu otomatik, "Devriye Rapor" sekmesi: Gün-Ay-Yıl filtresi, altta rapor ve PDF | ✅ Bkz. aşağıdaki "Devriye" |
+| **Risk Analizi**: bizim yüklediğimiz rapor PDF olarak inecek, altta satır | ✅ Kendi menü öğesi; ana sayfadaki kart kaldırıldı |
+
+### Devriye (nasıl çalışıyor) — DEMO sürüm
+> **Durum: DEMO.** Devriye henüz onaylanmadı; gösterim amaçlı yayında. Menüde "Demo" rozeti, ekranlarda "Demo sürüm" uyarısı, PDF raporda "DEMO SÜRÜM" yazar. Kesinleşince rozet ve uyarılar kaldırılır (`DemoNotice`, menüdeki `badge: "Demo"`, PDF başlığı).
+
+- **Noktalar:** Merkez → Devriye Sistemi → *Noktalar ve Etiketler*: projeye nokta eklenir (barkod içeriği otomatik, `DVR-XXXXXXXX`), etiketler A4'e QR olarak yazdırılıp noktaya yapıştırılır.
+- **Okutma:** *Devriye Görevlisi* hesabı (yeni rol) telefonundan giriş yapar → *Barkod Okut* → kamera QR/barkodu okur (kamera yoksa kod elle girilir). Aynı nokta 20 sn içinde tekrar okutulursa çift kayıt açılmaz.
+- **Rapor:** Okutma kayıtlarından her gün otomatik oluşur (PDF: özet kutuları, nokta özeti, okutma kayıtları). Müşteri/merkez *Devriye Rapor* ekranında Proje · Gün · Ay · Yıl ile bulur, sayfada görür, PDF indirir.
+- Yetkiler: `patrol.scan` (okutma), `patrol.read` (rapor), `patrol.manage` (nokta/etiket; yalnızca merkez).
+
+### Varsayımlar — doğrulanmalı
+1. **Formlar** = boş form şablonları (izin talep, izin kullanım, ücret talep, kıyafet teslim, savunma). Yoksa "personelin doldurulmuş formlarının" arandığı bir ekran mı kastedildi?
+2. **Barkod** yerine **QR** etiket basıldı (telefon kamerasıyla daha güvenilir okunur); sistem 1D barkodları (Code128/EAN) da okur. Mevcut barkodlu etiketleriniz varsa kodlarını nokta olarak girebiliriz.
+3. Devriye raporu **takvim günü** (00:00–24:00) bazlı. Gece vardiyası gece yarısını aşıyorsa rapor iki güne bölünür; "vardiya bazlı rapor" gerekiyorsa değiştirilir.
+4. "Okutulmayan nokta" = o gün hiç okutulmayan nokta. Tur sayısı, sıklık ve nokta sırası zorunluluğu tanımlı değil.
+5. Devriye'de fotoğraf ve telefona bildirim yok (ikinci notta "ana sayfada / rapor sekmesinde görülecek" denmiş).
+6. Bordro dosyası PDF/görsel/Excel olabilir; Excel'in sayfada **tablo olarak** gösterilmesi gerekiyorsa ayrıca yapılır.
+7. Notun "Anasayfa" altındaki ikinci satırı okunamadı.

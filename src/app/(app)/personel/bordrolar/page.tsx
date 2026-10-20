@@ -14,6 +14,7 @@ export default async function PayrollBulkPage({ searchParams }: PageProps<"/pers
       path="/personel/bordrolar"
       searchParams={await searchParams}
       filters={{ hat: true, period: true }}
+      preview
       emptyText="Seçtiğiniz hizmet ve dönem için bordro yüklenmemiş."
     />
   );

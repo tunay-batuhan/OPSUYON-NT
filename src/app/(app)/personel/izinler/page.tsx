@@ -15,6 +15,7 @@ export default async function AnnualLeavePage({ searchParams }: PageProps<"/pers
       path="/personel/izinler"
       mode="expand"
       leave
+      nameFilter
       lineNames={await getLineNames()}
       searchParams={await searchParams}
     />

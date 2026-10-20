@@ -6,8 +6,6 @@ import { canAnywhere, type CurrentUser } from "@/lib/auth";
 import { getServiceLines } from "@/lib/lines";
 import { getNotificationCounts } from "@/lib/notifications";
 import { getEnabledModules } from "@/lib/modules";
-import { DownloadLink } from "@/components/doc-ui";
-import { ShieldAlert } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { formatDateTime, isoDayFromNow } from "@/lib/format";
 
@@ -25,8 +23,9 @@ export async function Dashboard({ user }: { user: CurrentUser }) {
   const staff = user.kind === "staff";
 
   const enabled = await getEnabledModules();
-  const showRisk = (staff || enabled.has("risk_analizi")) && canAnywhere(user, "risk.read");
-  const [lines, projects, assignments, orgs, expiring, messages, counts, risk] = await Promise.all([
+  const showExpiring = staff || enabled.has("yaklasan_sozlesme");
+  const [lines, projects, assignments, orgs, expiring, messages, counts] = await Promise.all([
+
     getServiceLines(),
     supabase.from("projects").select("id, service_line").eq("status", "active"),
     supabase.from("personnel_assignments").select("personnel_id, project_id").is("end_date", null),
@@ -36,11 +35,7 @@ export async function Dashboard({ user }: { user: CurrentUser }) {
       ? supabase.from("messages").select("id, body, sender_name, sender_kind, created_at, thread_id, threads(subject, projects(name))").order("created_at", { ascending: false }).limit(4)
       : null,
     getNotificationCounts(),
-    showRisk
-      ? supabase.from("documents").select("id, title, created_at, projects(name)").eq("category_code", "risk_analizi").order("created_at", { ascending: false }).limit(6)
-      : null,
   ]);
-  const riskDocs = ((risk?.data ?? []) as unknown as { id: string; title: string; created_at: string; projects: { name: string } | null }[]);
 
   const projectLine = new Map((projects.data ?? []).map((p) => [p.id as string, p.service_line as string]));
   const perLine = lines.map((l) => {
@@ -84,30 +79,9 @@ export async function Dashboard({ user }: { user: CurrentUser }) {
         {staff && orgs && <Stat label="Toplam Müşteri" value={orgs.count ?? 0} icon={Building2} tone="blue" />}
         <Stat label="Aktif Proje" value={projects.data?.length ?? 0} icon={FolderKanban} tone="emerald" />
         <Stat label="Personel Sayısı" value={totalPeople} icon={Users} tone="violet" />
-        <Stat label="Yaklaşan Sözleşme" value={expiring.count ?? 0} hint="60 gün içinde biten projeler" icon={CalendarClock} tone="amber" />
+        {showExpiring && <Stat label="Yaklaşan Sözleşme" value={expiring.count ?? 0} hint="60 gün içinde biten projeler" icon={CalendarClock} tone="amber" />}
         {!staff && <Stat label="Okunmamış Mesaj" value={counts.unread_threads} icon={MessageSquare} tone="blue" />}
       </div>
-
-      {showRisk && (
-        <Card>
-          <CardHeader title="Risk Analizi Raporu" description="Merkez tarafından yüklenen güncel risk analizi (PDF)" action={<ShieldAlert className="size-5 text-[var(--tone-rose)]" aria-hidden />} />
-          {riskDocs.length === 0 ? (
-            <EmptyState title="Henüz risk analizi raporu yüklenmemiş" />
-          ) : (
-            <ul className="divide-y divide-border">
-              {riskDocs.map((d) => (
-                <li key={d.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
-                  <span>
-                    <span className="font-medium">{d.title}</span>
-                    <span className="ml-2 text-xs text-muted">{d.projects?.name} · {formatDateTime(d.created_at)}</span>
-                  </span>
-                  <DownloadLink id={d.id} />
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>

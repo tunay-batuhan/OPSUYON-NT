@@ -4,7 +4,8 @@
 //
 // Gerekli: önce seed-demo.mjs çalışmış olmalı. Tekrar çalıştırmak güvenlidir (zaten olanı atlar).
 // Eklenenler: Teknik Personel projesi, denetim raporları (gece/gündüz), kıyafet / savunma / yıllık izin
-// formları (docs/ içindeki gerçek örnek PDF'ler), toplu bordro, puantaj PDF, cari ekstre PDF, risk analizi.
+// formları, form şablonları (Formlar ekranı; docs/ içindeki gerçek örnek PDF'ler), tablo biçimli toplu bordro,
+// puantaj PDF, cari ekstre PDF, risk analizi.
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
@@ -35,6 +36,89 @@ function pdf(title, lines = []) {
     "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>",
     `<< /Length ${content.length} >>\nstream\n${content}\nendstream`,
     "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+  ];
+  let out = "%PDF-1.4\n";
+  const offsets = [];
+  objs.forEach((o, i) => { offsets.push(out.length); out += `${i + 1} 0 obj\n${o}\nendobj\n`; });
+  const xref = out.length;
+  out += `xref\n0 ${objs.length + 1}\n0000000000 65535 f \n${offsets.map((o) => `${String(o).padStart(10, "0")} 00000 n \n`).join("")}`;
+  out += `trailer\n<< /Size ${objs.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+  return Buffer.from(out, "latin1");
+}
+
+
+/** Müşterinin örnek "Maaş Bordrosu" tablosuna benzer, yatay A4 toplu bordro (kurgusal kişi ve tutarlarla). */
+function bordroPdf(projectName, y, m, names) {
+  const MONTH = ["OCAK", "SUBAT", "MART", "NISAN", "MAYIS", "HAZIRAN", "TEMMUZ", "AGUSTOS", "EYLUL", "EKIM", "KASIM", "ARALIK"][m - 1];
+  const money = (n) => (n === 0 ? "" : n.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+  const cols = [
+    ["ADI SOYADI", 100, "l"], ["MAASI", 46, "r"], ["GUN", 22, "r"], ["NORMAL KAZANC", 50, "r"], ["EMEKLI G. VERGISI", 48, "r"],
+    ["TICKET ODEME", 44, "r"], ["NAKTI DESTEK", 44, "r"], ["MESAI ODEME", 44, "r"], ["EK KAZANC TOPLAMI", 50, "r"],
+    ["KAZANCLAR TOPLAMI", 52, "r"], ["AVANS", 34, "r"], ["BES", 34, "r"], ["DIGER KESINTI", 34, "r"], ["KESINTILER TOPLAMI", 46, "r"],
+    ["BANKADAN ODENEN", 52, "r"], ["NET ODENEN", 52, "r"], ["IMZA", 36, "l"],
+  ];
+  const rows = names.map((name, i) => {
+    const maas = 22000 + ((i * 377) % 2600) + 0.67;
+    const gun = i === 4 ? 27 : 30;
+    const normal = Math.round((maas * gun / 30) * 100) / 100;
+    const egv = i === 0 ? 0 : 1200;
+    const ticket = Math.round((4380 * gun / 30) * 100) / 100;
+    const nakti = Math.round((2748 * gun / 30) * 100) / 100;
+    const mesai = Math.round((1959.13 * gun / 30) * 100) / 100;
+    const ek = egv + ticket + nakti + mesai;
+    const bes = i === 0 ? 780.16 : 0;
+    const kes = bes;
+    const banka = normal + egv + mesai - kes;
+    return { name, v: [maas, gun, normal, egv, ticket, nakti, mesai, ek, normal + ek, 0, bes, 0, kes, banka, banka + nakti + ticket] };
+  });
+  const tot = Array.from({ length: 15 }, (_, k) => rows.reduce((a, r) => a + (k === 0 || k === 1 ? 0 : r.v[k]), 0));
+  tot[1] = rows.reduce((a, r) => a + r.v[1], 0);
+
+  const X0 = 20;
+  const ops = [];
+  const text = (str, x, yy, size, bold = false) => ops.push(`0 g BT /${bold ? "F2" : "F1"} ${size} Tf ${x.toFixed(1)} ${yy.toFixed(1)} Td (${ascii(String(str)).replace(/[()\\]/g, "")}) Tj ET`);
+  const w = (str, size) => String(str).length * size * 0.54;
+  // baslik bandi
+  ops.push("1 0.93 0 rg 20 540 802 38 re f 0 G 0.6 w 20 540 802 38 re S");
+  const title1 = ascii(projectName).toUpperCase() + " " + MONTH + "/" + y;
+  text(title1, 421 - w(title1, 12) / 2, 562, 12, true);
+  text("MAAS BORDROSU", 421 - w("MAAS BORDROSU", 12) / 2, 548, 12, true);
+  // tablo basligi
+  const headY = 500, headH = 36, rowH = 20;
+  let x = X0;
+  cols.forEach(([label, cw]) => {
+    ops.push(`0.97 0.97 0.9 rg ${x} ${headY} ${cw} ${headH} re f 0.4 w 0 G ${x} ${headY} ${cw} ${headH} re S`);
+    const words = label.split(" ");
+    const lines = words.length > 1 && label.length > 9 ? [words.slice(0, Math.ceil(words.length / 2)).join(" "), words.slice(Math.ceil(words.length / 2)).join(" ")] : [label];
+    lines.forEach((ln, li) => text(ln, x + cw / 2 - w(ln, 5.5) / 2, headY + headH - 13 - li * 8, 5.5, true));
+    x += cw;
+  });
+  const drawRow = (yy, cells, bold, fill) => {
+    let cx = X0;
+    cols.forEach(([, cw, align], ci) => {
+      if (fill && (ci === 0 || ci >= 14)) ops.push(`1 0.93 0 rg ${cx} ${yy} ${cw} ${rowH} re f`);
+      ops.push(`0.4 w 0 G ${cx} ${yy} ${cw} ${rowH} re S`);
+      const val = cells[ci] ?? "";
+      if (val !== "") text(val, align === "r" ? cx + cw - 3 - w(val, 6) : cx + 3, yy + 7, 6, bold);
+      cx += cw;
+    });
+  };
+  rows.forEach((r, ri) => {
+    const cells = [r.name.toUpperCase(), money(r.v[0]), String(r.v[1]), ...r.v.slice(2).map((n) => (n === 0 ? "" : money(n)))];
+    drawRow(headY - rowH * (ri + 1), cells, false, true);
+  });
+  const totalCells = ["TOPLAM", "", String(tot[1]), ...tot.slice(2).map((n) => (n === 0 ? "" : money(n)))];
+  drawRow(headY - rowH * (rows.length + 1), totalCells, true, false);
+  text("Bu belge test amaclidir; isimler ve tutarlar kurgusaldir.", X0, 30, 6);
+
+  const content = ops.join("\n");
+  const objs = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 842 595] /Contents 4 0 R /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> >>",
+    `<< /Length ${content.length} >>\nstream\n${content}\nendstream`,
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>",
   ];
   let out = "%PDF-1.4\n";
   const offsets = [];
@@ -116,10 +200,25 @@ const prev2 = prevMonth(2);
 let added = 0;
 
 for (const prj of allProjects) {
-  // Toplu bordro (hizmet/proje + ay)
-  if ((await sb.from("documents").select("id", { count: "exact", head: true }).eq("project_id", prj.id).eq("category_code", "bordro").is("personnel_id", null)).count === 0) {
+  // Bordro artık hizmet/proje bazlı toplu: kişi bazlı eski demo bordrolar kaldırılır
+  const legacyBordro = (await sb.from("documents").select("id, storage_path").eq("project_id", prj.id).eq("category_code", "bordro").not("personnel_id", "is", null)).data ?? [];
+  for (const d of legacyBordro) {
+    await sb.storage.from("documents").remove([d.storage_path]);
+    await sb.from("documents").delete().eq("id", d.id);
+  }
+  // Toplu bordro (hizmet/proje + ay): müşterinin örnek bordrosu gibi tablo; eski düz metin bordroların yerini alır
+  const bordroQ = () => sb.from("documents").select("id, storage_path, metadata").eq("project_id", prj.id).eq("category_code", "bordro").is("personnel_id", null);
+  const existingBordro = (await bordroQ()).data ?? [];
+  if (!existingBordro.some((d) => d.metadata?.format === "tablo-v2")) {
+    for (const d of existingBordro) {
+      await sb.storage.from("documents").remove([d.storage_path]);
+      await sb.from("documents").delete().eq("id", d.id);
+    }
+    const crew = ((await sb.from("personnel_assignments").select("personnel(full_name)").eq("project_id", prj.id).is("end_date", null)).data ?? [])
+      .map((a) => a.personnel?.full_name).filter(Boolean);
+    const names = crew.length ? crew : ["Ornek Personel"];
     for (const { y, m } of [prev1, prev2]) {
-      await addDoc(prj, "bordro", `Toplu Bordro ${pad(m)}/${y} - ${prj.name}`, pdf(`TOPLU BORDRO ${pad(m)}/${y}`, [`Proje: ${prj.name}`, "Tum personel bordrolari bu dosyadadir.", "Bu belge test amaclidir."]), { period_year: y, period_month: m });
+      await addDoc(prj, "bordro", `Toplu Bordro ${pad(m)}/${y} - ${prj.name}`, bordroPdf(prj.name, y, m, names), { period_year: y, period_month: m, metadata: { format: "tablo-v2" } });
       added++;
     }
   }
@@ -174,4 +273,69 @@ await personDocs("yillik_izin", "Yıllık İzin Talep Formu", FORMS.izin1, (i) =
 await personDocs("yillik_izin", "Yıllık İzin Kullanım Formu", FORMS.izin2, (i) => i % 4 === 0);
 await personDocs("yillik_izin", "Yıllık İzin Ücreti Talep Formu", FORMS.izin3, (i) => i % 6 === 0);
 
-console.log(`\n✔ Ek demo veri hazır (${added} belge eklendi).`);
+/* ------------------------------ Formlar ekranı: form şablonları ------------------------------ */
+const { count: formCount } = await sb.from("form_templates").select("id", { count: "exact", head: true });
+if (!formCount) {
+  const templates = [
+    ["Yıllık İzin Talep Formu", "Personelin izin talebi", "Yıllık İzin 1 - İzin Talep Formu.pdf", FORMS.izin1],
+    ["Yıllık İzin Kullanım Formu", "İzin kullanımının kaydı", "Yıllık İzin 2 - İzin Kullanım Formu.pdf", FORMS.izin2],
+    ["Yıllık İzin Ücreti Talep Formu", "İzin ücreti talebi", "Yıllık İzin 3 - İzin Ücreti  Talep Formu.pdf", FORMS.izin3],
+    ["Kıyafet ve Ekipman Teslim Tutanağı", "Teslim edilen kıyafet ve ekipmanlar", "Kıyafet Teslim Tutanağı.pdf", FORMS.kiyafet],
+    ["Savunma Tutanağı", "Personelden savunma alınması", "Savunma Tutanağı.pdf", FORMS.savunma],
+  ];
+  for (const [i, [title, description, fileName, bytes]] of templates.entries()) {
+    const path = `forms/${randomUUID()}-${ascii(fileName).replace(/[^a-zA-Z0-9._-]+/g, "-")}`;
+    const up = await sb.storage.from("documents").upload(path, bytes, { contentType: "application/pdf" });
+    if (up.error) { console.error("✖ form yükleme:", up.error.message); process.exit(1); }
+    must(await sb.from("form_templates").insert({ title, description, storage_path: path, file_name: fileName, mime_type: "application/pdf", size_bytes: bytes.length, sort_order: 10 + i * 10, uploaded_by: adminId }), "form şablonu");
+    added++;
+  }
+}
+
+/* ------------------------------ Devriye Sistemi: görevli hesapları, noktalar, okutmalar ------------------------------ */
+const PASSWORD = "Opsuyon2026!";
+const roleIds = Object.fromEntries(must(await sb.from("roles").select("id, code"), "roller").map((r) => [r.code, r.id]));
+const newCode = () => "DVR-" + Array.from({ length: 8 }, () => "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"[Math.floor(Math.random() * 32)]).join("");
+const istDay = (offset) => new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Istanbul", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(Date.now() + offset * 86400000));
+
+const guards = [
+  { username: "demo.devriye", fullName: "Demo Devriye Görevlisi", org: orgB, project: projB.find((p) => p.service_line === "guvenlik") },
+  { username: "demo.devriye2", fullName: "Demo Plaza Devriye Görevlisi", org: orgA, project: projA.find((p) => p.service_line === "guvenlik") },
+];
+for (const g of guards) {
+  if (!g.project) continue;
+  let uid = (await sb.from("profiles").select("id").eq("username", g.username).maybeSingle()).data?.id;
+  if (!uid) {
+    const created = await sb.auth.admin.createUser({ email: `${g.username}@portal.opsuyon.com`, password: PASSWORD, email_confirm: true, user_metadata: { username: g.username, full_name: g.fullName } });
+    if (created.error) { console.error(`✖ ${g.username}:`, created.error.message); process.exit(1); }
+    uid = created.data.user.id;
+    must(await sb.from("profiles").insert({ id: uid, username: g.username, full_name: g.fullName, kind: "customer", organization_id: g.org.id, phone: "0532 000 00 00" }), "profil");
+    must(await sb.from("project_members").insert({ project_id: g.project.id, user_id: uid, role_id: roleIds.customer_patrol }), "üyelik");
+    console.log(`• ${g.username} hesabı eklendi (${g.project.name}).`);
+  }
+  g.userId = uid;
+
+  const havePoints = ((await sb.from("patrol_points").select("id", { count: "exact", head: true }).eq("project_id", g.project.id)).count ?? 0) > 0;
+  if (!havePoints) {
+    const names = ["Ana Giriş", "Otopark", "Arka Bahçe", "Teknik Oda", "Çatı Katı"];
+    const pts = must(await sb.from("patrol_points").insert(names.map((name, i) => ({ project_id: g.project.id, name, code: newCode(), sort_order: (i + 1) * 10 }))).select("id, sort_order"), "devriye noktaları");
+    pts.sort((a, b) => a.sort_order - b.sort_order);
+    const scans = [];
+    const at = (day, hh, mm, plus) => new Date(Date.parse(`${day}T${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}:00+03:00`) + plus * 60000).toISOString();
+    for (let back = 5; back >= 1; back--) {
+      const day = istDay(-back);
+      pts.forEach((p, i) => scans.push({ project_id: g.project.id, point_id: p.id, scanned_by: uid, scanned_at: at(day, 22, 0, i * 6 + (i % 2)) }));
+      // ikinci tur: bir gün bir nokta atlanır (rapordaki "Okutulmayan nokta")
+      pts.forEach((p, i) => { if (!(back === 2 && i === 4)) scans.push({ project_id: g.project.id, point_id: p.id, scanned_by: uid, scanned_at: at(day, 2, 30, i * 5 + 1) }); });
+    }
+    // bugün: iki tur, şu andan önce
+    const now = Date.now();
+    pts.forEach((p, i) => scans.push({ project_id: g.project.id, point_id: p.id, scanned_by: uid, scanned_at: new Date(now - 3 * 3600000 + i * 6 * 60000).toISOString() }));
+    pts.slice(0, 4).forEach((p, i) => scans.push({ project_id: g.project.id, point_id: p.id, scanned_by: uid, scanned_at: new Date(now - 1 * 3600000 + i * 5 * 60000).toISOString() }));
+    must(await sb.from("patrol_scans").insert(scans), "devriye okutmaları");
+    added += scans.length;
+  }
+}
+
+console.log(`\n✔ Ek demo veri hazır (${added} kayıt/belge eklendi).`);
+console.log("Devriye test hesapları (parola Opsuyon2026!): demo.devriye (Test Site) · demo.devriye2 (Demo Plaza)");

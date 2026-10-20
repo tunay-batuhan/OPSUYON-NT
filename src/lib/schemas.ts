@@ -243,6 +243,20 @@ export const documentSchema = z
     if (!["gece", "gunduz"].includes(v.inspection_shift)) ctx.addIssue({ code: "custom", path: ["inspection_shift"], message: "Gece veya gündüz seçin" });
   });
 
+export const formTemplateSchema = z.object({
+  title: str("Başlık", 140),
+  description: opt("Açıklama", 300),
+  storage_path: z.string().min(1, "Önce bir dosya yükleyin"),
+  file_name: z.string(),
+  mime_type: z.string(),
+  size_bytes: z.string(),
+});
+
+export const patrolPointSchema = z.object({
+  project_id: uuid("Proje"),
+  name: str("Nokta adı", 80).refine((v) => v.length >= 2, "Nokta adı en az 2 karakter olmalı"),
+});
+
 export const importSchema = z.object({
   project_id: uuid("Proje"),
   type: z.enum(["timesheet", "leave", "personnel"], "İçe aktarma türünü seçin"),
@@ -269,3 +283,5 @@ export type ResetPasswordValues = z.infer<typeof resetPasswordSchema>;
 export type StaffRoleValues = z.infer<typeof staffRoleSchema>;
 export type MembershipValues = z.infer<typeof membershipSchema>;
 export type DocumentValues = z.infer<typeof documentSchema>;
+export type FormTemplateValues = z.infer<typeof formTemplateSchema>;
+export type PatrolPointValues = z.infer<typeof patrolPointSchema>;

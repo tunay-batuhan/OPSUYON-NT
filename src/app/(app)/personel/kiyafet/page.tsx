@@ -14,6 +14,7 @@ export default async function UniformPage({ searchParams }: PageProps<"/personel
       description="Personel adına tıklayınca kıyafet ve ekipman teslim tutanakları açılır."
       path="/personel/kiyafet"
       mode="expand"
+      nameFilter
       lineNames={await getLineNames()}
       searchParams={await searchParams}
     />

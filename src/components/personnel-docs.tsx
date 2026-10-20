@@ -5,6 +5,7 @@ import { DownloadLink, PdfIcon } from "@/components/doc-ui";
 import { getHatOptions, str1 } from "@/lib/lookups";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatNumber } from "@/lib/format";
+import { matches } from "@/lib/text";
 
 type Person = { id: string; full_name: string; title: string | null; employee_no: string | null; hire_date: string | null; lines: Set<string>; projects: Set<string> };
 type Doc = { id: string; personnel_id: string; title: string; file_name: string; created_at: string };
@@ -18,7 +19,7 @@ const chunk = <T,>(arr: T[], n: number) => Array.from({ length: Math.ceil(arr.le
  *  mode "expand": Yıllık İzinler / Kıyafet / Savunma — personel adına tıklayınca altında PDF'ler açılır
  */
 export async function PersonnelDocs({
-  category, title, description, path, searchParams, mode, leave = false, lineNames,
+  category, title, description, path, searchParams, mode, leave = false, nameFilter = false, lineNames,
 }: {
   category: string;
   title: string;
@@ -28,9 +29,12 @@ export async function PersonnelDocs({
   mode: "flat" | "expand";
   /** Yıllık izin: işe giriş, hak edilen, kullanılan, kalan sütunları */
   leave?: boolean;
+  /** Hizmet filtresinin yanına "Personel adı" arama kutusu (birkaç harf yeter) */
+  nameFilter?: boolean;
   lineNames: Record<string, string>;
 }) {
   const hat = str1(searchParams.hat);
+  const ad = nameFilter ? (str1(searchParams.ad) ?? "").trim() : "";
   const year = new Date().getFullYear();
   const supabase = await createClient();
 
@@ -49,7 +53,9 @@ export async function PersonnelDocs({
     if (a.projects) { p.lines.add(a.projects.service_line); p.projects.add(a.projects.name); }
     people.set(p.id, p);
   }
-  const list = [...people.values()].sort((a, b) => a.full_name.localeCompare(b.full_name, "tr"));
+  const list = [...people.values()]
+    .filter((p) => !ad || matches(p.full_name, ad))
+    .sort((a, b) => a.full_name.localeCompare(b.full_name, "tr"));
   const ids = list.map((p) => p.id);
 
   const docs = new Map<string, Doc[]>();
@@ -71,6 +77,7 @@ export async function PersonnelDocs({
   );
 
   const fields: FilterField[] = [{ name: "hat", label: "Hizmet", value: hat, all: "Tümü", options: await getHatOptions() }];
+  if (nameFilter) fields.push({ name: "ad", label: "Personel adı", kind: "text", value: ad, placeholder: "Birkaç harf yazın…" });
   const lineOf = (p: Person) => [...p.lines].map((c) => lineNames[c] ?? c).join(", ");
 
   const leaveNumbers = (p: Person) => {
@@ -88,7 +95,7 @@ export async function PersonnelDocs({
       <Card>
         <CardHeader title={`${list.length} personel`} description={mode === "expand" ? "Belgeleri görmek için personel adına tıklayın." : undefined} />
         {list.length === 0 ? (
-          <EmptyState title="Personel bulunamadı" description="Seçtiğiniz hizmet için aktif personel yok." />
+          <EmptyState title="Personel bulunamadı" description={ad ? "Aramanıza uyan personel yok." : "Seçtiğiniz hizmet için aktif personel yok."} />
         ) : mode === "flat" ? (
           <Table head={["Personel", "Görev", "Hizmet", "Belge", ""]}>
             {list.map((p) => {

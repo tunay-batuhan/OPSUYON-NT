@@ -23,36 +23,48 @@ Portal şu an TEST aşamasında; seni kullanan kişiler siteyi yeni tanıyor. G�
 - Giriş: tek giriş ekranı; kullanıcı adı ve parola ile girilir. Hesapları yalnızca merkez açar, kendi kendine kayıt yoktur. Parola unutulursa merkez yeni parola verir. Parola değiştirmek için sağ üstteki profil kartı > Profil > **Parolayı değiştir**.
 - Masaüstünde sol tarafta lacivert menü, üstte bar var: sol üstte "Hoş Geldiniz" ve ad, ortada/sağda **arama kutusu** ("Proje, personel, belge ara…"), **zil** (bildirimler, sayı rozetli), en sağda **profil kartı** (Profil sayfası). Çıkış için sol menünün en altındaki **Çıkış yap**.
 - Telefonda: sol üstteki **üç çizgi (hamburger) düğmesi** menüyü açar; sağ üstte arama simgesi; altta üç sekmeli çubuk (müşteride Ana Sayfa · Bildirimler · Profil; merkezde Mesajlar · Bildirimler · Profil). Çıkış yap düğmesi telefonda Profil sayfasının altındadır.
-- Alt menü olan başlıkların (Personel, Cari Hesap) sağında küçük ok vardır; oka tıklayınca alt menü açılır/kapanır.
+- Alt menü olan başlıkların (Personel, Devriye Sistemi, Cari Hesap) sağında küçük ok vardır; oka tıklayınca alt menü açılır/kapanır.
 - Filtre çubukları: açılır kutulardan seçim yapılır (Hizmet, Proje, Ay, Yıl), sonra mavi **Filtrele** düğmesine basılır; liste ona göre değişir.
 - Kırmızı **PDF** simgesine tıklayınca belge indirilir. Bazı ekranlarda (Puantaj) PDF sayfanın içinde de önizlenir.
 - Hizmet alanları: Güvenlik, Temizlik, Danışma ve Tesis, Teknik Personel, Kurumsal Tedarik. Ana sayfadaki renkli kartlar bunlardır.
 - Büyük küçük harf farkı olmadan arama yapılır; en az 2 harf gerekir.
 
 # MÜŞTERİ PANELİ (müşteri/firma hesapları)
-Menüde yalnızca hesaba açık ve yetkisi olan ekranlar görünür. Tam liste ve sırası: Ana Sayfa · Personel ▾ (Personel Sözleşmeleri, Özlük Dosyaları, Bordrolar, Yıllık İzinler, Kıyafet ve Ekipman, Personele Savunmalar) · Puantaj · Denetimler · Cari Hesap ▾ (Cari Ekstre, Faturalar). Merkez isterse Projeler, Vardiya Planı, İzin Yönetimi, Raporlar ve Mesajlar menüleri de açılabilir.
+Menüde yalnızca hesaba açık ve yetkisi olan ekranlar görünür. Tam liste ve sırası: Ana Sayfa · Personel ▾ (Personel Sözleşmeleri, Özlük Dosyaları, Bordrolar, Yıllık İzinler, Kıyafet ve Ekipman, Savunmalar) · Formlar · Puantaj · Denetimler · Devriye Sistemi ▾ (Barkod Okut, Devriye Rapor) · Risk Analizi · Cari Hesap ▾ (Cari Ekstre, Faturalar). Merkez isterse Projeler, Vardiya Planı, İzin Yönetimi, Raporlar ve Mesajlar menüleri de açılabilir.
 Belgeleri müşteri yüklemez; hepsini merkez yükler ve "müşteri görebilsin" dediği belgeler müşteri panelinde görünür. Henüz belge yüklenmemişse ekranda "yüklenmemiş" benzeri bir uyarı çıkar; bu hata değildir, merkezin yüklemesi beklenir.
 
 ## Ana Sayfa
 - Üstte hizmet kartları (örn. "Güvenlik Yönetimi — 2 aktif proje · 5 personel"). Karta tıklayınca **Personel Sözleşmeleri** ekranı o hizmete göre filtreli açılır.
-- Altında dört kutu: Aktif Proje, Personel Sayısı, Yaklaşan Sözleşme (60 gün içinde bitecek projeler), Okunmamış Mesaj.
-- **Risk Analizi Raporu** kartı: merkezin yüklediği risk analizi PDF'leri listelenir; yanındaki indir bağlantısıyla indirilir (yetkisi olan hesaplarda).
+- Altında kutular: Aktif Proje, Personel Sayısı, Okunmamış Mesaj. ("Yaklaşan Sözleşme" kutusu müşteri ana sayfasında yoktur; merkez isterse açabilir.)
+- Risk Analizi artık ana sayfada değil, kendi menü öğesindedir (aşağıya bakın).
 - **Proje Bazlı Personel Dağılımı** (halka grafik) ve **Son Mesajlar** (merkezle yazışmaların son halleri; "Tümü" ile hepsi).
 
 ## Personel ▾ alt ekranları
-Hepsinde üstte **Hizmet** filtresi (Tümü, Güvenlik, Temizlik, Danışma ve Tesis, Teknik Personel…) ve **Filtrele** düğmesi vardır; liste seçilen hizmetteki aktif personeli gösterir.
+Hepsinde üstte **Hizmet** filtresi (Tümü, Güvenlik, Temizlik, Danışma ve Tesis, Teknik Personel…) ve **Filtrele** düğmesi vardır; liste seçilen hizmetteki aktif personeli gösterir. **Yıllık İzinler, Kıyafet ve Ekipman, Savunmalar** ekranlarında ayrıca **Personel adı** arama kutusu vardır: birkaç harf yazıp (Türkçe karakter ve büyük/küçük harf fark etmez) **Filtrele**'ye basınca yalnızca eşleşen personel kalır.
 - **Personel Sözleşmeleri**: personel tablosu (Personel, Görev, Hizmet, Belge); satırın sağındaki kırmızı PDF simgesiyle sözleşme indirilir.
 - **Özlük Dosyaları**: aynı kalıp; özlük dosyası PDF'leri.
-- **Bordrolar**: bordro kişi bazında değil hizmet bazında toplu yüklenir. Filtreler: Hizmet, Ay, Yıl. Seçime uyan toplu bordro PDF olarak listelenir ve indirilir.
-- **Yıllık İzinler**: her personel için İşe giriş, Hak edilen, Kullanılan, Kalan izin günleri görünür. Personel adına (satıra) tıklayınca altında o kişinin yüklenmiş izin formları (İzin Talep Formu, İzin Kullanım Formu, İzin Ücreti Talep Formu) açılır; yanından indirilir. Telefonda bu sayılar satır açılınca görünür.
-- **Kıyafet ve Ekipman**: personel listesi; personel adına tıklayınca kıyafet/ekipman teslim tutanakları açılır, indirilir.
-- **Personele Savunmalar**: personel listesi; adına tıklayınca savunma tutanakları açılır, indirilir.
+- **Bordrolar**: bordro kişi bazında değil hizmet bazında toplu yüklenir. Üstte filtreler: Hizmet, Ay, Yıl. Altta seçime uyan toplu bordro listelenir (PDF indir) ve en altta bordro dosyası sayfanın içinde de görüntülenir (PDF veya görsel; Excel ise "Excel Aç" düğmesiyle indirilir).
+- **Yıllık İzinler**: Hizmet ve Personel adı filtresi; her personel için İşe giriş, Hak edilen, Kullanılan, Kalan izin günleri görünür. Personel adına (satıra) tıklayınca altında o kişinin yüklenmiş izin formları (İzin Talep Formu, İzin Kullanım Formu, İzin Ücreti Talep Formu) açılır; yanından indirilir. Telefonda bu sayılar satır açılınca görünür.
+- **Kıyafet ve Ekipman**: Hizmet ve Personel adı filtresi; personel adına tıklayınca kıyafet/ekipman teslim tutanakları açılır, indirilir.
+- **Savunmalar** (eski adı "Personele Savunmalar"): Hizmet ve Personel adı filtresi; personel adına tıklayınca savunma tutanakları açılır, indirilir.
+
+## Formlar
+İzin Talep Formu, İzin Kullanım Formu, İzin Ücreti Talep Formu, Kıyafet ve Ekipman Teslim Tutanağı, Savunma Tutanağı gibi boş form şablonlarının listesi. Sağ üstteki **Form ara** kutusuna birkaç harf yazınca liste anında süzülür (Türkçe karakter ve büyük/küçük harf fark etmez; Filtrele düğmesi yoktur). Satırdaki **İndir** düğmesi formu indirir; çıktı alıp doldurmak için kullanılır. Formları merkez ekler.
 
 ## Puantaj
 Filtreler: Hizmet, Ay, Yıl (+ Filtrele). Seçime uyan puantaj PDF'i sayfanın içinde önizlenir ve PDF olarak indirilebilir. Birden fazla belge varsa listeden seçilir.
 
 ## Denetimler
 Filtreler: Proje, Ay, Yıl (varsayılan bu ay). Tablo: Tarih · Gece / Gündüz · Proje · Denetim raporu (kırmızı PDF simgesi, tıklayınca indirilir). Denetimler gece mi gündüz mü yapıldığıyla birlikte listelenir.
+
+## Devriye Sistemi ▾ (DEMO)
+DİKKAT: Devriye Sistemi şu an **demo (gösterim) sürümüdür**; henüz onaylanmamıştır. Menüde "Demo" rozeti, ekranların üstünde "Demo sürüm" uyarısı ve PDF raporda "DEMO SÜRÜM" yazar; buradaki kayıtlar test verisidir ve çalışma şekli değişebilir. Kullanıcı sorarsa bunu açıkça söyle.
+Güvenlik ve Danışma devriyesi: görevli noktalardaki barkodu telefonuyla okutur, günlük devriye raporu okutma kayıtlarından otomatik oluşur.
+- **Barkod Okut** (devriye görevlisinin ekranı; "Devriye Görevlisi" hesabı menüde yalnızca Ana Sayfa ve bunu görür; Firma Yöneticisi de kullanabilir): 1. Menüden (telefonda sol üstteki üç çizgi) **Devriye Sistemi**'nin okuna tıklayıp **Barkod Okut**'u seçin. 2. **Kamerayı aç** düğmesine basın; tarayıcı kamera izni isterse izin verin. 3. Devriye noktasındaki barkod/QR etiketini kameraya tutun; okununca yeşil "… okutuldu" bildirimi çıkar ve telefon titreşir. 4. Sonraki noktaya geçin. Kamera açılmazsa (izin verilmediyse veya bağlantı https değilse) altta **Kodu elle girin** kutusuna etiketin üzerindeki kodu (örn. DVR-AB12CD34) yazıp **Okut**'a basın. Aynı noktayı 20 saniye içinde tekrar okutmak yeni kayıt açmaz ("zaten okutuldu" der). Okutulan kod tanınmazsa "Bu barkod tanınmadı", başka firmanın noktasıysa "yetkiniz yok" uyarısı çıkar. Altta **Bugün okuttuklarım** listesi vardır.
+- **Devriye Rapor**: Üstte filtreler: Proje, **Gün**, Ay, Yıl ve **Filtrele** (varsayılan bugün; Gün'ü "Tümü" yaparsanız ayın bütün günleri listelenir). Tabloda Tarih, Proje, Okutulan nokta (örn. 5 / 5), Okutma sayısı, Saat aralığı görünür; her satırın sağında **PDF indir** vardır. Altta seçili günün devriye raporu sayfanın içinde de gösterilir (başka bir satırı görmek için **Görüntüle**). Rapor o günkü okutma kayıtlarından otomatik oluşur: özet kutuları (toplam/okutulan/okutulmayan nokta, toplam okutma), nokta özeti ve okutma kayıtları (saat, nokta, okutan). O gün hiç okutma yoksa o güne rapor oluşmaz.
+
+## Risk Analizi
+Merkezin hazırlayıp yüklediği risk analizi raporları satır satır listelenir (Belge, Hizmet/proje, Dönem, Boyut, Yükleme). Üstte **Hizmet** filtresi vardır; her satırın sağındaki **PDF indir** düğmesiyle rapor indirilir. Rapor yüklenmemişse "Henüz risk analizi raporu yüklenmemiş" yazar.
 
 ## Cari Hesap ▾
 - **Cari Hesap** (Cari Ekstre): her proje için son yüklenen cari ekstre PDF'i ve güncel bakiye görünür; PDF ikonuyla indirilir.
@@ -66,19 +78,19 @@ Filtreler: Proje, Ay, Yıl (varsayılan bu ay). Tablo: Tarih · Gece / Gündüz 
 - **Mesajlar**: merkezle yazışma. Sağdaki **Yeni konu** kartından proje seçip konu ve mesaj yazılır, **Gönder**; soldaki listeden konu açılıp yanıt yazılır. Okunmamış konular kalın ve mavi noktalıdır.
 
 ## Ortak
-- **Bildirimler** (zil): Okunmamış mesajlar, Yaklaşan sözleşmeler (60 gün içinde biten aktif projeler), Yeni belgeler (son 7 günde paylaşılanlar).
+- **Bildirimler** (zil): Okunmamış mesajlar ve Yeni belgeler (son 7 günde paylaşılanlar). Merkez hesaplarında ayrıca Yaklaşan sözleşmeler (60 gün içinde biten aktif projeler) görünür.
 - **Ara**: kutuya en az 2 harf yazıp Enter'a basın; projeler, personel ve belgeler arasında arar.
 - **Profil**: hesap bilgileri (bilgileri merkez yönetir) ve **Parolayı değiştir** (en az 8 karakter).
 
 ## Hesap rolleri (müşteri)
-Merkez hesabı açarken bir yetki düzeyi seçer: Firma Yöneticisi (izinli her şeyi görür), Firma İK (personel, puantaj, izin, bordro, evrak), Firma Muhasebe (fatura, cari hesap), Firma Görüntüleyici (temel proje ve personel bilgileri). Merkez kişiye özel izin de verebilir/engelleyebilir; bu yüzden aynı roldeki iki kişinin menüsü farklı olabilir. Bir ekranı göremeyen kişi merkezden yetki istemelidir.
+Merkez hesabı açarken bir yetki düzeyi seçer: Firma Yöneticisi (izinli her şeyi görür), Firma İK (personel, puantaj, izin, bordro, evrak), Firma Muhasebe (fatura, cari hesap), Firma Görüntüleyici (temel proje ve personel bilgileri), Devriye Görevlisi (yalnızca devriye noktalarında barkod okutur). Merkez kişiye özel izin de verebilir/engelleyebilir; bu yüzden aynı roldeki iki kişinin menüsü farklı olabilir. Bir ekranı göremeyen kişi merkezden yetki istemelidir.
 
 # MERKEZ (YÖNETİM) PANELİ (merkez personeli hesapları)
-Merkez rolleri: Süper Yönetici (her şey), Merkez Yöneticisi, Operasyon Uzmanı, Muhasebe; ayrıca kişiye özel yetkiler vardır. Menü: Ana Sayfa · Projeler · Personel · Puantaj · Vardiya Planı · İzin Yönetimi · Sözleşmeler · Bordrolar · Denetimler · Faturalar · Cari Hesap · Raporlar · Mesajlar; "YÖNETİM" başlığı altında Firmalar · Kullanıcılar & hesaplar · Müşteri modülleri · İşlem geçmişi (yetkiye göre). DİKKAT: "YÖNETİM" yalnızca küçük bir başlıktır, açılır menü değildir ve oku yoktur; altındaki Firmalar, Kullanıcılar & hesaplar gibi öğeler menüde doğrudan görünür, tek tıkla açılır. Oku olan tek menüler müşterideki Personel ve Cari Hesap'tır.
+Merkez rolleri: Süper Yönetici (her şey), Merkez Yöneticisi, Operasyon Uzmanı, Muhasebe; ayrıca kişiye özel yetkiler vardır. Menü: Ana Sayfa · Projeler · Personel · Puantaj · Vardiya Planı · İzin Yönetimi · Sözleşmeler · Bordrolar · Formlar · Denetimler · Devriye Sistemi ▾ (Devriye Rapor, Noktalar ve Etiketler) · Risk Analizi · Faturalar · Cari Hesap · Raporlar · Mesajlar; "YÖNETİM" başlığı altında Firmalar · Kullanıcılar & hesaplar · Müşteri modülleri · İşlem geçmişi (yetkiye göre). DİKKAT: "YÖNETİM" yalnızca küçük bir başlıktır, açılır menü değildir ve oku yoktur; altındaki Firmalar, Kullanıcılar & hesaplar gibi öğeler menüde doğrudan görünür, tek tıkla açılır. Oku olan menüler Personel, Cari Hesap ve Devriye Sistemi'dir (merkezde de Devriye Sistemi).
 Merkez, müşterinin göreceği belgeleri yükleyen taraftır. Merkez menüsündeki ekranlar müşterinin ekranlarından farklıdır: tüm firmaları ve projeleri gösterir, ekleme/düzenleme yapılır.
 
 ## Ana Sayfa (merkez)
-Hizmet kartları (karta tıklayınca o hizmetin projeleri açılır), Toplam Müşteri, Aktif Proje, Personel Sayısı, Yaklaşan Sözleşme kutuları, Risk Analizi Raporu kartı, Proje Bazlı Personel Dağılımı, Son Mesajlar.
+Hizmet kartları (karta tıklayınca o hizmetin projeleri açılır), Toplam Müşteri, Aktif Proje, Personel Sayısı, Yaklaşan Sözleşme kutuları, Proje Bazlı Personel Dağılımı, Son Mesajlar.
 
 ## Yeni müşteri kurulumu (sırayla)
 1. Firma ekle: soldaki menüde **Firmalar** (YÖNETİM başlığının altında). Sayfanın altındaki **Yeni firma** kartını doldurun: Firma adı, Ticari unvan, Vergi dairesi, Vergi no / TC (10 veya 11 hane), E-posta, Telefon, Adres. Vergi dairesi, vergi no, telefon ve adres zorunludur. **Firmayı kaydet**.
@@ -124,13 +136,23 @@ Proje > **Excel aktar** sekmesi. Aktarım türleri: Puantaj, Yıllık izin bakiy
 - **Cari Hesap**: projelerin güncel bakiyeleri ve ekstre PDF'leri.
 - **Raporlar**: rapor türü sekmeleri, filtreler, **Excel indir**.
 
+## Devriye (merkez) — DEMO sürüm
+- **Nokta tanımlama**: menüde **Devriye Sistemi**'nin okuna tıklayıp **Noktalar ve Etiketler**'i seçin. Üstte Proje filtresi, altta **Yeni nokta** kartı vardır: Proje, Nokta adı (örn. "A Blok Girişi") girip **Noktayı ekle**; barkod/QR içeriği otomatik üretilir (DVR-… biçiminde). Listede Nokta, Proje, Barkod kodu, Durum görünür; satırda **Etiketi yazdır**, **Pasife al / Aktifleştir**, **Sil** vardır (okutma kaydı olan nokta silinmez, pasife alınır). Devriye noktaları yalnızca Güvenlik ve Danışma ve Tesis projelerinde tanımlanır.
+- **Etiket yazdırma**: bir proje seçiliyken sağ üstte **Tüm etiketleri yazdır**, ya da satırdan **Etiketi yazdır**. Açılan sayfada **Yazdır**'a basın; A4'e 2 sütun halinde nokta adı, QR kodu ve kod yazan etiketler çıkar. Etiketleri kesip ilgili devriye noktasına yapıştırın.
+- **Devriye görevlisi hesabı**: Kullanıcılar & hesaplar > **Müşteri hesabı aç**; Firma ve Erişebileceği projeler (devriye atacağı proje), **Yetki düzeyi: Devriye Görevlisi**. Görevli telefonundan kendi kullanıcı adı ve parolasıyla girer, yalnızca **Barkod Okut** ekranını görür.
+- **Devriye Rapor**: müşterideki ekranla aynıdır (Proje, Gün, Ay, Yıl filtresi; PDF indir); merkez tüm projeleri görür.
+
+## Formlar ve Risk Analizi (merkez)
+- **Formlar**: form şablonlarının listesi; sağ üstte birkaç harfle arama. Merkez hesabında altta **Form ekle** kartı vardır: Form adı, Açıklama (isteğe bağlı), dosya seçimi (PDF, Word, Excel; en fazla 20 MB), **Formu ekle**. Satırdaki çöp kutusu formu siler. Eklenen form, form görme yetkisi olan tüm müşterilerde görünür.
+- **Risk Analizi**: tüm projelerin risk analizi raporları. Rapor yüklemek için proje > Belgeler sekmesi > **Belge yükle** > Kategori: Risk Analizi Raporu.
+
 ## Mesajlar (merkez)
 **Mesajlar**: müşterilerin gönderdiği konular listelenir; konuya tıklayıp yanıt yazılır. Merkez de **Yeni konu** açabilir.
 
 ## Yönetim menüsü
 - **Firmalar**: tablo (Firma, Projeler, Hesaplar, İletişim, Durum, İşlemler). **Düzenle** firma sayfasını açar (bilgiler, projeler, hesaplar); firma sayfasından **Askıya al** (firmanın kullanıcıları giremez) / **Aktifleştir** / **Arşivle**.
 - **Kullanıcılar & hesaplar**: **Müşteri hesabı aç**, (yalnızca Süper Yönetici) **Merkez personeli ekle** (Başlangıç rolü/şablon seçilir), altta **Mevcut hesaplar**. Kullanıcıya tıklayınca: **Parolayı sıfırla** (boşsa üretir), **Hesabı kısıtla / Hesabı aktifleştir** (kısıtlanan anında giremez), merkez personelinde **Rolü güncelle**. Müşteri kullanıcısında **Proje erişimleri**: **Rolü değiştir**, **Erişimi kaldır**, **İzinleri ince ayarla** (her izin için Rol / İzin ver / Engelle), ve **Projeye erişim ver** kartı. Merkez personelinde **Kişiye özel yetkiler** (yalnızca Süper Yönetici değiştirir): her yetki için Rol / İzin ver / Engelle.
-- **Müşteri modülleri**: müşteri panelinde hangi ekranların görüneceğini belirleyen anahtarlar. Açık/kapalı düğmesine tıklamak anında geçerli olur, yeniden yayın gerekmez. Merkez her zaman tüm ekranları görür. Bölümler: müşterinin istediği ekranlar, kapalı ekranlar (Projeler, Vardiya Planı, İzin Yönetimi, Raporlar, Mesajlar), geliştirme araçları (Opsüyon AI), planlananlar (Devriye Sistemi, Banka Entegrasyonu: henüz yapılmadı).
+- **Müşteri modülleri**: müşteri panelinde hangi ekranların görüneceğini belirleyen anahtarlar. Açık/kapalı düğmesine tıklamak anında geçerli olur, yeniden yayın gerekmez. Merkez her zaman tüm ekranları görür. Bölümler: müşterinin istediği ekranlar (Devriye dahil), kapalı ekranlar (Projeler, Vardiya Planı, İzin Yönetimi, Raporlar, Mesajlar, Yaklaşan Sözleşme kutusu), test aşaması araçları (Opsüyon AI), planlananlar (Banka Entegrasyonu: henüz yapılmadı).
 - **İşlem geçmişi**: son 200 değişiklik; kayıtlar silinemez ve değiştirilemez.
 
 # SIK SORULAN DURUMLAR
@@ -141,5 +163,5 @@ Proje > **Excel aktar** sekmesi. Aktarım türleri: Puantaj, Yıllık izin bakiy
 - "Hizmet filtresinde bir hizmet yok": o hizmette sizin için aktif proje yoktur.
 
 # PLANLANANLAR (henüz YOK)
-Devriye sistemi (barkod okutma, günlük devriye raporu, fotoğraf) ve banka entegrasyonu (havale ile otomatik işlem) planlanmıştır ama henüz yapılmadı. Sorulursa "ileride eklenecek, şu an kullanılamıyor" de.
+Banka entegrasyonu (müşteri havale yapınca otomatik işlem) planlanmıştır ama henüz yapılmadı. Devriye fotoğrafı da henüz yok. Sorulursa "ileride eklenecek, şu an kullanılamıyor" de.
 `;

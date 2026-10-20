@@ -165,11 +165,9 @@ for (const [i, s] of staffRows.entries()) {
 for (let i = 0; i < shiftRows.length; i += 400) must(await sb.from("shift_assignments").insert(shiftRows.slice(i, i + 400)), "vardiya");
 
 /* ------------------------------ documents ------------------------------ */
-const prev1 = prevMonth(1);
 for (const s of staffRows) {
   const jobs = [
     ["sozlesme", `Hizmet Sözleşmesi - ${s.first_name} ${s.last_name}`, "sozlesme", null, null],
-    ["bordro", `Bordro ${pad(prev1.m)}/${prev1.y} - ${s.first_name} ${s.last_name}`, "bordro", prev1.y, prev1.m],
     ["ozluk", `Özlük Dosyası - ${s.first_name} ${s.last_name}`, "ozluk", null, null],
   ];
   for (const [cat, title, fileBase, py, pm] of jobs) {

@@ -29,6 +29,8 @@ Veritabanı şeması `supabase/migrations/` altındadır ve sırayla uygulanır:
 | `…0900_notes_round` | Danışma ve Tesis hizmet alanı, kişiye özel merkez yetkisi, Excel cari ekstre, izin kayıtları, otomatik pasife alma |
 | `20261019…customer_modules` | müşteri modül anahtarları (`app_modules`), Teknik Personel hizmeti, kıyafet / savunma / denetim / risk / cari ekstre belge türleri, personel → işveren firma |
 | `20261019…opsuyon_ai` | Opsüyon AI modül anahtarı |
+| `20261020…notes_round3` | Formlar (form şablonları), `forms.read`, Savunmalar adı, Yaklaşan Sözleşme anahtarı |
+| `20261020…patrol` | Devriye: noktalar, okutma kayıtları, `record_patrol_scan()`, Devriye Görevlisi rolü |
 
 Test / demo hesapları (müşteri denemesi için):
 
@@ -56,6 +58,7 @@ node --env-file=.env scripts/bootstrap-admin.mjs --username=admin --name="Ad Soy
   ve adresi 404 verir; merkez her zaman erişir. Açıp kapatmak için Merkez → *Müşteri modülleri* (yeniden yayın gerekmez).
   Müşterinin yazılı isteği ve aşamalar: `docs/yol-haritasi.md`.
 - **Opsüyon AI (yardım asistanı):** sağ altta açılan, portalın ekranlarını bilen sohbet asistanı (yalnızca test aşaması). Claude Haiku kullanır; anahtar `CLAUDE_API_KEY` (yalnızca sunucu; Vercel'e de eklenmeli). Bilgisi `src/lib/assistant/guide.ts` içindedir ve **özellik eklendikçe/değiştikçe güncellenmelidir**. Soran kişinin menüsü de modele verilir; veritabanına erişmez, sohbet kaydedilmez. Canlıya çıkarken Merkez → Müşteri modülleri → *Opsüyon AI* anahtarını kapatın.
+- **Devriye (DEMO — henüz onaylanmadı; menüde rozet, ekranlarda uyarı):** noktalar (`patrol_points`) QR olarak basılır; devriye görevlisi telefonunda *Barkod Okut* ile okutur (`zxing`, kamera yalnızca https'te); günlük rapor okutma kayıtlarından her istekte PDF olarak üretilir (`pdf-lib`, Türkçe karakterler için gömülü Roboto). Okutma yalnızca `record_patrol_scan()` ile yazılır (yetki ve çift okuma kontrolü veritabanında).
 - **Yeni özellik eklemek:** yeni izin = `permissions` satırı; yeni belge türü = `document_categories`
   satırı; yeni hizmet alanı = `service_lines` satırı. Yeni tablo → RLS aç, politikaları
   `app.has_project_permission(...)` ile yaz, `app.audit_row()` tetikleyicisini bağla.

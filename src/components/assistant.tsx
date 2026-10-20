@@ -138,7 +138,7 @@ export function Assistant({ kind }: { kind: "staff" | "customer" }) {
         <section
           role="dialog"
           aria-label="Opsüyon AI yardım asistanı"
-          className="fixed inset-x-3 bottom-36 z-50 flex h-[min(34rem,calc(100dvh-11rem))] flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl sm:inset-x-auto sm:right-5 sm:w-[24rem] lg:bottom-24"
+          className="fixed inset-x-3 bottom-36 z-50 flex print:hidden h-[min(34rem,calc(100dvh-11rem))] flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl sm:inset-x-auto sm:right-5 sm:w-[24rem] lg:bottom-24"
         >
           <header className="flex items-center gap-3 bg-[var(--side-bg)] px-4 py-3 text-white">
             <span className="grid size-9 shrink-0 place-items-center rounded-full bg-brand" aria-hidden>
@@ -230,7 +230,7 @@ export function Assistant({ kind }: { kind: "staff" | "customer" }) {
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-label={open ? "Asistanı kapat" : "Opsüyon AI'ya sor"}
-        className="fixed bottom-20 right-4 z-50 flex h-12 items-center gap-2 rounded-full bg-brand px-4 font-medium text-brand-fg shadow-lg ring-4 ring-white/70 transition hover:bg-brand-hover sm:right-5 lg:bottom-6"
+        className="fixed bottom-20 right-4 z-50 flex print:hidden h-12 items-center gap-2 rounded-full bg-brand px-4 font-medium text-brand-fg shadow-lg ring-4 ring-white/70 transition hover:bg-brand-hover sm:right-5 lg:bottom-6"
       >
         {open ? <X className="size-5" aria-hidden /> : <Sparkles className="size-5" aria-hidden />}
         <span className="hidden sm:inline">Opsüyon AI</span>
