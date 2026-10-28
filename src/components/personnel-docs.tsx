@@ -15,13 +15,13 @@ const chunk = <T,>(arr: T[], n: number) => Array.from({ length: Math.ceil(arr.le
 
 /**
  * Personel listesi + hizmet filtresi + personele ait PDF belgeler.
- *  mode "flat":   Personel Sözleşmeleri / Özlük Dosyaları — satırda PDF indir ikonu
+ *  mode "flat":   örn. Savunmalar — satırda PDF indir ikonu
  *  mode "expand": Yıllık İzinler / Kıyafet / Savunma — personel adına tıklayınca altında PDF'ler açılır
  */
 export async function PersonnelDocs({
-  category, title, description, path, searchParams, mode, leave = false, nameFilter = false, lineNames,
+  categories, title, description, path, searchParams, mode, leave = false, nameFilter = false, lineNames,
 }: {
-  category: string;
+  categories: string[];
   title: string;
   description: string;
   path: string;
@@ -63,7 +63,7 @@ export async function PersonnelDocs({
   const recordDays = new Map<string, number>();
   await Promise.all(
     chunk(ids, 100).flatMap((part) => [
-      supabase.from("documents").select("id, personnel_id, title, file_name, created_at").eq("category_code", category).in("personnel_id", part).order("created_at", { ascending: false })
+      supabase.from("documents").select("id, personnel_id, title, file_name, created_at").in("category_code", categories).in("personnel_id", part).order("created_at", { ascending: false })
         .then(({ data }) => (data ?? []).forEach((d) => docs.set(d.personnel_id as string, [...(docs.get(d.personnel_id as string) ?? []), d as Doc]))),
       ...(leave
         ? [
@@ -156,7 +156,7 @@ export async function PersonnelDocs({
                               <span className="font-medium">{d.title}</span>
                               <span className="ml-2 text-xs text-muted">{d.file_name} · {formatDate(d.created_at)}</span>
                             </span>
-                            <DownloadLink id={d.id} />
+                            <DownloadLink id={d.id} title={d.title} />
                           </li>
                         ))}
                       </ul>

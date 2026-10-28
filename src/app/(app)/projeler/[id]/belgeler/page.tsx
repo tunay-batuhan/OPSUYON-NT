@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Download, Eye, EyeOff, Trash2 } from "lucide-react";
 import { Card, CardHeader, EmptyState, Table, cn, td } from "@/components/ui";
+import { ViewButton } from "@/components/doc-viewer";
 import { formatBytes, formatDate, formatPeriod } from "@/lib/format";
 import { can, getProjectContext } from "@/lib/project";
 import { createClient } from "@/lib/supabase/server";
@@ -96,6 +97,7 @@ export default async function DocumentsPage({ params, searchParams }: PageProps<
                       <a href={`/api/documents/${d.id}`} className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-sm hover:bg-surface-2">
                         <Download className="size-4" aria-hidden /> İndir
                       </a>
+                      <ViewButton src={`/api/documents/${d.id}/view`} title={d.title} downloadHref={`/api/documents/${d.id}`} className="ml-2" />
                       {manage && (
                         <form action={deleteDocument} className="ml-2 inline">
                           <input type="hidden" name="id" value={d.id} />

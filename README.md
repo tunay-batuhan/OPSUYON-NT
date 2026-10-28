@@ -30,6 +30,8 @@ Veritabanı şeması `supabase/migrations/` altındadır ve sırayla uygulanır:
 | `20261019…customer_modules` | müşteri modül anahtarları (`app_modules`), Teknik Personel hizmeti, kıyafet / savunma / denetim / risk / cari ekstre belge türleri, personel → işveren firma |
 | `20261019…opsuyon_ai` | Opsüyon AI modül anahtarı |
 | `20261020…notes_round3` | Formlar (form şablonları), `forms.read`, Savunmalar adı, Yaklaşan Sözleşme anahtarı |
+| `20261028…one_project_per_person` | Personel aynı anda yalnızca 1 projede (tetikleyici + benzersiz dizin; eski çift atamalar temizlendi) |
+| `20261027…notes_round4` | Özlük evrak türleri (iş sözleşmesi, İSG, kimlik, ikametgah, adli sicil, sağlık raporu, onam formları), Eğitim ve İhtar belge türleri, `trainings.read`, modül adları |
 | `20261020…patrol` | Devriye: noktalar, okutma kayıtları, `record_patrol_scan()`, Devriye Görevlisi rolü |
 
 Test / demo hesapları (müşteri denemesi için):
@@ -58,6 +60,7 @@ node --env-file=.env scripts/bootstrap-admin.mjs --username=admin --name="Ad Soy
   ve adresi 404 verir; merkez her zaman erişir. Açıp kapatmak için Merkez → *Müşteri modülleri* (yeniden yayın gerekmez).
   Müşterinin yazılı isteği ve aşamalar: `docs/yol-haritasi.md`.
 - **Opsüyon AI (yardım asistanı):** sağ altta açılan, portalın ekranlarını bilen sohbet asistanı (yalnızca test aşaması). Claude Haiku kullanır; anahtar `CLAUDE_API_KEY` (yalnızca sunucu; Vercel'e de eklenmeli). Bilgisi `src/lib/assistant/guide.ts` içindedir ve **özellik eklendikçe/değiştikçe güncellenmelidir**. Soran kişinin menüsü de modele verilir; veritabanına erişmez, sohbet kaydedilmez. Canlıya çıkarken Merkez → Müşteri modülleri → *Opsüyon AI* anahtarını kapatın.
+- **Görüntüle:** her "PDF indir"in yanında "Görüntüle" düğmesi vardır (`ViewButton`); belge AppShell'deki tek görüntüleyicide, sayfanın altında açılır (`/api/documents/[id]/view`, `/api/forms/[id]/view`). Yeni bir indirme bağlantısı eklerken `DownloadLink`/`PdfIcon` kullanın, görüntüleme kendiliğinden gelir.
 - **Devriye (DEMO — henüz onaylanmadı; menüde rozet, ekranlarda uyarı):** noktalar (`patrol_points`) QR olarak basılır; devriye görevlisi telefonunda *Barkod Okut* ile okutur (`zxing`, kamera yalnızca https'te); günlük rapor okutma kayıtlarından her istekte PDF olarak üretilir (`pdf-lib`, Türkçe karakterler için gömülü Roboto). Okutma yalnızca `record_patrol_scan()` ile yazılır (yetki ve çift okuma kontrolü veritabanında).
 - **Yeni özellik eklemek:** yeni izin = `permissions` satırı; yeni belge türü = `document_categories`
   satırı; yeni hizmet alanı = `service_lines` satırı. Yeni tablo → RLS aç, politikaları

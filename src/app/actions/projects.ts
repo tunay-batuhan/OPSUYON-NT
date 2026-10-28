@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { assertStaff } from "@/lib/auth";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { guard, nul, pgMessage, str, validate } from "@/lib/form";
 import { toTitleCase } from "@/lib/format";
@@ -73,8 +74,10 @@ export async function createProject(values: ProjectCreateValues): Promise<Action
       if (error.code === "23505") return { error: "Bu proje kodu zaten kullanılıyor.", fieldErrors: { code: "Bu proje kodu zaten kullanılıyor" } };
       return { error: pgMessage(error) };
     }
+    // Aksi halde yeni proje, firmanın mevcut hesaplarında görünmez: firmanın "Firma Yöneticisi" hesaplarına erişim ver.
+    const granted = await grantProjectToFirmManagers(data.id as string, d.organization_id);
     revalidatePath("/merkez/projeler");
-    redirect(`/projeler/${data.id}`);
+    redirect(`/projeler/${data.id}${granted ? `?erisim=${granted}` : ""}`);
   });
 }
 
@@ -135,4 +138,25 @@ export async function updateOrganization(values: OrganizationUpdateValues): Prom
     revalidatePath(`/merkez/firmalar/${d.id}`);
     return { ok: true, message: "Firma bilgileri güncellendi." };
   });
+}
+
+/**
+ * Firmanın (başka projelerinde) "Firma Yöneticisi" rolündeki aktif hesaplarını yeni projeye de ekler.
+ * Yetki kontrolü çağıranda yapılır (projects.manage); üyelik tablosu için yönetici istemci kullanılır.
+ */
+async function grantProjectToFirmManagers(projectId: string, organizationId: string): Promise<number> {
+  const admin = createAdminClient();
+  const { data: role } = await admin.from("roles").select("id").eq("code", "customer_manager").maybeSingle();
+  if (!role) return 0;
+  const { data: others } = await admin.from("projects").select("id").eq("organization_id", organizationId).neq("id", projectId);
+  const ids = (others ?? []).map((p) => p.id as string);
+  if (ids.length === 0) return 0;
+  const { data: members } = await admin.from("project_members").select("user_id").in("project_id", ids).eq("role_id", role.id);
+  const userIds = [...new Set((members ?? []).map((m) => m.user_id as string))];
+  if (userIds.length === 0) return 0;
+  const { data: profiles } = await admin.from("profiles").select("id").in("id", userIds).eq("kind", "customer").eq("is_active", true).eq("organization_id", organizationId);
+  const rows = (profiles ?? []).map((p) => ({ project_id: projectId, user_id: p.id as string, role_id: role.id as string }));
+  if (rows.length === 0) return 0;
+  const { error } = await admin.from("project_members").insert(rows);
+  return error ? 0 : rows.length;
 }

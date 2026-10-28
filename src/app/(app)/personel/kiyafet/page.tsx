@@ -9,7 +9,7 @@ export default async function UniformPage({ searchParams }: PageProps<"/personel
   await requireAccess("personel_kiyafet", "uniform.read");
   return (
     <PersonnelDocs
-      category="kiyafet_ekipman"
+      categories={["kiyafet_ekipman"]}
       title="Kıyafet ve Ekipman"
       description="Personel adına tıklayınca kıyafet ve ekipman teslim tutanakları açılır."
       path="/personel/kiyafet"

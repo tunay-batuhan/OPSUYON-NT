@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Download, FileText, Search, Trash2 } from "lucide-react";
 import { Card, CardHeader, EmptyState, inputCls } from "@/components/ui";
 import { deleteFormTemplate } from "@/app/actions/forms";
+import { ViewButton } from "@/components/doc-viewer";
 import { formatBytes } from "@/lib/format";
 import { matches } from "@/lib/text";
 
@@ -61,6 +62,7 @@ export function FormsLibrary({ items, manage }: { items: FormItem[]; manage: boo
                 >
                   <Download className="size-4" aria-hidden /> İndir
                 </a>
+                <ViewButton src={`/api/forms/${f.id}/view`} title={f.title} downloadHref={`/api/forms/${f.id}`} />
                 {manage && (
                   <form action={deleteFormTemplate}>
                     <input type="hidden" name="id" value={f.id} />

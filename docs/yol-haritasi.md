@@ -167,3 +167,39 @@ Merkez (yönetici) tarafında bu ekranlar çalışmaya devam eder; çünkü mü�
 5. Devriye'de fotoğraf ve telefona bildirim yok (ikinci notta "ana sayfada / rapor sekmesinde görülecek" denmiş).
 6. Bordro dosyası PDF/görsel/Excel olabilir; Excel'in sayfada **tablo olarak** gösterilmesi gerekiyorsa ayrıca yapılır.
 7. Notun "Anasayfa" altındaki ikinci satırı okunamadı.
+
+---
+
+## 7. "Demo Site Kullanıcısı" tablosu (27 Ekim, 4. tur)
+| İstek | Durum |
+|---|---|
+| Yazılımdaki tüm **PDF indir**'in yanında **GÖRÜNTÜLE**; seçilince belge indirmeden **altta** görünsün | ✅ Her indirme noktasında (Özlük, Eğitimler, Savunmalar, İzinler, Kıyafet, Bordro, Denetim, Cari Hesap, Faturalar, Risk, Formlar, merkez Belgeler…) "Görüntüle" düğmesi; belge sayfanın altındaki görüntüleyicide açılır, "Kapat" ile kapanır. PDF/görsel görüntülenir; Excel/Word için "görüntülenemez, indir" bilgi sayfası |
+| **Personel Sözleşmeleri** sekmesi kalkacak; tüm sözleşmeler Özlük Evrakları altında | ✅ Sekme kalktı (modül kapalı; eski adres Özlük Evrakları'na yönlenir). Sözleşme, Özlük Evrakları'nın 1. sırası |
+| "Özlük Dosyaları" adı **Özlük Evrakları** | ✅ |
+| Üst filtre: **Ad Soyad ile personel seçilsin**; altta o personelin evrakları satır satır: Personel Adı / Evrakın Adı / PDF indir + Görüntüle | ✅ Hizmet + Personel (Ad Soyad) seçimi; seçilince evrak türleri istenen sırada listelenir, olmayan evrak "Yüklenmemiş" yazar |
+| Sıra: 1 İş Sözleşmesi · 2 İSG · 3 Nüfus Cüzdanı/Güvenlik Kimliği · 4 İkametgah · 5 Adli Sicil · 6 Sağlık Raporu · 7 Onam Formları (7-1 Fazla Çalışma, 7-2 Gece Çalışma, 7-3 Yıllık İzin, 7-4 Transfer Muvaffakatnamesi) | ✅ Yeni belge türleri; merkez Belgeler > Belge yükle'den yükler |
+| **Eğitimler** (yeni): personel seçilir; katıldığı tüm eğitimler satır satır, PDF indir + Görüntüle | ✅ Üst sekme; `trainings.read` izni, "Eğitim Belgesi" türü (her eğitim ayrı belge) |
+| **Bordrolar** Personel altında olmasın; Puantaj gibi ayrı sekme | ✅ Üst sekme (`/bordrolar`); eski adres yönlenir |
+| **Savunmalar** → "SAVUNMALAR VE İHTARLAR" | ✅ Üst sekme + yeni "Personel İhtarı" belge türü |
+| Merkez hesabında projeler gözükmedi — kontrol | ✅ İncelendi, aşağıya bakın |
+
+### Projeler neden görünmedi? (inceleme sonucu)
+Veritabanında `admin` dışında merkez (staff) hesabı yok; sorun müşteri hesabı `butik.garden`'daydı:
+1. **Yeni proje, firmanın mevcut hesaplarına otomatik bağlanmıyordu.** Hesap açıldıktan sonra eklenen "Temizlik Hizmeti" projesine hesabın üyeliği yoktu. → Düzeltildi: proje oluşturulunca firmanın *Firma Yöneticisi* hesaplarına erişim otomatik verilir (proje sayfasında bilgi bandı çıkar). Diğer roller (İK, Muhasebe…) için Kullanıcılar > kişi > "Projeye erişim ver" gerekir.
+2. **Aynı adlı eski bir "Temizlik Hizmeti" projesi bitiş tarihi 01.01.2026 olduğu için otomatik Pasif'e alınmıştı;** Pasif projede müşteri erişimi kapanır (müşteri isteği). → Proje formlarına "bitiş tarihi geçmişte, proje Pasif olur" uyarısı eklendi.
+3. `butik.garden` hesabına yeni Temizlik projesi için erişim verildi (düzeltme).
+
+---
+
+## 8. Kural: bir personel aynı anda yalnızca 1 projede (28 Ekim)
+- Bir personel aynı anda **en fazla 1 projede** görevli olabilir. Başka projeye alınmak için önce mevcut projeden çıkarılır (**Görevden al**), sonra yeni projeye atanır.
+- Veritabanında zorunlu (tetikleyici + benzersiz dizin): kural arayüz dışından da çiğnenemez. Hata mesajı hangi projede görevli olduğunu söyler.
+- Arayüz: "Personel ata" listesinde yalnızca boştaki personel görünür; başka projede görevli olanlar nedeniyle birlikte altta listelenir. Excel aktarımında da aynı denetim var.
+- Mevcut çift atamalar temizlendi (personelin kendi firmasındaki atama kaldı).
+- Not: personel yalnızca kendi firmasının projelerine atanabilir (ayrı kural, önceki turdan).
+
+### "Hesap açtım, 2 proje tanımladım, girince projeleri göremedim" (inceleme)
+Veritabanı geçmişinden olay sırası çıkarıldı (27 Ekim). İki neden birlikte çalışıyordu:
+1. Hesap, projelerden **önce** açılmıştı; sonradan açılan projeye hesabın erişimi otomatik bağlanmıyordu (düzeltildi: Firma Yöneticisi hesaplarına otomatik erişim).
+2. Müşteri menüsünde **Projeler yok** (müşteri istemişti); müşteri projeleri yalnızca ana sayfadaki hizmet kartlarında sayı olarak görüyordu. → Kartların altına **proje adları** eklendi.
+Ayrıca eski bir projenin bitiş tarihi geçmişti; otomatik Pasif olup erişimi kapattı (formlara uyarı eklendi).

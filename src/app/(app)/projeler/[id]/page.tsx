@@ -1,13 +1,14 @@
 import { CalendarDays, FileText, Users, Wallet } from "lucide-react";
-import { Card, CardHeader, Stat } from "@/components/ui";
+import { Card, CardHeader, Notice, Stat } from "@/components/ui";
 import { ProjectEditForm } from "@/components/forms/admin-forms";
 import { formatDate, formatMoney, formatPeriod } from "@/lib/format";
 import { can, getProjectContext } from "@/lib/project";
 import { createClient } from "@/lib/supabase/server";
 import type { StatementRow } from "@/lib/types";
 
-export default async function ProjectOverview({ params }: PageProps<"/projeler/[id]">) {
+export default async function ProjectOverview({ params, searchParams }: PageProps<"/projeler/[id]">) {
   const { id } = await params;
+  const granted = Number((await searchParams).erisim) || 0;
   const ctx = await getProjectContext(id);
   const { project } = ctx;
   const supabase = await createClient();
@@ -30,6 +31,11 @@ export default async function ProjectOverview({ params }: PageProps<"/projeler/[
 
   return (
     <div className="space-y-6">
+      {granted > 0 && (
+        <Notice tone="success">
+          Proje oluşturuldu. Firmanın {granted} “Firma Yöneticisi” hesabına bu projeye erişim otomatik verildi; diğer hesaplara Kullanıcılar sayfasından erişim verebilirsiniz.
+        </Notice>
+      )}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {personnel && <Stat label="Aktif personel" value={personnel.count ?? 0} icon={Users} />}
         {lastSheet && (

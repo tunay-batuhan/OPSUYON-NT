@@ -23,8 +23,7 @@ export default async function PersonnelListPage({ searchParams }: PageProps<"/pe
   // Müşteri: Personel menüsü alt ekranlara açılır; ilk açık olana git
   const on = await getEnabledModules();
   const first = [
-    ["personel_sozlesme", "/personel/sozlesmeler"], ["personel_ozluk", "/personel/ozluk"], ["personel_bordro", "/personel/bordrolar"],
-    ["personel_izin", "/personel/izinler"], ["personel_kiyafet", "/personel/kiyafet"], ["personel_savunma", "/personel/savunmalar"],
+    ["personel_ozluk", "/personel/ozluk"], ["personel_izin", "/personel/izinler"], ["personel_kiyafet", "/personel/kiyafet"],
   ].find(([m]) => on.has(m));
   if (first) redirect(first[1]);
   const sp = await searchParams;

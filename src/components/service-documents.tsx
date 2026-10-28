@@ -92,7 +92,7 @@ export async function ServiceDocuments({
                       Görüntüle
                     </a>
                   )}
-                  <DownloadLink id={d.id} />
+                  <DownloadLink id={d.id} title={d.title} view={!preview} />
                 </td>
               </tr>
             ))}

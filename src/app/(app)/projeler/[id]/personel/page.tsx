@@ -40,12 +40,23 @@ export default async function ProjectPersonnel({ params, searchParams }: PagePro
   const rows = all.filter((r) => (filter === "aktif" ? !r.end_date : filter === "ayrildi" ? Boolean(r.end_date) : true));
 
   const manage = can(ctx, "personnel.manage");
-  const assignedIds = new Set(all.filter((r) => !r.end_date).map((r) => r.personnel?.id));
-  const candidates = manage
-    ? ((await supabase.from("personnel").select("id, full_name, title").neq("status", "terminated").or(`organization_id.is.null,organization_id.eq.${ctx.project.organization_id}`).order("full_name")).data ?? []).filter(
-        (p) => !assignedIds.has(p.id),
-      )
+  // Bir personel aynı anda yalnızca 1 projede olabilir: başka projede görevli olanlar listelenmez (nedeni aşağıda gösterilir)
+  const firmPeople = manage
+    ? ((await supabase.from("personnel").select("id, full_name, title").neq("status", "terminated").or(`organization_id.is.null,organization_id.eq.${ctx.project.organization_id}`).order("full_name")).data ?? [])
     : [];
+  const busy = new Map<string, { project: string; here: boolean }>();
+  if (manage && firmPeople.length) {
+    const { data: act } = await supabase
+      .from("personnel_assignments")
+      .select("personnel_id, project_id, projects(name)")
+      .is("end_date", null)
+      .in("personnel_id", firmPeople.map((p) => p.id));
+    for (const a of (act ?? []) as unknown as { personnel_id: string; project_id: string; projects: { name: string } | null }[]) {
+      busy.set(a.personnel_id, { project: a.projects?.name ?? "başka bir proje", here: a.project_id === id });
+    }
+  }
+  const candidates = firmPeople.filter((p) => !busy.has(p.id));
+  const elsewhere = firmPeople.filter((p) => busy.get(p.id) && !busy.get(p.id)!.here);
 
   return (
     <div className="space-y-6">
@@ -113,6 +124,21 @@ export default async function ProjectPersonnel({ params, searchParams }: PagePro
         <Card>
           <CardHeader title="Personel ata" description="Bu projenin firmasının kadrosundaki (veya henüz bir firmaya bağlanmamış) personeli görevlendirin." />
           <AssignForm projectId={id} candidates={candidates.map((p) => ({ value: p.id, label: p.title ? `${p.full_name} — ${p.title}` : p.full_name }))} />
+          <div className="border-t border-border px-5 py-4 text-sm">
+            <p className="font-medium">Bir personel aynı anda yalnızca 1 projede görevli olabilir.</p>
+            <p className="mt-0.5 text-muted">
+              {elsewhere.length === 0
+                ? "Başka bir projede görevli personel yok; tüm boştaki personel yukarıdaki listede."
+                : "Aşağıdakiler başka bir projede görevli olduğu için listede yok. Bu projeye almak için önce o projeden çıkarın (o projenin Personel sekmesinde \"Görevden al\")."}
+            </p>
+            {elsewhere.length > 0 && (
+              <ul className="mt-2 list-disc space-y-0.5 pl-5">
+                {elsewhere.map((p) => (
+                  <li key={p.id}><span className="font-medium">{p.full_name}</span> <span className="text-muted">— {busy.get(p.id)!.project}</span></li>
+                ))}
+              </ul>
+            )}
+          </div>
         </Card>
       )}
     </div>

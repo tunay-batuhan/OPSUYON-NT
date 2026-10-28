@@ -27,7 +27,7 @@ export async function Dashboard({ user }: { user: CurrentUser }) {
   const [lines, projects, assignments, orgs, expiring, messages, counts] = await Promise.all([
 
     getServiceLines(),
-    supabase.from("projects").select("id, service_line").eq("status", "active"),
+    supabase.from("projects").select("id, name, service_line").eq("status", "active"),
     supabase.from("personnel_assignments").select("personnel_id, project_id").is("end_date", null),
     staff && canAnywhere(user, "organizations.read") ? supabase.from("organizations").select("id", head).eq("status", "active") : null,
     supabase.from("projects").select("id", head).eq("status", "active").gte("end_date", today).lte("end_date", soon),
@@ -41,7 +41,9 @@ export async function Dashboard({ user }: { user: CurrentUser }) {
   const perLine = lines.map((l) => {
     const prjCount = (projects.data ?? []).filter((p) => p.service_line === l.code).length;
     const people = new Set((assignments.data ?? []).filter((a) => projectLine.get(a.project_id as string) === l.code).map((a) => a.personnel_id as string)).size;
-    return { line: l, projects: prjCount, people };
+    // Müşteri menüsünde "Projeler" yok: kartta hangi projelerin tanımlı olduğu görünsün
+    const names = (projects.data ?? []).filter((p) => p.service_line === l.code).map((p) => p.name as string);
+    return { line: l, projects: prjCount, people, names };
   });
   const visibleLines = staff ? perLine : perLine.filter((x) => x.projects > 0);
   const totalPeople = new Set((assignments.data ?? []).map((a) => a.personnel_id as string)).size;
@@ -51,10 +53,10 @@ export async function Dashboard({ user }: { user: CurrentUser }) {
     <div className="space-y-6">
       {/* service line cards */}
       <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(16rem, 1fr))" }}>
-        {visibleLines.map(({ line, projects: pc, people }) => (
+        {visibleLines.map(({ line, projects: pc, people, names }) => (
           <Link
             key={line.code}
-            href={staff ? `/projeler?hat=${line.code}` : `/personel/sozlesmeler?hat=${line.code}`}
+            href={staff ? `/projeler?hat=${line.code}` : `/personel/ozluk?hat=${line.code}`}
             className="group relative flex min-h-36 flex-col justify-between overflow-hidden rounded-2xl p-5 text-white shadow-card transition hover:-translate-y-0.5"
             style={{ background: `linear-gradient(135deg, ${lineColor(line.code)}, color-mix(in oklab, ${lineColor(line.code)} 78%, black))` }}
           >
@@ -62,6 +64,9 @@ export async function Dashboard({ user }: { user: CurrentUser }) {
             <div>
               <p className="text-lg font-semibold">{line.name} Yönetimi</p>
               <p className="mt-0.5 text-sm text-white/85">{pc} aktif proje · {people} personel</p>
+              {!staff && names.length > 0 && (
+                <p className="mt-1 line-clamp-2 text-xs text-white/75" title={names.join(", ")}>{names.join(" · ")}</p>
+              )}
             </div>
             <ArrowRight className="absolute bottom-5 right-5 size-6 transition-transform group-hover:translate-x-1" aria-hidden />
             <span aria-hidden className="pointer-events-none absolute -right-6 -top-6 size-28 rounded-full bg-white/10" />

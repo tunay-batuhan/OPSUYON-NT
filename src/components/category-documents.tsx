@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Download, Upload } from "lucide-react";
 import { Badge, Card, CardHeader, EmptyState, PageHeader, Table, btn, td } from "@/components/ui";
 import { FilterBar, yearOptions } from "@/components/filter-bar";
+import { ViewButton } from "@/components/doc-viewer";
 import { canAnywhere, requireUser } from "@/lib/auth";
 import { getAccessibleProjects, isUuid, str1 } from "@/lib/lookups";
 import { createClient } from "@/lib/supabase/server";
@@ -88,6 +89,7 @@ export async function CategoryDocuments({
                   <a href={`/api/documents/${d.id}`} className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-sm hover:bg-surface-2">
                     <Download className="size-4" aria-hidden /> İndir
                   </a>
+                  <ViewButton src={`/api/documents/${d.id}/view`} title={d.title} downloadHref={`/api/documents/${d.id}`} className="ml-2" />
                 </td>
               </tr>
             ))}

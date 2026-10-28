@@ -5,7 +5,7 @@ import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Banknote, BarChart3, Bell, BookOpen, Building2, CalendarClock, CalendarOff, CalendarCheck, ChevronDown, ClipboardCheck,
-  FileSignature, FileStack, FolderKanban, History, Home, Loader2, MessageSquare, Receipt, Route, ShieldAlert, SlidersHorizontal, UserCog, UserRound, Users,
+  FileSignature, FileStack, FolderKanban, Gavel, GraduationCap, History, Home, Loader2, MessageSquare, Receipt, Route, ShieldAlert, SlidersHorizontal, UserCog, UserRound, Users,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/components/ui";
@@ -39,6 +39,8 @@ export const navIcons: Record<string, LucideIcon> = {
   forms: FileStack,
   risk: ShieldAlert,
   patrol: Route,
+  training: GraduationCap,
+  defense: Gavel,
 };
 
 export type NavChild = { href: string; label: string; exact?: boolean };

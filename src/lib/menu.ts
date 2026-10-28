@@ -5,7 +5,7 @@ type Def = NavItem & { anyOf?: string[]; staffOnly?: boolean };
 
 /**
  * Müşteri menüsü, müşterinin yazılı isteğine göre (docs/yol-haritasi.md):
- *   Ana Sayfa · Personel ▾ · Formlar · Puantaj · Denetimler · Devriye Sistemi ▾ · Risk Analizi · Cari Hesap ▾
+ *   Ana Sayfa · Personel ▾ (Özlük Evrakları, Yıllık İzinler, Kıyafet) · Eğitimler · Bordrolar · Savunmalar ve İhtarlar · Formlar · Puantaj · Denetimler · Devriye Sistemi ▾ · Risk Analizi · Cari Hesap ▾
  * Her öğe bir "modül"dür; kapalı modüller menüde görünmez (Merkez → Müşteri modülleri).
  */
 function customerMenu(user: CurrentUser, on: Set<string>): NavItem[] {
@@ -14,16 +14,19 @@ function customerMenu(user: CurrentUser, on: Set<string>): NavItem[] {
 
   if (on.has("projeler") && can("projects.read")) items.push({ href: "/projeler", label: "Projeler", icon: "projects", match: ["/projeler"] });
 
-  const personnel: (NavChild & { mod: string; perm: string })[] = [
-    { href: "/personel/sozlesmeler", label: "Personel Sözleşmeleri", mod: "personel_sozlesme", perm: "contracts.read" },
-    { href: "/personel/ozluk", label: "Özlük Dosyaları", mod: "personel_ozluk", perm: "personnel.files.read" },
-    { href: "/personel/bordrolar", label: "Bordrolar", mod: "personel_bordro", perm: "payroll.read" },
-    { href: "/personel/izinler", label: "Yıllık İzinler", mod: "personel_izin", perm: "leaves.read" },
-    { href: "/personel/kiyafet", label: "Kıyafet ve Ekipman", mod: "personel_kiyafet", perm: "uniform.read" },
-    { href: "/personel/savunmalar", label: "Savunmalar", mod: "personel_savunma", perm: "defenses.read" },
+  // Özlük Evrakları: iş sözleşmeleri de burada (Personel Sözleşmeleri sekmesi kalktı)
+  const personnel: (NavChild & { mod: string; perms: string[] })[] = [
+    { href: "/personel/ozluk", label: "Özlük Evrakları", mod: "personel_ozluk", perms: ["personnel.files.read", "contracts.read"] },
+    { href: "/personel/izinler", label: "Yıllık İzinler", mod: "personel_izin", perms: ["leaves.read"] },
+    { href: "/personel/kiyafet", label: "Kıyafet ve Ekipman", mod: "personel_kiyafet", perms: ["uniform.read"] },
   ];
-  const personnelChildren = personnel.filter((c) => on.has(c.mod) && can(c.perm)).map(({ href, label }) => ({ href, label }));
+  const personnelChildren = personnel.filter((c) => on.has(c.mod) && c.perms.some(can)).map(({ href, label }) => ({ href, label }));
   if (personnelChildren.length) items.push({ href: personnelChildren[0].href, label: "Personel", icon: "personnel", match: ["/personel"], children: personnelChildren });
+
+  // Eğitimler, Bordrolar, Savunmalar ve İhtarlar: Personel altında değil, üst menüde ayrı sekmeler
+  if (on.has("personel_egitim") && can("trainings.read")) items.push({ href: "/egitimler", label: "Eğitimler", icon: "training" });
+  if (on.has("personel_bordro") && can("payroll.read")) items.push({ href: "/bordrolar", label: "Bordrolar", icon: "payroll" });
+  if (on.has("personel_savunma") && can("defenses.read")) items.push({ href: "/savunmalar", label: "Savunmalar ve İhtarlar", icon: "defense" });
 
   if (on.has("formlar") && can("forms.read")) items.push({ href: "/formlar", label: "Formlar", icon: "forms" });
 

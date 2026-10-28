@@ -273,6 +273,58 @@ await personDocs("yillik_izin", "Yıllık İzin Talep Formu", FORMS.izin1, (i) =
 await personDocs("yillik_izin", "Yıllık İzin Kullanım Formu", FORMS.izin2, (i) => i % 4 === 0);
 await personDocs("yillik_izin", "Yıllık İzin Ücreti Talep Formu", FORMS.izin3, (i) => i % 6 === 0);
 
+/* ------------------------------ Özlük Evrakları (sıralı evrak türleri), Eğitimler, İhtarlar ------------------------------ */
+{
+  const FILE_DOCS = [
+    ["isg_evraklari", "İSG Evrakları", "Is sagligi ve guvenligi evrak seti"],
+    ["nufus_kimlik", "Nüfus Cüzdanı / Güvenlik Kimliği", "Nufus cuzdani fotokopisi / guvenlik kimligi"],
+    ["ikametgah", "İkametgah Belgesi", "Ikametgah belgesi"],
+    ["adli_sicil", "Adli Sicil Kaydı", "Adli sicil kaydi"],
+    ["saglik_raporu", "Sağlık Raporu", "Saglik raporu"],
+    ["fazla_calisma_muvaffakat", "Fazla Çalışma Muvaffakatnamesi", "Fazla calisma muvaffakatnamesi"],
+    ["gece_calisma_muvaffakat", "Gece Çalışma Muvaffakatnamesi", "Gece calisma muvaffakatnamesi"],
+    ["yillik_izin_muvaffakat", "Yıllık İzin Muvaffakatnamesi", "Yillik izin muvaffakatnamesi"],
+    ["transfer_muvaffakat", "Transfer Muvaffakatnamesi", "Transfer muvaffakatnamesi"],
+  ];
+  const TRAININGS = ["İlkyardım Eğitimi Sertifikası", "Yangın Güvenliği Eğitimi", "İş Sağlığı ve Güvenliği Eğitimi", "Özel Güvenlik Temel Eğitimi"];
+  const cats = [...FILE_DOCS.map((d) => d[0]), "egitim", "ihtar"];
+  const personIds = people.map((a) => a.personnel_id);
+  const have = new Set();
+  for (let i = 0; i < personIds.length; i += 100) {
+    const rows = (await sb.from("documents").select("personnel_id, category_code").in("category_code", cats).in("personnel_id", personIds.slice(i, i + 100))).data ?? [];
+    for (const r of rows) have.add(`${r.personnel_id}|${r.category_code}`);
+  }
+  let made = 0;
+  for (const [i, a] of people.entries()) {
+    const person = `${a.personnel.first_name} ${a.personnel.last_name}`;
+    const proj = { id: a.project_id };
+    const make = async (category, title, line) => {
+      if (have.has(`${a.personnel_id}|${category}`)) return;
+      await addDoc(proj, category, title, pdf(title.toUpperCase(), [`Personel: ${person}`, line, "Bu belge test amaclidir."]), { personnel_id: a.personnel_id });
+      have.add(`${a.personnel_id}|${category}`);
+      made++;
+    };
+    for (const [k, [category, title, line]] of FILE_DOCS.entries()) {
+      if ((i + k) % 7 === 0) continue;                       // bazıları bilerek eksik: "Yüklenmemiş" satırı görünsün
+      if (category === "transfer_muvaffakat" && i % 3 !== 0) continue;
+      await make(category, title, line);
+    }
+    // eğitimler: her personelde birkaç tane (aynı türden birden çok belge)
+    if (!have.has(`${a.personnel_id}|egitim`)) {
+      const n = 2 + (i % 3);
+      for (let t = 0; t < n; t++) {
+        const title = TRAININGS[(i + t) % TRAININGS.length];
+        await addDoc(proj, "egitim", title, pdf(title.toUpperCase(), [`Katilimci: ${person}`, `Egitim tarihi: ${iso(-30 - t * 45)}`, "Bu belge test amaclidir."]), { personnel_id: a.personnel_id });
+        made++;
+      }
+      have.add(`${a.personnel_id}|egitim`);
+    }
+    if (i % 4 === 1) await make("ihtar", "Yazılı İhtar", "Yazili ihtar tutanagi");
+  }
+  added += made;
+  console.log(`• Özlük evrakları / eğitimler / ihtarlar: ${made} belge eklendi.`);
+}
+
 /* ------------------------------ Formlar ekranı: form şablonları ------------------------------ */
 const { count: formCount } = await sb.from("form_templates").select("id", { count: "exact", head: true });
 if (!formCount) {

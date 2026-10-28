@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { Bell, Home, LogOut, Menu, MessageSquare, Search, UserRound, X } from "lucide-react";
 import { Assistant } from "@/components/assistant";
+import { DocViewerHost, DocViewerProvider } from "@/components/doc-viewer";
 import { Logo } from "@/components/logo";
 import { Nav, type NavItem } from "@/components/nav";
 import { logoutAction } from "@/app/actions/auth";
@@ -155,7 +156,12 @@ export function AppShell({
         </div>
 
         <main className="px-4 pb-24 pt-6 sm:px-8 lg:pb-10 lg:pt-8">
-          <div className="mx-auto max-w-6xl">{children}</div>
+          <div className="mx-auto max-w-6xl">
+            <DocViewerProvider>
+              {children}
+              <DocViewerHost />
+            </DocViewerProvider>
+          </div>
         </main>
       </div>
 

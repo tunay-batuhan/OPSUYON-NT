@@ -2,12 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
-import { Eye, FileUp, Loader2 } from "lucide-react";
+import { Download, FileUp, Loader2 } from "lucide-react";
 import { attachLeaveDocument, createLeaveRecord } from "@/app/actions/leaves";
 import { prepareUpload } from "@/app/actions/documents";
 import { leaveRecordSchema } from "@/lib/schemas";
 import { LEAVE_TYPE_LABELS } from "@/lib/format";
 import { Form, FormGrid, SelectField, SubmitButton, TextField } from "@/components/forms/form";
+import { ViewButton } from "@/components/doc-viewer";
 
 type Option = { value: string; label: string };
 
@@ -94,9 +95,12 @@ export function LeaveDocCell({
   return (
     <div className="flex flex-wrap items-center gap-2">
       {doc && doc !== "yeni" && (
-        <a href={`/api/documents/${doc}`} className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-sm hover:bg-surface-2">
-          <Eye className="size-4" aria-hidden /> Evrak göster
-        </a>
+        <>
+          <ViewButton src={`/api/documents/${doc}/view`} title="İzin evrakı" downloadHref={`/api/documents/${doc}`} label="Evrak görüntüle" />
+          <a href={`/api/documents/${doc}`} className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-sm hover:bg-surface-2">
+            <Download className="size-4" aria-hidden /> İndir
+          </a>
+        </>
       )}
       {doc === "yeni" && <span className="text-sm text-success">Evrak yüklendi · sayfayı yenileyin</span>}
       {canManage && projectId && (

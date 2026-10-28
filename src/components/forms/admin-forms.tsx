@@ -2,6 +2,7 @@
 
 import { createOrganization, createProject, updateOrganization, updateProject } from "@/app/actions/projects";
 import { useState } from "react";
+import { useFormContext, useWatch } from "react-hook-form";
 import { Loader2, Trash2 } from "lucide-react";
 import { assignPersonnel, createPersonnel, deletePersonnel, updatePersonnel } from "@/app/actions/personnel";
 import {
@@ -61,6 +62,18 @@ export function OrganizationEditForm({
   );
 }
 
+/** Bitiş tarihi geçmişse: proje otomatik "Pasif" olur ve müşteri erişimi kapanır. */
+function PastEndDateWarning() {
+  const { control } = useFormContext();
+  const end = useWatch({ control, name: "end_date" }) as string | undefined;
+  if (!end || end >= new Date().toLocaleDateString("sv-SE")) return null;
+  return (
+    <p role="status" className="rounded-lg bg-warning-soft px-3 py-2.5 text-sm text-warning sm:col-span-full">
+      Bitiş tarihi geçmişte. Bu proje kaydedilince (ve her gece) otomatik <strong>Pasif</strong> olur; müşteri hesapları projeyi göremez. Yeni bir dönem için bitiş tarihini ileri bir tarih yapın.
+    </p>
+  );
+}
+
 export function ProjectCreateForm({ orgs, lines, defaultOrg }: { orgs: Option[]; lines: Option[]; defaultOrg?: string }) {
   return (
     <Form
@@ -77,7 +90,9 @@ export function ProjectCreateForm({ orgs, lines, defaultOrg }: { orgs: Option[];
         <TextField name="address" label="Adres" titleCase className="sm:col-span-2" />
         <TextField name="start_date" type="date" label="Başlangıç" />
         <TextField name="end_date" type="date" label="Bitiş" />
+        <PastEndDateWarning />
       </FormGrid>
+      <p className="text-xs text-muted">Firmanın mevcut “Firma Yöneticisi” hesaplarına bu projeye erişim otomatik verilir; diğer hesaplara Kullanıcılar sayfasından erişim verin.</p>
       <SubmitButton>Projeyi oluştur</SubmitButton>
     </Form>
   );
@@ -122,6 +137,7 @@ export function ProjectEditForm({
         <TextField name="start_date" type="date" label="Başlangıç" />
         <TextField name="end_date" type="date" label="Bitiş" />
         <TextareaField name="notes" label="Notlar" className="sm:col-span-2" />
+        <PastEndDateWarning />
       </FormGrid>
       <SubmitButton>Kaydet</SubmitButton>
     </Form>

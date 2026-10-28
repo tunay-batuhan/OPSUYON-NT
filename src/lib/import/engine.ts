@@ -241,6 +241,14 @@ async function preparePersonnel(rows: Parsed["rows"], ctx: Ctx): Promise<Prepare
     ctx.supabase.from("personnel_assignments").select("personnel_id").eq("project_id", ctx.projectId).is("end_date", null),
     ctx.supabase.from("projects").select("organization_id").eq("id", ctx.projectId).maybeSingle(),
   ]);
+  // Bir personel aynı anda yalnızca 1 projede olabilir: başka projede görevli olanlar bu projeye alınamaz
+  const { data: elsewhereRows } = await ctx.supabase
+    .from("personnel_assignments")
+    .select("personnel_id, projects(name)")
+    .is("end_date", null)
+    .neq("project_id", ctx.projectId)
+    .limit(10000);
+  const busyElsewhere = new Map(((elsewhereRows ?? []) as unknown as { personnel_id: string; projects: { name: string } | null }[]).map((r) => [r.personnel_id, r.projects?.name ?? "başka bir proje"]));
   // Personel, projenin firmasının kadrosuna eklenir
   const orgId = (proj?.organization_id as string | undefined) ?? null;
   const byNo = new Map((all ?? []).map((p) => [normKey(p.employee_no as string), p.id as string]));
@@ -265,6 +273,7 @@ async function preparePersonnel(rows: Parsed["rows"], ctx: Ctx): Promise<Prepare
     if (noKey) seenNo.add(noKey);
     const existingId = noKey ? byNo.get(noKey) : undefined;
     const title = `${v.first_name ?? ""} ${v.last_name ?? ""}`.trim() || "—";
+    if (existingId && busyElsewhere.has(existingId)) errors.push(`Bu personel "${busyElsewhere.get(existingId)}" projesinde görevli; önce oradan çıkarın`);
 
     return {
       row, title, errors, warnings,
