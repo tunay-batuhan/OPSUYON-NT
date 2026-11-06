@@ -2,24 +2,26 @@ import { ChevronDown } from "lucide-react";
 import { Card, CardHeader, EmptyState, PageHeader, Table, cn, td } from "@/components/ui";
 import { FilterBar, type FilterField } from "@/components/filter-bar";
 import { DownloadLink, PdfIcon } from "@/components/doc-ui";
+import { Pagination } from "@/components/pagination";
 import { getHatOptions, str1 } from "@/lib/lookups";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatNumber } from "@/lib/format";
+import { pageCount, pagingFrom } from "@/lib/paging";
 import { matches } from "@/lib/text";
 
-type Person = { id: string; full_name: string; title: string | null; employee_no: string | null; hire_date: string | null; lines: Set<string>; projects: Set<string> };
+type Person = { id: string; full_name: string; title: string | null; hire_date: string | null; lines: Set<string>; projects: Set<string> };
 type Doc = { id: string; personnel_id: string; title: string; file_name: string; created_at: string };
 type Balance = { personnel_id: string; entitled_days: number; carried_days: number; used_days: number; remaining_days: number };
 
 const chunk = <T,>(arr: T[], n: number) => Array.from({ length: Math.ceil(arr.length / n) }, (_, i) => arr.slice(i * n, i * n + n));
 
 /**
- * Personel listesi + hizmet filtresi + personele ait PDF belgeler.
+ * Personel listesi + hizmet filtresi + personele ait PDF belgeler; 10'ar kişi sayfalanır.
  *  mode "flat":   örn. Savunmalar — satırda PDF indir ikonu
  *  mode "expand": Yıllık İzinler / Kıyafet / Savunma — personel adına tıklayınca altında PDF'ler açılır
  */
 export async function PersonnelDocs({
-  categories, title, description, path, searchParams, mode, leave = false, nameFilter = false, lineNames,
+  categories, title, description, path, searchParams, mode, leave = false, nameFilter = false, lineNames, section,
 }: {
   categories: string[];
   title: string;
@@ -32,6 +34,8 @@ export async function PersonnelDocs({
   /** Hizmet filtresinin yanına "Personel adı" arama kutusu (birkaç harf yeter) */
   nameFilter?: boolean;
   lineNames: Record<string, string>;
+  /** Bölüm sayfası: başlık bölüm adı olur, altına sekmeler gelir (ör. Personel › Yıllık İzinler). */
+  section?: { title: string; tabs: React.ReactNode };
 }) {
   const hat = str1(searchParams.hat);
   const ad = nameFilter ? (str1(searchParams.ad) ?? "").trim() : "";
@@ -40,7 +44,7 @@ export async function PersonnelDocs({
 
   let aq = supabase
     .from("personnel_assignments")
-    .select("personnel(id, full_name, title, employee_no, hire_date), projects!inner(name, service_line)")
+    .select("personnel(id, full_name, title, hire_date), projects!inner(name, service_line)")
     .is("end_date", null)
     .limit(2000);
   if (hat) aq = aq.eq("projects.service_line", hat);
@@ -56,7 +60,11 @@ export async function PersonnelDocs({
   const list = [...people.values()]
     .filter((p) => !ad || matches(p.full_name, ad))
     .sort((a, b) => a.full_name.localeCompare(b.full_name, "tr"));
-  const ids = list.map((p) => p.id);
+  // Kişi listesi bellekte tekilleştirildiği için sayfalama burada (10'ar); belgeler yalnızca bu sayfadaki kişiler için çekilir.
+  const paging = pagingFrom(searchParams);
+  const page = Math.min(paging.page, pageCount(list.length, paging.size));
+  const shown = list.slice((page - 1) * paging.size, page * paging.size);
+  const ids = shown.map((p) => p.id);
 
   const docs = new Map<string, Doc[]>();
   const balances = new Map<string, Balance>();
@@ -89,7 +97,8 @@ export async function PersonnelDocs({
 
   return (
     <>
-      <PageHeader title={title} description={description} />
+      <PageHeader title={section?.title ?? title} description={description} />
+      {section?.tabs}
       <FilterBar action={path} fields={fields} />
 
       <Card>
@@ -98,14 +107,11 @@ export async function PersonnelDocs({
           <EmptyState title="Personel bulunamadı" description={ad ? "Aramanıza uyan personel yok." : "Seçtiğiniz hizmet için aktif personel yok."} />
         ) : mode === "flat" ? (
           <Table head={["Personel", "Görev", "Hizmet", "Belge", ""]}>
-            {list.map((p) => {
+            {shown.map((p) => {
               const own = docs.get(p.id) ?? [];
               return (
                 <tr key={p.id}>
-                  <td className={td}>
-                    <p className="font-medium">{p.full_name}</p>
-                    {p.employee_no && <p className="text-xs text-muted">Sicil: {p.employee_no}</p>}
-                  </td>
+                  <td className={cn(td, "font-medium")}>{p.full_name}</td>
                   <td className={td}>{p.title ?? "—"}</td>
                   <td className={td}>{lineOf(p)}</td>
                   <td className={cn(td, "text-muted")}>{own.length ? own.map((d) => d.title).join(", ") : "Belge yüklenmemiş"}</td>
@@ -116,7 +122,7 @@ export async function PersonnelDocs({
           </Table>
         ) : (
           <div className="divide-y divide-border">
-            {list.map((p) => {
+            {shown.map((p) => {
               const own = docs.get(p.id) ?? [];
               const n = leave ? leaveNumbers(p) : null;
               return (
@@ -167,6 +173,7 @@ export async function PersonnelDocs({
             })}
           </div>
         )}
+        <Pagination path={path} searchParams={searchParams} total={list.length} />
       </Card>
     </>
   );

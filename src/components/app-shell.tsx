@@ -7,6 +7,7 @@ import { Bell, Home, LogOut, Menu, MessageSquare, Search, UserRound, X } from "l
 import { Assistant } from "@/components/assistant";
 import { DocViewerHost, DocViewerProvider } from "@/components/doc-viewer";
 import { Logo } from "@/components/logo";
+import { NavForm } from "@/components/nav-progress";
 import { Nav, type NavItem } from "@/components/nav";
 import { logoutAction } from "@/app/actions/auth";
 import { cn } from "@/components/ui";
@@ -132,7 +133,7 @@ export function AppShell({
             <p className="font-semibold">{user.greetingName}</p>
           </div>
           <div className="flex items-center gap-3">
-            <form action="/ara" className="relative">
+            <NavForm action="/ara" className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" aria-hidden />
               <input
                 name="q"
@@ -140,7 +141,7 @@ export function AppShell({
                 placeholder="Proje, personel, belge ara…"
                 className="h-10 w-72 rounded-full border border-border bg-surface pl-9 pr-4 text-sm placeholder:text-muted/70 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
               />
-            </form>
+            </NavForm>
             <Link href="/bildirimler" className="relative grid size-10 place-items-center rounded-full border border-border bg-surface text-muted hover:text-fg" aria-label={`Bildirimler${notifications ? ` (${notifications})` : ""}`}>
               <Bell className="size-5" aria-hidden />
               <Badge n={notifications} />

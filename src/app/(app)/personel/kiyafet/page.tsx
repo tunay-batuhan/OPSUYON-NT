@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { PersonnelDocs } from "@/components/personnel-docs";
+import { SectionTabs } from "@/components/section-tabs";
 import { getLineNames } from "@/lib/lines";
 import { requireAccess } from "@/lib/modules";
 
@@ -15,6 +16,7 @@ export default async function UniformPage({ searchParams }: PageProps<"/personel
       path="/personel/kiyafet"
       mode="expand"
       nameFilter
+      section={{ title: "Personel", tabs: <SectionTabs section="personel" /> }}
       lineNames={await getLineNames()}
       searchParams={await searchParams}
     />

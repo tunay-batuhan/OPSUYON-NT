@@ -82,7 +82,10 @@ export const LEAVE_TYPE_LABELS: Record<string, string> = {
   raporlu: "Raporlu (İstirahat)",
   mazeret: "Mazeret İzni",
   evlilik: "Evlilik İzni",
-  dogum: "Doğum İzni",
+  babalik: "Babalık İzni",
+  dogum: "Doğum (Analık) İzni",
   olum: "Ölüm İzni",
+  evlat_edinme: "Evlat Edinme İzni",
+  engelli_cocuk: "Engelli Çocuk Tedavi İzni",
   diger: "Diğer",
-};
+}

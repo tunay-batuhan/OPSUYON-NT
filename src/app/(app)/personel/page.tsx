@@ -1,70 +1,113 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
-import { Badge, Card, CardHeader, EmptyState, PageHeader, Table, td } from "@/components/ui";
-import { FilterBar } from "@/components/filter-bar";
-import { requireUser } from "@/lib/auth";
+import { notFound, redirect } from "next/navigation";
+import { ChevronRight } from "lucide-react";
+import { Card, CardHeader, EmptyState, PageHeader, Table, cn, td } from "@/components/ui";
+import { FilterBar, type FilterField } from "@/components/filter-bar";
+import { Pagination } from "@/components/pagination";
+import { SectionTabs } from "@/components/section-tabs";
+import { nameRegex } from "@/components/personnel-file";
+import { canAnywhere, requireUser } from "@/lib/auth";
 import { getEnabledModules } from "@/lib/modules";
-import { getAccessibleProjects, isUuid, str1 } from "@/lib/lookups";
+import { getAccessibleProjects, getHatOptions, isUuid, str1 } from "@/lib/lookups";
+import { getLineNames } from "@/lib/lines";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/format";
+import { tenureLabel } from "@/lib/leave-law";
+import { pageHref, pagingFrom } from "@/lib/paging";
+import { fold } from "@/lib/text";
+import { personnelListQuery } from "./list-query";
 
 export const metadata: Metadata = { title: "Personel" };
 
 type Row = {
-  id: string; position: string | null; shift: string | null; start_date: string; end_date: string | null;
-  projects: { id: string; name: string } | null;
-  personnel: { id: string; full_name: string; title: string | null; employee_no: string | null } | null;
+  id: string;
+  full_name: string;
+  title: string | null;
+  hire_date: string | null;
+  personnel_assignments: { position: string | null; projects: { name: string; service_line: string } | null }[];
 };
 
+/**
+ * Müşteri: Personel menüsüne tıklayınca projelerindeki tüm aktif personel listelenir.
+ * Kişiye tıklayınca özlük, eğitim, izin, kıyafet ve savunma bilgileri tek sayfada açılır (/personel/[id]).
+ */
 export default async function PersonnelListPage({ searchParams }: PageProps<"/personel">) {
   const user = await requireUser();
   if (user.kind === "staff") redirect("/merkez/personel");
-  // Müşteri: Personel menüsü alt ekranlara açılır; ilk açık olana git
-  const on = await getEnabledModules();
-  const first = [
-    ["personel_ozluk", "/personel/ozluk"], ["personel_izin", "/personel/izinler"], ["personel_kiyafet", "/personel/kiyafet"],
-  ].find(([m]) => on.has(m));
-  if (first) redirect(first[1]);
   const sp = await searchParams;
-  const projectId = str1(sp.proje);
-  const projects = await getAccessibleProjects();
+  const hat = str1(sp.hat);
+  if (!canAnywhere(user, "personnel.read")) {
+    // Personel listesini görme yetkisi yoksa açık olan ilk alt ekrana git (hizmet filtresi korunur)
+    const on = await getEnabledModules();
+    const first = (
+      [["personel_ozluk", "/personel/ozluk"], ["personel_izin", "/personel/izinler"], ["personel_kiyafet", "/personel/kiyafet"]] as const
+    ).find(([m]) => on.has(m));
+    if (first) redirect(hat ? `${first[1]}?hat=${encodeURIComponent(hat)}` : first[1]);
+    notFound();
+  }
+  const proje = str1(sp.proje);
+  const ad = (str1(sp.ad) ?? "").trim();
+  const paging = pagingFrom(sp);
+  const [projects, lineNames, hatOptions, supabase] = await Promise.all([getAccessibleProjects(), getLineNames(), getHatOptions(), createClient()]);
 
-  const supabase = await createClient();
+  // Bir personelin aynı anda tek aktif ataması olur (veritabanı kuralı); RLS yalnızca müşterinin projelerindekileri döndürür.
   let q = supabase
-    .from("personnel_assignments")
-    .select("id, position, shift, start_date, end_date, projects(id, name), personnel(id, full_name, title, employee_no)")
-    .order("start_date", { ascending: false })
-    .limit(1000);
-  if (isUuid(projectId)) q = q.eq("project_id", projectId);
-  const { data } = await q;
-  const rows = ((data ?? []) as unknown as Row[]).sort((a, b) => (a.personnel?.full_name ?? "").localeCompare(b.personnel?.full_name ?? "", "tr"));
-  const active = rows.filter((r) => !r.end_date).length;
+    .from("personnel")
+    .select("id, full_name, title, hire_date, personnel_assignments!inner(position, end_date, project_id, projects!inner(name, service_line))", { count: "exact" })
+    .is("personnel_assignments.end_date", null);
+  if (hat) q = q.eq("personnel_assignments.projects.service_line", hat);
+  if (isUuid(proje)) q = q.eq("personnel_assignments.project_id", proje);
+  for (const w of fold(ad).split(" ").filter(Boolean).slice(0, 5)) q = q.filter("full_name", "imatch", nameRegex(w));
+  const { data, count } = await q.order("full_name").order("id").range(paging.from, paging.to);
+  const people = (data ?? []) as unknown as Row[];
+  if (people.length === 0 && paging.page > 1) redirect(pageHref("/personel", sp, 1));
+  const total = count ?? people.length;
+
+  const fields: FilterField[] = [{ name: "hat", label: "Hizmet", value: hat, all: "Tümü", options: hatOptions }];
+  if (projects.length > 1) fields.push({ name: "proje", label: "Proje", value: proje, all: "Tüm projeler", options: projects.map((p) => ({ value: p.id, label: p.name })) });
+  fields.push({ name: "ad", label: "Ad soyad", kind: "text", value: ad, placeholder: "Birkaç harf yazın…" });
+  const back = personnelListQuery(sp);
 
   return (
     <>
-      <PageHeader title="Personel" description="Projelerinizde görevli personel." />
-      <FilterBar action="/personel" fields={[{ name: "proje", label: "Proje", value: projectId, all: "Tüm projeler", options: projects.map((p) => ({ value: p.id, label: p.name })) }]} />
+      <PageHeader title="Personel" description="Projelerinizde görevli tüm personel. Kişiye tıklayınca özlük evrakları, eğitimleri, izinleri, kıyafet ve savunmaları tek sayfada açılır." />
+      <SectionTabs section="personel" />
+      <FilterBar action="/personel" fields={fields} />
       <Card>
-        <CardHeader title={`${active} aktif görevlendirme`} description={`${rows.length} kayıt`} />
-        {rows.length === 0 ? (
-          <EmptyState title="Personel bulunamadı" />
+        <CardHeader title={`${total} personel`} description="Ayrıntılar için personele tıklayın." />
+        {people.length === 0 ? (
+          <EmptyState title="Personel bulunamadı" description={ad ? "Aramanıza uyan personel yok." : hat || proje ? "Seçiminize uyan aktif personel yok." : "Projelerinizde aktif personel yok."} />
         ) : (
-          <Table head={["Personel", "Proje", "Görev", "Vardiya", "Başlangıç", "Durum"]}>
-            {rows.map((r) => (
-              <tr key={r.id}>
-                <td className={td}>
-                  <p className="font-medium">{r.personnel?.full_name}</p>
-                  {r.personnel?.employee_no && <p className="text-xs text-muted">Sicil: {r.personnel.employee_no}</p>}
-                </td>
-                <td className={td}>{r.projects && <Link href={`/projeler/${r.projects.id}/personel`} className="hover:text-brand">{r.projects.name}</Link>}</td>
-                <td className={td}>{r.position ?? r.personnel?.title ?? "—"}</td>
-                <td className={td}>{r.shift ?? "—"}</td>
-                <td className={td}>{formatDate(r.start_date)}</td>
-                <td className={td}><Badge tone={r.end_date ? "neutral" : "success"}>{r.end_date ? "Ayrıldı" : "Aktif"}</Badge></td>
-              </tr>
-            ))}
-          </Table>
+          <>
+            <Table head={["Ad soyad", "Görev", "Hizmet", "Proje", "İşe giriş", ""]}>
+              {people.map((p) => {
+                const a = p.personnel_assignments[0];
+                const href = `/personel/${p.id}${back}`;
+                const tenure = tenureLabel(p.hire_date);
+                return (
+                  <tr key={p.id} className="hover:bg-surface-2/60">
+                    <td className={cn(td, "font-medium")}>
+                      <Link href={href} className="hover:text-brand">{p.full_name}</Link>
+                    </td>
+                    <td className={td}>{a?.position ?? p.title ?? "—"}</td>
+                    <td className={td}>{a?.projects ? lineNames[a.projects.service_line] ?? a.projects.service_line : "—"}</td>
+                    <td className={td}>{a?.projects?.name ?? "—"}</td>
+                    <td className={cn(td, "whitespace-nowrap")}>
+                      {formatDate(p.hire_date)}
+                      {tenure && <p className="text-xs text-muted">{tenure}</p>}
+                    </td>
+                    <td className={cn(td, "text-right")}>
+                      <Link href={href} className="inline-flex items-center gap-1 whitespace-nowrap text-sm font-medium text-brand hover:underline">
+                        Detay <ChevronRight className="size-4" aria-hidden />
+                      </Link>
+                    </td>
+                  </tr>
+                );
+              })}
+            </Table>
+            <Pagination path="/personel" searchParams={sp} total={total} />
+          </>
         )}
       </Card>
     </>

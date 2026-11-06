@@ -1,5 +1,12 @@
 /** Özlük Evrakları ekranında evrak türlerinin sırası (müşterinin listesi). */
-export type FileSection = { no: string; label: string; code?: string; children?: FileSection[] };
+export type FileSection = {
+  no: string;
+  label: string;
+  code?: string;
+  /** Beklenen evrak değil: yalnızca belge varsa gösterilir, "yüklü / toplam" sayımına girmez. */
+  optional?: boolean;
+  children?: FileSection[];
+};
 
 export const FILE_SECTIONS: FileSection[] = [
   { no: "1", label: "Personel İş Sözleşmesi", code: "sozlesme" },
@@ -19,8 +26,12 @@ export const FILE_SECTIONS: FileSection[] = [
     ],
   },
   // Listede olmayan eski/genel özlük evrakları: yalnızca belge varsa gösterilir
-  { no: "8", label: "Diğer Özlük Evrakları", code: "ozluk" },
+  { no: "8", label: "Diğer Özlük Evrakları", code: "ozluk", optional: true },
 ];
 
 export const sectionCodes = (sections: FileSection[]): string[] =>
   sections.flatMap((s) => [...(s.code ? [s.code] : []), ...sectionCodes(s.children ?? [])]);
+
+/** Her personelde beklenen evrak türleri (isteğe bağlı "Diğer" hariç). */
+export const requiredCodes = (sections: FileSection[]): string[] =>
+  sections.flatMap((s) => [...(s.code && !s.optional ? [s.code] : []), ...requiredCodes(s.children ?? [])]);

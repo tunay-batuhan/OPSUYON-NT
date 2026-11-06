@@ -6,16 +6,44 @@ import { assertStaff } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { guard, nul, pgMessage, str, validate } from "@/lib/form";
 import { normalizeIban, toNumber } from "@/lib/parse";
+import { legalAnnualLeaveDays } from "@/lib/leave-law";
 import {
-  assignSchema, leaveSchema, personnelSchema, personnelUpdateSchema, timesheetSchema,
-  type AssignValues, type LeaveValues, type PersonnelUpdateValues, type PersonnelValues, type TimesheetValues,
+  assignSchema, leaveSchema, timesheetSchema,
+  type AssignValues, type LeaveValues, type TimesheetValues,
 } from "@/lib/schemas";
+import { personnelCreateSchema, personnelEditSchema, type PersonnelCreateValues, type PersonnelEditValues } from "@/lib/schemas-personnel";
 import type { ActionState } from "@/lib/action-types";
 
-export async function createPersonnel(values: PersonnelValues): Promise<ActionState> {
+/** Personel kartının ortak kolonları (firma ve durum hariç). Sicil no arayüzden kalktığı için yazılmaz. */
+function cardColumns(d: PersonnelCreateValues) {
+  return {
+    first_name: d.first_name,
+    last_name: d.last_name,
+    title: nul(d.title),
+    service_line: nul(d.service_line),
+    phone: nul(d.phone),
+    email: nul(d.email),
+    hire_date: nul(d.hire_date),
+    birth_date: nul(d.birth_date),
+    birth_place: nul(d.birth_place),
+    hometown: nul(d.hometown),
+    address: nul(d.address),
+    marital_status: nul(d.marital_status),
+    height_cm: toNumber(d.height_cm),
+    weight_kg: toNumber(d.weight_kg),
+    pants_size: nul(d.pants_size),
+    shirt_size: nul(d.shirt_size),
+    coat_size: nul(d.coat_size),
+    shoe_size: nul(d.shoe_size),
+    emergency_phone: nul(d.emergency_phone),
+    emergency_contact_name: nul(d.emergency_contact_name),
+  };
+}
+
+export async function createPersonnel(values: PersonnelCreateValues): Promise<ActionState> {
   return guard(async () => {
     const actor = await assertStaff("personnel.manage");
-    const v = validate(personnelSchema, values);
+    const v = validate(personnelCreateSchema, values);
     if (!v.ok) return v.state;
     const d = v.data;
     const hasPrivate = Boolean(d.national_id || d.iban);
@@ -26,22 +54,22 @@ export async function createPersonnel(values: PersonnelValues): Promise<ActionSt
     const supabase = await createClient();
     const { data, error } = await supabase
       .from("personnel")
-      .insert({
-        first_name: d.first_name,
-        last_name: d.last_name,
-        employee_no: nul(d.employee_no),
-        title: nul(d.title),
-        service_line: nul(d.service_line),
-        organization_id: nul(d.organization_id),
-        phone: nul(d.phone),
-        email: nul(d.email),
-        hire_date: nul(d.hire_date),
-      })
+      .insert({ ...cardColumns(d), organization_id: nul(d.organization_id) })
       .select("id")
       .single();
-    if (error) {
-      if (error.code === "23505") return { error: "Bu sicil numarası zaten kullanılıyor.", fieldErrors: { employee_no: "Bu sicil numarası zaten kullanılıyor" } };
-      return { error: pgMessage(error) };
+    if (error) return { error: pgMessage(error) };
+
+    // İşe giriş tarihi varsa bu yılın yasal yıllık izin hakkı bakiyeye yazılır.
+    // Yetki (leaves.manage) yoksa ya da hata olursa sessizce geçilir; personel kaydı yine başarılı sayılır.
+    if (d.hire_date) {
+      try {
+        const { days } = legalAnnualLeaveDays(d.hire_date, nul(d.birth_date));
+        await supabase
+          .from("leave_balances")
+          .upsert({ personnel_id: data.id, year: new Date().getFullYear(), entitled_days: days }, { onConflict: "personnel_id,year" });
+      } catch {
+        /* izin bakiyesi isteğe bağlı */
+      }
     }
 
     if (hasPrivate) {
@@ -137,10 +165,10 @@ export async function upsertLeaveBalance(values: LeaveValues): Promise<ActionSta
   });
 }
 
-export async function updatePersonnel(values: PersonnelUpdateValues): Promise<ActionState> {
+export async function updatePersonnel(values: PersonnelEditValues): Promise<ActionState> {
   return guard(async () => {
     const actor = await assertStaff("personnel.manage");
-    const v = validate(personnelUpdateSchema, values);
+    const v = validate(personnelEditSchema, values);
     if (!v.ok) return v.state;
     const d = v.data;
     const canSensitive = actor.roleCode === "super_admin" || actor.permissions.includes("personnel.sensitive.read");
@@ -148,33 +176,25 @@ export async function updatePersonnel(values: PersonnelUpdateValues): Promise<Ac
     const supabase = await createClient();
     // Atamaları olan personelin firması değiştirilemez (kadro bütünlüğü)
     const newOrg = nul(d.organization_id);
-    const { data: cur } = await supabase.from("personnel").select("organization_id").eq("id", d.id).maybeSingle();
+    const { data: cur } = await supabase.from("personnel").select("organization_id, termination_date").eq("id", d.id).maybeSingle();
     if (cur && (cur.organization_id ?? null) !== newOrg) {
       const { count } = await supabase.from("personnel_assignments").select("id", { count: "exact", head: true }).eq("personnel_id", d.id);
       if ((count ?? 0) > 0) {
         return { error: "Projeye atanmış personelin firması değiştirilemez.", fieldErrors: { organization_id: "Atamaları olan personelin firması değişmez" } };
       }
     }
+    // Sicil no (employee_no) arayüzden kalktı: mevcut değer korunur, güncellenmez.
     const { error } = await supabase
       .from("personnel")
       .update({
-        first_name: d.first_name,
-        last_name: d.last_name,
-        employee_no: nul(d.employee_no),
-        title: nul(d.title),
-        service_line: nul(d.service_line),
+        ...cardColumns(d),
         organization_id: newOrg,
-        phone: nul(d.phone),
-        email: nul(d.email),
-        hire_date: nul(d.hire_date),
         status: d.status,
-        termination_date: d.status === "terminated" ? new Date().toISOString().slice(0, 10) : null,
+        // Ayrılış tarihi yalnızca durum ilk kez "Ayrıldı" yapıldığında yazılır; sonraki kayıtlarda korunur
+        termination_date: d.status === "terminated" ? (cur?.termination_date ?? new Date().toISOString().slice(0, 10)) : null,
       })
       .eq("id", d.id);
-    if (error) {
-      if (error.code === "23505") return { error: "Bu sicil numarası zaten kullanılıyor.", fieldErrors: { employee_no: "Bu sicil numarası zaten kullanılıyor" } };
-      return { error: pgMessage(error) };
-    }
+    if (error) return { error: pgMessage(error) };
 
     if (canSensitive) {
       const { error: pErr } = await supabase.from("personnel_private").upsert(
@@ -184,7 +204,7 @@ export async function updatePersonnel(values: PersonnelUpdateValues): Promise<Ac
       if (pErr) return { error: pgMessage(pErr) };
     }
     revalidatePath("/merkez/personel");
-    revalidatePath(`/merkez/personel/${d.id}`);
+    revalidatePath(`/merkez/personel/${d.id}`, "layout");
     return { ok: true, message: "Personel kartı güncellendi." };
   });
 }

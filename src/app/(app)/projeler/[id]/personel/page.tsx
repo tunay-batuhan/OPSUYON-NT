@@ -2,7 +2,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Badge, Card, CardHeader, EmptyState, Table, cn, td } from "@/components/ui";
 import { AssignForm } from "@/components/forms/admin-forms";
+import { FilterBar } from "@/components/filter-bar";
+import { Pagination } from "@/components/pagination";
 import { formatDate } from "@/lib/format";
+import { str1 } from "@/lib/lookups";
+import { pagingFrom } from "@/lib/paging";
 import { can, getProjectContext } from "@/lib/project";
 import { createClient } from "@/lib/supabase/server";
 import { endAssignment } from "@/app/actions/personnel";
@@ -12,7 +16,7 @@ type Row = {
   position: string | null;
   start_date: string;
   end_date: string | null;
-  personnel: { id: string; full_name: string; title: string | null; employee_no: string | null; status: string } | null;
+  personnel: { id: string; full_name: string; title: string | null; status: string } | null;
 };
 
 const FILTERS = [
@@ -27,17 +31,26 @@ export default async function ProjectPersonnel({ params, searchParams }: PagePro
   const ctx = await getProjectContext(id);
   if (!can(ctx, "personnel.read")) notFound();
   const filter = FILTERS.find((f) => f.key === sp.durum)?.key ?? "aktif";
+  const ad = (str1(sp.ad) ?? "").trim().slice(0, 60);
+  const { from, to } = pagingFrom(sp);
+  const path = `/projeler/${id}/personel`;
 
   const supabase = await createClient();
-  const { data } = await supabase
+  const head = { count: "exact", head: true } as const;
+  // Ad filtresinde personel eşleşmesi zorunlu (!inner); aksi halde eski davranış (gizli personel satırı da görünür)
+  let q = supabase
     .from("personnel_assignments")
-    .select("id, position, start_date, end_date, personnel(id, full_name, title, employee_no, status)")
-    .eq("project_id", id)
-    .order("end_date", { ascending: false, nullsFirst: true })
-    .order("start_date", { ascending: false });
-  const all = (data ?? []) as unknown as Row[];
-  const activeCount = all.filter((r) => !r.end_date).length;
-  const rows = all.filter((r) => (filter === "aktif" ? !r.end_date : filter === "ayrildi" ? Boolean(r.end_date) : true));
+    .select(`id, position, start_date, end_date, personnel${ad ? "!inner" : ""}(id, full_name, title, status)`, { count: "exact" })
+    .eq("project_id", id);
+  if (filter === "aktif") q = q.is("end_date", null);
+  else if (filter === "ayrildi") q = q.not("end_date", "is", null);
+  if (ad) q = q.ilike("personnel.full_name", `%${ad.replace(/[%_*\\]/g, "")}%`);
+  const [{ data, count }, { count: activeCount }, { count: leftCount }] = await Promise.all([
+    q.order("end_date", { ascending: false, nullsFirst: true }).order("start_date", { ascending: false }).range(from, to),
+    supabase.from("personnel_assignments").select("id", head).eq("project_id", id).is("end_date", null),
+    supabase.from("personnel_assignments").select("id", head).eq("project_id", id).not("end_date", "is", null),
+  ]);
+  const rows = (data ?? []) as unknown as Row[];
 
   const manage = can(ctx, "personnel.manage");
   // Bir personel aynı anda yalnızca 1 projede olabilir: başka projede görevli olanlar listelenmez (nedeni aşağıda gösterilir)
@@ -58,68 +71,14 @@ export default async function ProjectPersonnel({ params, searchParams }: PagePro
   const candidates = firmPeople.filter((p) => !busy.has(p.id));
   const elsewhere = firmPeople.filter((p) => busy.get(p.id) && !busy.get(p.id)!.here);
 
+  const filterHref = (key: string) => {
+    const s = new URLSearchParams({ durum: key });
+    if (ad) s.set("ad", ad);
+    return `${path}?${s}`;
+  };
+
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader
-          title="Proje personeli"
-          description={`${activeCount} aktif · ${all.length - activeCount} ayrılan`}
-          action={
-            <div className="flex gap-1.5" role="group" aria-label="Durum filtresi">
-              {FILTERS.map((f) => (
-                <Link
-                  key={f.key}
-                  href={`/projeler/${id}/personel?durum=${f.key}`}
-                  aria-current={filter === f.key ? "true" : undefined}
-                  className={cn("rounded-full border px-3 py-1 text-sm", filter === f.key ? "border-brand bg-brand-soft text-brand" : "border-border text-muted hover:text-fg")}
-                >
-                  {f.label}
-                </Link>
-              ))}
-            </div>
-          }
-        />
-        {rows.length === 0 ? (
-          <EmptyState title={filter === "aktif" ? "Bu projede aktif personel yok" : filter === "ayrildi" ? "Ayrılan personel yok" : "Bu projeye atanmış personel yok"} />
-        ) : (
-          <Table head={["Personel", "Ünvan / görev", "Başlangıç", "Bitiş", "Durum", manage ? "" : null].filter((h) => h !== null)}>
-            {rows.map((r) => (
-              <tr key={r.id}>
-                <td className={td}>
-                  <p className="font-medium">
-                    {manage && r.personnel ? (
-                      <Link href={`/merkez/personel/${r.personnel.id}`} className="hover:text-brand">
-                        {r.personnel.full_name}
-                      </Link>
-                    ) : (
-                      r.personnel?.full_name
-                    )}
-                  </p>
-                  {r.personnel?.employee_no && <p className="text-xs text-muted">Sicil: {r.personnel.employee_no}</p>}
-                </td>
-                <td className={td}>{r.position ?? r.personnel?.title ?? "—"}</td>
-                <td className={td}>{formatDate(r.start_date)}</td>
-                <td className={td}>{formatDate(r.end_date)}</td>
-                <td className={td}>
-                  <Badge tone={r.end_date ? "neutral" : "success"}>{r.end_date ? "Ayrıldı" : "Aktif"}</Badge>
-                </td>
-                {manage && (
-                  <td className={td}>
-                    {!r.end_date && (
-                      <form action={endAssignment}>
-                        <input type="hidden" name="id" value={r.id} />
-                        <input type="hidden" name="project_id" value={id} />
-                        <button className="text-sm text-danger hover:underline">Görevden al</button>
-                      </form>
-                    )}
-                  </td>
-                )}
-              </tr>
-            ))}
-          </Table>
-        )}
-      </Card>
-
       {manage && (
         <Card>
           <CardHeader title="Personel ata" description="Bu projenin firmasının kadrosundaki (veya henüz bir firmaya bağlanmamış) personeli görevlendirin." />
@@ -141,6 +100,76 @@ export default async function ProjectPersonnel({ params, searchParams }: PagePro
           </div>
         </Card>
       )}
+
+      <div>
+        <FilterBar action={path} fields={[{ name: "ad", label: "Ad soyad", kind: "text", value: ad, placeholder: "Personel ara…" }]}>
+          <input type="hidden" name="durum" value={filter} />
+        </FilterBar>
+        <Card>
+          <CardHeader
+            title="Proje personeli"
+            description={`${activeCount ?? 0} aktif · ${leftCount ?? 0} ayrılan`}
+            action={
+              <div className="flex gap-1.5" role="group" aria-label="Durum filtresi">
+                {FILTERS.map((f) => (
+                  <Link
+                    key={f.key}
+                    href={filterHref(f.key)}
+                    aria-current={filter === f.key ? "true" : undefined}
+                    className={cn("rounded-full border px-3 py-1 text-sm", filter === f.key ? "border-brand bg-brand-soft text-brand" : "border-border text-muted hover:text-fg")}
+                  >
+                    {f.label}
+                  </Link>
+                ))}
+              </div>
+            }
+          />
+          {rows.length === 0 ? (
+            <EmptyState
+              title={
+                ad ? "Aramaya uyan personel yok"
+                  : filter === "aktif" ? "Bu projede aktif personel yok" : filter === "ayrildi" ? "Ayrılan personel yok" : "Bu projeye atanmış personel yok"
+              }
+            />
+          ) : (
+            <Table head={["Personel", "Ünvan / görev", "Başlangıç", "Bitiş", "Durum", manage ? "" : null].filter((h) => h !== null)}>
+              {rows.map((r) => (
+                <tr key={r.id}>
+                  <td className={td}>
+                    <p className="font-medium">
+                      {manage && r.personnel ? (
+                        <Link href={`/merkez/personel/${r.personnel.id}`} className="hover:text-brand">
+                          {r.personnel.full_name}
+                        </Link>
+                      ) : (
+                        r.personnel?.full_name
+                      )}
+                    </p>
+                  </td>
+                  <td className={td}>{r.position ?? r.personnel?.title ?? "—"}</td>
+                  <td className={td}>{formatDate(r.start_date)}</td>
+                  <td className={td}>{formatDate(r.end_date)}</td>
+                  <td className={td}>
+                    <Badge tone={r.end_date ? "neutral" : "success"}>{r.end_date ? "Ayrıldı" : "Aktif"}</Badge>
+                  </td>
+                  {manage && (
+                    <td className={td}>
+                      {!r.end_date && (
+                        <form action={endAssignment}>
+                          <input type="hidden" name="id" value={r.id} />
+                          <input type="hidden" name="project_id" value={id} />
+                          <button className="text-sm text-danger hover:underline">Görevden al</button>
+                        </form>
+                      )}
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </Table>
+          )}
+          <Pagination path={path} searchParams={sp} total={count ?? 0} />
+        </Card>
+      </div>
     </div>
   );
 }

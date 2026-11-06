@@ -1,4 +1,5 @@
 import { cn } from "@/components/ui";
+import { RouteProgress } from "@/components/nav-progress";
 
 export function Bone({ className }: { className?: string }) {
   return <div aria-hidden className={cn("animate-pulse rounded-lg bg-border/70", className)} />;
@@ -8,6 +9,7 @@ export function Bone({ className }: { className?: string }) {
 export function PageSkeleton({ stats = true }: { stats?: boolean }) {
   return (
     <div role="status" aria-busy="true" aria-label="Yükleniyor" className="space-y-6">
+      <RouteProgress />
       <div className="space-y-2">
         <Bone className="h-4 w-40" />
         <Bone className="h-8 w-72" />

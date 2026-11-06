@@ -57,6 +57,7 @@ export type Profile = {
 
 export type Personnel = {
   id: string;
+  /** Sicil no: kolon duruyor (Excel eşleştirmesi), arayüzde gösterilmez. */
   employee_no: string | null;
   first_name: string;
   last_name: string;
@@ -70,6 +71,19 @@ export type Personnel = {
   termination_date: string | null;
   status: "active" | "passive" | "terminated";
   notes: string | null;
+  birth_date: string | null;
+  birth_place: string | null;
+  hometown: string | null;
+  address: string | null;
+  marital_status: "bekar" | "evli" | null;
+  height_cm: number | null;
+  weight_kg: number | null;
+  pants_size: string | null;
+  shirt_size: string | null;
+  coat_size: string | null;
+  shoe_size: string | null;
+  emergency_phone: string | null;
+  emergency_contact_name: string | null;
 };
 
 export type DocumentCategory = {

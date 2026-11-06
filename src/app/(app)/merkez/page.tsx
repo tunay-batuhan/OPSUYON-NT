@@ -22,10 +22,10 @@ export default async function MerkezHome({ searchParams }: PageProps<"/merkez">)
   ]);
 
   const steps = [
-    { n: 1, title: "Firma ekle", text: "Hizmet verdiğiniz müşteri firmayı tanımlayın.", href: "/merkez/firmalar#yeni", done: (orgs.count ?? 0) > 0, perm: "organizations.manage" },
-    { n: 2, title: "Proje oluştur", text: "Firmaya bağlı proje açın, hizmet alanını seçin.", href: "/merkez/projeler#yeni", done: (projects.count ?? 0) > 0, perm: "projects.manage" },
-    { n: 3, title: "Müşteri hesabı aç", text: "Kullanıcı adı ve parola üretip müşteriye iletin.", href: "/merkez/kullanicilar#yeni", done: (customers.count ?? 0) > 0, perm: "users.manage" },
-    { n: 4, title: "Personel ekle", text: "Personeli havuza ekleyip projelere atayın.", href: "/merkez/personel#yeni", done: (personnel.count ?? 0) > 0, perm: "personnel.manage" },
+    { n: 1, title: "Firma ekle", text: "Hizmet verdiğiniz müşteri firmayı tanımlayın.", href: "/merkez/firmalar/ekle", done: (orgs.count ?? 0) > 0, perm: "organizations.manage" },
+    { n: 2, title: "Proje oluştur", text: "Firmaya bağlı proje açın, hizmet alanını seçin.", href: "/merkez/projeler/ekle", done: (projects.count ?? 0) > 0, perm: "projects.manage" },
+    { n: 3, title: "Müşteri hesabı aç", text: "Kullanıcı adı ve parola üretip müşteriye iletin.", href: "/merkez/kullanicilar/musteri-ekle", done: (customers.count ?? 0) > 0, perm: "users.manage" },
+    { n: 4, title: "Personel ekle", text: "Personeli havuza ekleyip projelere atayın.", href: "/merkez/personel/ekle", done: (personnel.count ?? 0) > 0, perm: "personnel.manage" },
   ].filter((s) => hasPermission(user, s.perm));
   const allDone = steps.every((s) => s.done);
 
@@ -76,10 +76,10 @@ export default async function MerkezHome({ searchParams }: PageProps<"/merkez">)
               <p className="font-semibold">Müşteriler nasıl giriş yapar?</p>
               <p className="mt-1 max-w-2xl text-sm text-muted">
                 Müşteriler kendileri kayıt olamaz. Siz hesabı açar, kullanıcı adı ve parolayı iletirsiniz; müşteri opsuyon.com ana
-                sayfasında hizmet alanı butonuna (Güvenlik / Temizlik / Kurumsal Tedarik) tıklayarak giriş yapar.
+                sayfasındaki tek Giriş Yap düğmesiyle girer; yetkisi olan ekranlar kendiliğinden açılır.
               </p>
             </div>
-            <Link href="/merkez/kullanicilar#yeni" className={btn("primary", "md")}>Hesap aç</Link>
+            <Link href="/merkez/kullanicilar/musteri-ekle" className={btn("primary", "md")}>Hesap aç</Link>
           </div>
         </Card>
       )}

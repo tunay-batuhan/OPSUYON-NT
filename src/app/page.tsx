@@ -4,7 +4,7 @@ import {
 } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { btn, lineColor, LineIcon } from "@/components/ui";
-import { getServiceLines } from "@/lib/lines";
+import { getServiceLines, lineTitle } from "@/lib/lines";
 import { getCurrentUser, homePathFor } from "@/lib/auth";
 import { BRAND_DOMAIN, BRAND_FOOTER, BRAND_SLOGAN, BRAND_TAGLINE } from "@/lib/brand";
 
@@ -54,7 +54,7 @@ export default async function Home() {
           </span>
 
           <p className="mb-3 mt-12 text-sm font-semibold uppercase tracking-wider text-muted">Hizmet alanlarımız</p>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {lines.map((line) => (
               <div
                 key={line.code}
@@ -63,7 +63,7 @@ export default async function Home() {
               >
                 <LineIcon name={line.icon} className="size-10" />
                 <div>
-                  <h2 className="text-lg font-semibold">{line.name} Yönetimi</h2>
+                  <h2 className="text-lg font-semibold">{lineTitle(line.name)}</h2>
                   <p className="mt-1 text-sm text-white/85">{line.description}</p>
                 </div>
                 <span aria-hidden className="pointer-events-none absolute -bottom-10 -right-8 size-32 rounded-full bg-white/10" />

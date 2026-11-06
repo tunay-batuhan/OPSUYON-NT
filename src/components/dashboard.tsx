@@ -3,7 +3,7 @@ import { ArrowRight, Building2, CalendarClock, FolderKanban, MessageSquare, User
 import { Card, CardHeader, EmptyState, LineIcon, Stat, lineColor } from "@/components/ui";
 import { Donut } from "@/components/donut";
 import { canAnywhere, type CurrentUser } from "@/lib/auth";
-import { getServiceLines } from "@/lib/lines";
+import { getServiceLines, lineTitle } from "@/lib/lines";
 import { getNotificationCounts } from "@/lib/notifications";
 import { getEnabledModules } from "@/lib/modules";
 import { createClient } from "@/lib/supabase/server";
@@ -24,29 +24,35 @@ export async function Dashboard({ user }: { user: CurrentUser }) {
 
   const enabled = await getEnabledModules();
   const showExpiring = staff || enabled.has("yaklasan_sozlesme");
-  const [lines, projects, assignments, orgs, expiring, messages, counts] = await Promise.all([
-
+  const [lines, projects, assignments, orgs, messages, counts] = await Promise.all([
     getServiceLines(),
-    supabase.from("projects").select("id, name, service_line").eq("status", "active"),
+    supabase.from("projects").select("id, name, service_line, status, end_date"),
     supabase.from("personnel_assignments").select("personnel_id, project_id").is("end_date", null),
     staff && canAnywhere(user, "organizations.read") ? supabase.from("organizations").select("id", head).eq("status", "active") : null,
-    supabase.from("projects").select("id", head).eq("status", "active").gte("end_date", today).lte("end_date", soon),
     canAnywhere(user, "messages.use") || canAnywhere(user, "messages.manage")
       ? supabase.from("messages").select("id, body, sender_name, sender_kind, created_at, thread_id, threads(subject, projects(name))").order("created_at", { ascending: false }).limit(4)
       : null,
     getNotificationCounts(),
   ]);
 
-  const projectLine = new Map((projects.data ?? []).map((p) => [p.id as string, p.service_line as string]));
+  // getServiceLines yalnızca aktif hatları döner; pasif hattaki (ör. Kurumsal Tedarik) projeler hiçbir sayıya girmez.
+  type Prj = { id: string; name: string; service_line: string; status: string; end_date: string | null };
+  const activeCodes = new Set(lines.map((l) => l.code));
+  const allProjects = (projects.data ?? []) as Prj[];
+  const lineOf = new Map(allProjects.map((p) => [p.id, p.service_line]));
+  const live = allProjects.filter((p) => p.status === "active" && activeCodes.has(p.service_line));
+  const liveIds = new Set(live.map((p) => p.id));
+  const assigned = ((assignments.data ?? []) as { personnel_id: string; project_id: string }[]).filter((a) => activeCodes.has(lineOf.get(a.project_id) ?? ""));
+  const expiring = live.filter((p) => p.end_date && p.end_date >= today && p.end_date <= soon).length;
+
   const perLine = lines.map((l) => {
-    const prjCount = (projects.data ?? []).filter((p) => p.service_line === l.code).length;
-    const people = new Set((assignments.data ?? []).filter((a) => projectLine.get(a.project_id as string) === l.code).map((a) => a.personnel_id as string)).size;
+    const linePrj = live.filter((p) => p.service_line === l.code);
+    const people = new Set(assigned.filter((a) => liveIds.has(a.project_id) && lineOf.get(a.project_id) === l.code).map((a) => a.personnel_id)).size;
     // Müşteri menüsünde "Projeler" yok: kartta hangi projelerin tanımlı olduğu görünsün
-    const names = (projects.data ?? []).filter((p) => p.service_line === l.code).map((p) => p.name as string);
-    return { line: l, projects: prjCount, people, names };
+    return { line: l, projects: linePrj.length, people, names: linePrj.map((p) => p.name) };
   });
   const visibleLines = staff ? perLine : perLine.filter((x) => x.projects > 0);
-  const totalPeople = new Set((assignments.data ?? []).map((a) => a.personnel_id as string)).size;
+  const totalPeople = new Set(assigned.map((a) => a.personnel_id)).size;
   const recent = (messages?.data ?? []) as unknown as MsgRow[];
 
   return (
@@ -56,13 +62,13 @@ export async function Dashboard({ user }: { user: CurrentUser }) {
         {visibleLines.map(({ line, projects: pc, people, names }) => (
           <Link
             key={line.code}
-            href={staff ? `/projeler?hat=${line.code}` : `/personel/ozluk?hat=${line.code}`}
+            href={staff ? `/merkez/projeler?hat=${line.code}` : `/personel?hat=${line.code}`}
             className="group relative flex min-h-36 flex-col justify-between overflow-hidden rounded-2xl p-5 text-white shadow-card transition hover:-translate-y-0.5"
             style={{ background: `linear-gradient(135deg, ${lineColor(line.code)}, color-mix(in oklab, ${lineColor(line.code)} 78%, black))` }}
           >
             <LineIcon name={line.icon} className="size-10 opacity-95" />
             <div>
-              <p className="text-lg font-semibold">{line.name} Yönetimi</p>
+              <p className="text-lg font-semibold">{lineTitle(line.name)}</p>
               <p className="mt-0.5 text-sm text-white/85">{pc} aktif proje · {people} personel</p>
               {!staff && names.length > 0 && (
                 <p className="mt-1 line-clamp-2 text-xs text-white/75" title={names.join(", ")}>{names.join(" · ")}</p>
@@ -82,9 +88,9 @@ export async function Dashboard({ user }: { user: CurrentUser }) {
       {/* stat tiles */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {staff && orgs && <Stat label="Toplam Müşteri" value={orgs.count ?? 0} icon={Building2} tone="blue" />}
-        <Stat label="Aktif Proje" value={projects.data?.length ?? 0} icon={FolderKanban} tone="emerald" />
+        <Stat label="Aktif Proje" value={live.length} icon={FolderKanban} tone="emerald" />
         <Stat label="Personel Sayısı" value={totalPeople} icon={Users} tone="violet" />
-        {showExpiring && <Stat label="Yaklaşan Sözleşme" value={expiring.count ?? 0} hint="60 gün içinde biten projeler" icon={CalendarClock} tone="amber" />}
+        {showExpiring && <Stat label="Yaklaşan Sözleşme" value={expiring} hint="60 gün içinde biten projeler" icon={CalendarClock} tone="amber" />}
         {!staff && <Stat label="Okunmamış Mesaj" value={counts.unread_threads} icon={MessageSquare} tone="blue" />}
       </div>
 

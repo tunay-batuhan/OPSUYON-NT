@@ -106,7 +106,7 @@ function UploadInner({
         />
         <TextField name="title" label="Başlık" required placeholder="Örn. Eylül 2026 bordrosu" className="sm:col-span-4" />
         {cat?.scope === "personnel" && (
-          <SelectField name="personnel_id" label="Personel" required className="sm:col-span-3" options={people.map((p) => ({ value: p.id, label: p.full_name }))} />
+          <SelectField name="personnel_id" label="Personel" required searchable className="sm:col-span-3" options={people.map((p) => ({ value: p.id, label: p.full_name }))} />
         )}
         {category === "denetim" && (
           <>

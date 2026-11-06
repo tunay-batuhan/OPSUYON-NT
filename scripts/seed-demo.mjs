@@ -105,7 +105,7 @@ const mkProject = async (org, name, line, code, endIn) =>
 const pGuv = await mkProject(orgA, "Demo Plaza Güvenlik", "guvenlik", "DPG-01", 400);
 const pTem = await mkProject(orgA, "Demo Plaza Temizlik", "temizlik", "DPT-01", 400);
 const pDan = await mkProject(orgA, "Demo Plaza Danışma ve Tesis", "danisma_tesis", "DPD-01", 400);
-const pTed = await mkProject(orgA, "Demo Plaza Ek Bina Tedarik", "kurumsal_tedarik", "DPK-01", 35); // yaklaşan sözleşme
+const pTed = await mkProject(orgA, "Demo Plaza Ek Bina Tedarik", "tesis_yonetimi", "DPK-01", 35); // yaklaşan sözleşme
 const pSite = await mkProject(orgB, "Test Site Güvenlik", "guvenlik", "TSG-01", 500);
 const projects = [pGuv, pTem, pDan, pTed, pSite];
 

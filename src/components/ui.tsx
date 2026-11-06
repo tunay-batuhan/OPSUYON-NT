@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import type React from "react";
 import type { ReactNode } from "react";
-import { Briefcase, ShieldCheck, Sparkles, Building2, Wrench, type LucideIcon } from "lucide-react";
+import { Briefcase, ConciergeBell, ShieldCheck, Sparkles, Building2, Wrench, type LucideIcon } from "lucide-react";
 
 export const cn = clsx;
 
@@ -14,6 +14,7 @@ const lineIcons: Record<string, LucideIcon> = {
   briefcase: Briefcase,
   "building-2": Building2,
   wrench: Wrench,
+  "concierge-bell": ConciergeBell,
 };
 export function LineIcon({ name, className }: { name?: string | null; className?: string }) {
   const Icon = (name && lineIcons[name]) || Building2;

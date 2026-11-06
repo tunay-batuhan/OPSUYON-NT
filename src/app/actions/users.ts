@@ -147,7 +147,7 @@ export async function setStaffOverride(fd: FormData): Promise<void> {
       .from("staff_permission_overrides")
       .upsert({ user_id, permission_code, is_allowed: mode === "allow" }, { onConflict: "user_id,permission_code" });
   }
-  revalidatePath(`/merkez/kullanicilar/${user_id}`);
+  revalidatePath(`/merkez/kullanicilar/${user_id}`, "layout");
 }
 
 export async function resetPassword(values: ResetPasswordValues): Promise<ActionState> {
@@ -172,7 +172,7 @@ export async function setUserActive(fd: FormData): Promise<void> {
   await admin.from("profiles").update({ is_active: active }).eq("id", id);
   // Also block Auth itself so refresh tokens / password sign-ins stop immediately.
   await admin.auth.admin.updateUserById(id, { ban_duration: active ? "none" : "876000h" });
-  revalidatePath(`/merkez/kullanicilar/${id}`);
+  revalidatePath(`/merkez/kullanicilar/${id}`, "layout");
   revalidatePath("/merkez/kullanicilar");
 }
 
@@ -193,7 +193,7 @@ export async function updateStaffRole(values: StaffRoleValues): Promise<ActionSt
 
     const { error } = await supabase.from("profiles").update({ staff_role_id }).eq("id", id);
     if (error) return { error: pgMessage(error) };
-    revalidatePath(`/merkez/kullanicilar/${id}`);
+    revalidatePath(`/merkez/kullanicilar/${id}`, "layout");
     return { ok: true, message: "Rol güncellendi." };
   });
 }
@@ -208,7 +208,7 @@ export async function addMembership(values: MembershipValues): Promise<ActionSta
     const supabase = await createClient();
     const { error } = await supabase.from("project_members").insert({ user_id, project_id, role_id });
     if (error) return { error: pgMessage(error) };
-    revalidatePath(`/merkez/kullanicilar/${user_id}`);
+    revalidatePath(`/merkez/kullanicilar/${user_id}`, "layout");
     return { ok: true, message: "Proje erişimi verildi." };
   });
 }
@@ -220,7 +220,7 @@ export async function removeMembership(fd: FormData): Promise<void> {
   if (!id) return;
   const supabase = await createClient();
   await supabase.from("project_members").delete().eq("id", id);
-  if (user_id) revalidatePath(`/merkez/kullanicilar/${user_id}`);
+  if (user_id) revalidatePath(`/merkez/kullanicilar/${user_id}`, "layout");
 }
 
 export async function changeMembershipRole(fd: FormData): Promise<void> {
@@ -231,7 +231,7 @@ export async function changeMembershipRole(fd: FormData): Promise<void> {
   if (!id || !role_id) return;
   const supabase = await createClient();
   await supabase.from("project_members").update({ role_id }).eq("id", id);
-  if (user_id) revalidatePath(`/merkez/kullanicilar/${user_id}`);
+  if (user_id) revalidatePath(`/merkez/kullanicilar/${user_id}`, "layout");
 }
 
 /** mode: "default" (follow role) | "allow" | "deny" */
@@ -251,5 +251,5 @@ export async function setOverride(fd: FormData): Promise<void> {
       .from("member_permission_overrides")
       .upsert({ member_id, permission_code, is_allowed: mode === "allow" }, { onConflict: "member_id,permission_code" });
   }
-  if (user_id) revalidatePath(`/merkez/kullanicilar/${user_id}`);
+  if (user_id) revalidatePath(`/merkez/kullanicilar/${user_id}`, "layout");
 }

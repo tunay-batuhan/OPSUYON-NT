@@ -34,7 +34,7 @@ export async function createOrganization(values: OrganizationValues): Promise<Ac
       if (error.code === "23505") return { error: "Bu vergi numarasıyla kayıtlı bir firma var.", fieldErrors: { tax_no: "Bu vergi numarası zaten kayıtlı" } };
       return { error: pgMessage(error) };
     }
-    revalidatePath("/merkez/firmalar");
+    revalidatePath("/merkez/firmalar", "layout");
     return { ok: true, message: "Firma oluşturuldu." };
   });
 }
@@ -46,7 +46,7 @@ export async function setOrganizationStatus(fd: FormData): Promise<void> {
   if (!id || !status || !["active", "suspended", "archived"].includes(status)) return;
   const supabase = await createClient();
   await supabase.from("organizations").update({ status }).eq("id", id);
-  revalidatePath("/merkez/firmalar");
+  revalidatePath("/merkez/firmalar", "layout");
 }
 
 export async function createProject(values: ProjectCreateValues): Promise<ActionState> {
@@ -57,6 +57,9 @@ export async function createProject(values: ProjectCreateValues): Promise<Action
     const d = v.data;
 
     const supabase = await createClient();
+    // Pasife alınmış hizmet alanında (örn. Kurumsal Tedarik) yeni proje açılamaz
+    const { data: line } = await supabase.from("service_lines").select("is_active").eq("code", d.service_line).maybeSingle();
+    if (!line?.is_active) return { error: "Bu hizmet alanı kapalı; yeni proje açılamaz.", fieldErrors: { service_line: "Kapalı hizmet alanı" } };
     const { data, error } = await supabase
       .from("projects")
       .insert({
@@ -134,7 +137,7 @@ export async function updateOrganization(values: OrganizationUpdateValues): Prom
       if (error.code === "23505") return { error: "Bu vergi numarasıyla kayıtlı başka bir firma var.", fieldErrors: { tax_no: "Bu vergi numarası zaten kayıtlı" } };
       return { error: pgMessage(error) };
     }
-    revalidatePath("/merkez/firmalar");
+    revalidatePath("/merkez/firmalar", "layout");
     revalidatePath(`/merkez/firmalar/${d.id}`);
     return { ok: true, message: "Firma bilgileri güncellendi." };
   });

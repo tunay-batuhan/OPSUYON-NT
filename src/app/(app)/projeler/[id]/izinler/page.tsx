@@ -4,6 +4,7 @@ import { LeaveForm } from "@/components/forms/ops-forms";
 import { formatNumber } from "@/lib/format";
 import { can, getProjectContext } from "@/lib/project";
 import { createClient } from "@/lib/supabase/server";
+import { NavForm } from "@/components/nav-progress";
 
 type Row = {
   id: string;
@@ -52,14 +53,14 @@ export default async function LeavesPage({ params, searchParams }: PageProps<"/p
         <CardHeader
           title={`${year} yıllık izin durumu`}
           action={
-            <form method="get" className="flex items-center gap-2">
+            <NavForm key={year} className="flex items-center gap-2">
               <select name="yil" defaultValue={year} className={cn(inputCls, "h-9 w-auto")} aria-label="Yıl">
                 {[thisYear + 1, thisYear, thisYear - 1, thisYear - 2].map((y) => (
                   <option key={y} value={y}>{y}</option>
                 ))}
               </select>
               <button className="h-9 rounded-lg border border-border px-3 text-sm hover:bg-surface-2">Göster</button>
-            </form>
+            </NavForm>
           }
         />
         {rows.length === 0 ? (

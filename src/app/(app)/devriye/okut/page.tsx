@@ -1,3 +1,4 @@
+import { SectionTabs } from "@/components/section-tabs";
 import type { Metadata } from "next";
 import { PageHeader } from "@/components/ui";
 import { DemoNotice } from "@/components/demo-notice";
@@ -31,7 +32,8 @@ export default async function PatrolScanPage() {
 
   return (
     <>
-      <PageHeader title="Barkod Okut" description="Devriyede her noktada barkodu okutun; rapor otomatik oluşur." />
+      <PageHeader title="Devriye Sistemi" description="Barkod Okut: devriyede her noktada barkodu okutun; rapor otomatik oluşur." />
+      <SectionTabs section="devriye" />
       <DemoNotice />
       <PatrolScanner recent={recent} />
     </>

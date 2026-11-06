@@ -8,19 +8,19 @@ import { isTaxNo, isValidIban, isValidTckn, toNumber } from "@/lib/parse";
 z.config(z.locales.tr());
 
 /* ------------------------------ building blocks ------------------------------ */
-const str = (label: string, max = 200) =>
+export const str = (label: string, max = 200) =>
   z.string().trim().min(1, `${label} zorunlu`).max(max, `${label} en fazla ${max} karakter olabilir`);
-const opt = (label: string, max = 200) => z.string().trim().max(max, `${label} en fazla ${max} karakter olabilir`);
-const uuid = (label: string) => z.string().min(1, `${label} seçin`).regex(/^[0-9a-f-]{36}$/i, `${label} geçersiz`);
+export const opt = (label: string, max = 200) => z.string().trim().max(max, `${label} en fazla ${max} karakter olabilir`);
+export const uuid = (label: string) => z.string().min(1, `${label} seçin`).regex(/^[0-9a-f-]{36}$/i, `${label} geçersiz`);
 
-const date = (label: string, required = false) =>
+export const date = (label: string, required = false) =>
   z
     .string()
     .trim()
     .refine((v) => (required ? v !== "" : true), `${label} zorunlu`)
     .refine((v) => v === "" || !Number.isNaN(Date.parse(v)), `${label} geçerli bir tarih olmalı`);
 
-const decimal = (label: string, opts: { required?: boolean; min?: number; max?: number } = {}) =>
+export const decimal = (label: string, opts: { required?: boolean; min?: number; max?: number } = {}) =>
   z
     .string()
     .trim()
@@ -29,21 +29,21 @@ const decimal = (label: string, opts: { required?: boolean; min?: number; max?: 
     .refine((v) => v === "" || toNumber(v) === null || opts.min === undefined || (toNumber(v) as number) >= opts.min, `${label} en az ${opts.min} olmalı`)
     .refine((v) => v === "" || toNumber(v) === null || opts.max === undefined || (toNumber(v) as number) <= opts.max, `${label} en fazla ${opts.max} olabilir`);
 
-const email = z
+export const email = z
   .string()
   .trim()
   .max(120, "E-posta çok uzun")
   .refine((v) => v === "" || /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v), "Geçerli bir e-posta adresi girin");
 
-const phone = z
+export const phone = z
   .string()
   .trim()
   .refine((v) => v === "" || /^\+?[0-9\s()-]{7,20}$/.test(v), "Geçerli bir telefon numarası girin (örn. 0532 123 45 67)");
 
-const year = (label = "Yıl") => decimal(label, { required: true, min: 2000, max: 2100 }).refine((v) => Number.isInteger(toNumber(v)), `${label} tam sayı olmalı`);
-const month = decimal("Ay", { required: true, min: 1, max: 12 });
+export const year = (label = "Yıl") => decimal(label, { required: true, min: 2000, max: 2100 }).refine((v) => Number.isInteger(toNumber(v)), `${label} tam sayı olmalı`);
+export const month = decimal("Ay", { required: true, min: 1, max: 12 });
 
-const username = z
+export const username = z
   .string()
   .trim()
   .toLowerCase()
@@ -194,19 +194,19 @@ export const personnelUpdateSchema = personnelSchema.extend({
   status: z.enum(["active", "passive", "terminated"], "Durum seçin"),
 });
 
-const leaveTypes = ["yillik", "ucretsiz", "raporlu", "mazeret", "evlilik", "dogum", "olum", "diger"] as const;
+const leaveTypes = ["yillik", "ucretsiz", "raporlu", "mazeret", "evlilik", "babalik", "dogum", "olum", "evlat_edinme", "engelli_cocuk", "diger"] as const;
 export const leaveRecordSchema = z
   .object({
     assignment: z.string().min(1, "Personel seçin"), // "personelId|projeId"
     leave_type: z.enum(leaveTypes, "Kategori seçin"),
     start_date: date("İzin başlangıç tarihi", true),
     end_date: date("İzin son tarihi", true),
-    return_date: date("İşe başlama tarihi", true),
+    return_date: date("İşe dönüş tarihi", true),
     days: decimal("Toplam izin süresi", { required: true, min: 0.5, max: 365 }),
     note: opt("Not", 300),
   })
   .refine((v) => !v.start_date || !v.end_date || v.end_date >= v.start_date, { path: ["end_date"], message: "Son tarih, başlangıçtan önce olamaz" })
-  .refine((v) => !v.end_date || !v.return_date || v.return_date > v.end_date, { path: ["return_date"], message: "İşe başlama tarihi, izin son tarihinden sonra olmalı" });
+  .refine((v) => !v.end_date || !v.return_date || v.return_date > v.end_date, { path: ["return_date"], message: "İşe dönüş tarihi, izin son tarihinden sonra olmalı" });
 
 export const changePasswordSchema = z
   .object({

@@ -1,3 +1,4 @@
+import { SectionTabs } from "@/components/section-tabs";
 import type { Metadata } from "next";
 import { Card, CardHeader, EmptyState, PageHeader, Table, cn, td, tdNum } from "@/components/ui";
 import { FilterBar, yearOptions, type FilterField } from "@/components/filter-bar";
@@ -74,7 +75,8 @@ export default async function PatrolReportsPage({ searchParams }: PageProps<"/de
 
   return (
     <>
-      <PageHeader title="Devriye Rapor" description="Gün, ay ve yıl seçin; o günün devriye raporu okutma kayıtlarından otomatik oluşur. PDF olarak indirebilirsiniz." />
+      <PageHeader title="Devriye Sistemi" description="Gün, ay ve yıl seçin; o günün devriye raporu okutma kayıtlarından otomatik oluşur. PDF olarak indirebilirsiniz." />
+      <SectionTabs section="devriye" />
       <DemoNotice />
       <FilterBar action="/devriye/rapor" fields={fields} />
 

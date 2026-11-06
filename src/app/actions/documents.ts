@@ -56,7 +56,14 @@ export async function prepareUpload(input: {
 /** Step 2: the file is in Storage; register it in the documents table. */
 export async function registerDocument(values: DocumentValues): Promise<ActionState> {
   return guard(async () => {
-    const user = await assertStaff("documents.manage");
+    // İzin evrakını (yillik_izin) izin yöneticisi de yükleyebilir (veritabanı kuralıyla aynı)
+    let user;
+    try {
+      user = await assertStaff("documents.manage");
+    } catch (e) {
+      if (values?.category_code !== "yillik_izin") throw e;
+      user = await assertStaff("leaves.manage");
+    }
     const v = validate(documentSchema, values);
     if (!v.ok) return v.state;
     const d = v.data;
@@ -82,7 +89,9 @@ export async function registerDocument(values: DocumentValues): Promise<ActionSt
       uploaded_by: user.id,
     });
     if (error) {
-      await createAdminClient().storage.from(BUCKET).remove([d.storage_path]);
+      // Yalnızca başka bir belge kaydına ait OLMAYAN dosya silinir (istemciden gelen yol, mevcut bir belgeyi işaret edebilir)
+      const { count } = await supabase.from("documents").select("id", { count: "exact", head: true }).eq("storage_path", d.storage_path);
+      if (!count) await createAdminClient().storage.from(BUCKET).remove([d.storage_path]);
       return { error: pgMessage(error) };
     }
     revalidatePath(`/projeler/${d.project_id}/belgeler`);

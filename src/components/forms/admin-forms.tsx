@@ -1,13 +1,16 @@
 "use client";
 
 import { createOrganization, createProject, updateOrganization, updateProject } from "@/app/actions/projects";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
 import { Loader2, Trash2 } from "lucide-react";
 import { assignPersonnel, createPersonnel, deletePersonnel, updatePersonnel } from "@/app/actions/personnel";
 import {
-  assignSchema, personnelUpdateSchema, organizationSchema, organizationUpdateSchema, personnelSchema, projectCreateSchema, projectUpdateSchema,
+  assignSchema, organizationSchema, organizationUpdateSchema, projectCreateSchema, projectUpdateSchema,
 } from "@/lib/schemas";
+import { MARITAL_OPTIONS, personnelCreateSchema, personnelEditSchema } from "@/lib/schemas-personnel";
+import { ageOf, legalAnnualLeaveDays, tenureLabel } from "@/lib/leave-law";
+import type { Personnel } from "@/lib/types";
 import { Form, FormGrid, SelectField, SubmitButton, TextField, TextareaField } from "@/components/forms/form";
 
 type Option = { value: string; label: string };
@@ -144,31 +147,114 @@ export function ProjectEditForm({
   );
 }
 
+const isIsoDate = (v: unknown): v is string => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
+
+/** İşe giriş ve doğum tarihinden canlı özet: yaş, çalışma süresi, yasal yıllık izin hakkı (İş K. md. 53). */
+function PersonnelSummary() {
+  const { control } = useFormContext();
+  const [hire, birth] = useWatch({ control, name: ["hire_date", "birth_date"] }) as unknown[];
+  const h = isIsoDate(hire) ? hire : null;
+  const b = isIsoDate(birth) ? birth : null;
+  const age = ageOf(b);
+  const leave = legalAnnualLeaveDays(h, b);
+  // bugünün tarihine bağlı değerler: sunucu/tarayıcı gün farkında uyarı vermesin
+  return (
+    <div role="status" aria-live="polite" className="grid gap-3 rounded-xl border border-border bg-surface-2/60 px-4 py-3 text-sm sm:grid-cols-3">
+      <div>
+        <p className="text-xs text-muted">Yaş</p>
+        <p className="mt-0.5 font-semibold" suppressHydrationWarning>{age === null ? "—" : age}</p>
+      </div>
+      <div>
+        <p className="text-xs text-muted">Çalışma süresi</p>
+        <p className="mt-0.5 font-semibold" suppressHydrationWarning>{tenureLabel(h) ?? "—"}</p>
+      </div>
+      <div>
+        <p className="text-xs text-muted">Yasal yıllık izin hakkı</p>
+        <p className="mt-0.5 font-semibold" suppressHydrationWarning>{h ? `${leave.days} gün` : "—"}</p>
+        <p className="mt-0.5 text-xs text-muted" suppressHydrationWarning>{leave.reason}</p>
+      </div>
+    </div>
+  );
+}
+
+function FormSection({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <fieldset>
+      <legend className="text-sm font-semibold">{title}</legend>
+      <div className="mt-3 space-y-4">{children}</div>
+    </fieldset>
+  );
+}
+
+/** Personel kartı alanları (ekle ve düzenle formlarında ortak). Sicil no arayüzden kalktı. */
+function PersonnelFields({ lines, orgs, canSensitive, edit }: { lines: Option[]; orgs: Option[]; canSensitive: boolean; edit?: boolean }) {
+  return (
+    <>
+      <FormSection title="İş bilgileri">
+        <FormGrid cols={3}>
+          <TextField name="first_name" label="Ad" required />
+          <TextField name="last_name" label="Soyad" required />
+          <TextField name="title" label="Ünvan" placeholder="Örn. Güvenlik görevlisi" />
+          <SelectField name="service_line" label="Hizmet alanı" options={lines} />
+          <SelectField
+            name="organization_id" label="Çalıştığı firma" options={orgs}
+            hint={edit ? "Projeye atanmış personelin firması değiştirilemez." : "Personelin kadrosunda olduğu müşteri. Boşsa ilk atandığı projenin firması yazılır."}
+          />
+          <TextField name="hire_date" type="date" label="İşe giriş" />
+          {edit && (
+            <SelectField
+              name="status" label="Durum" placeholder=""
+              options={[{ value: "active", label: "Aktif" }, { value: "passive", label: "Pasif" }, { value: "terminated", label: "Ayrıldı" }]}
+            />
+          )}
+        </FormGrid>
+      </FormSection>
+
+      <FormSection title="Kişisel bilgiler">
+        <FormGrid cols={3}>
+          <TextField name="birth_date" type="date" label="Doğum tarihi" />
+          <TextField name="birth_place" label="Doğum yeri" titleCase />
+          <TextField name="hometown" label="Memleketi" titleCase />
+          <SelectField name="marital_status" label="Medeni hali" options={MARITAL_OPTIONS} />
+          <TextField name="phone" type="tel" label="Telefon" placeholder="0532 000 00 00" />
+          <TextField name="email" type="email" label="E-posta" autoComplete="off" />
+          <TextField name="emergency_phone" type="tel" label="Yedek telefon" placeholder="0532 000 00 00" />
+          <TextField name="emergency_contact_name" label="Yedek telefon kime ait" placeholder="Örn. Eşi Ayşe Yılmaz" titleCase className="sm:col-span-2" />
+          <TextareaField name="address" label="Adres" rows={2} className="sm:col-span-3" />
+          {canSensitive && (
+            <>
+              <TextField name="national_id" label="TC kimlik no" inputMode="numeric" maxLength={11} hint="Algoritma ile doğrulanır; yalnızca yetkili merkez kullanıcıları görür" />
+              <TextField name="iban" label="IBAN" placeholder="TR00 0000 0000 0000 0000 0000 00" className="sm:col-span-2" />
+            </>
+          )}
+        </FormGrid>
+        <PersonnelSummary />
+      </FormSection>
+
+      <FormSection title="Beden ölçüleri">
+        <FormGrid cols={6}>
+          <TextField name="height_cm" label="Boy" inputMode="numeric" suffix="cm" maxLength={3} />
+          <TextField name="weight_kg" label="Kilo" inputMode="numeric" suffix="kg" maxLength={3} />
+          <TextField name="pants_size" label="Pantolon ölçüsü" placeholder="Örn. 42" maxLength={10} />
+          <TextField name="shirt_size" label="Gömlek ölçüsü" placeholder="Örn. L" maxLength={10} />
+          <TextField name="coat_size" label="Mont ölçüsü" placeholder="Örn. XL" maxLength={10} />
+          <TextField name="shoe_size" label="Ayakkabı no" inputMode="numeric" placeholder="Örn. 43" maxLength={10} />
+        </FormGrid>
+      </FormSection>
+    </>
+  );
+}
+
+const emptyCard = {
+  first_name: "", last_name: "", title: "", service_line: "", organization_id: "", hire_date: "", phone: "", email: "", national_id: "", iban: "",
+  birth_date: "", birth_place: "", hometown: "", address: "", marital_status: "", height_cm: "", weight_kg: "",
+  pants_size: "", shirt_size: "", coat_size: "", shoe_size: "", emergency_phone: "", emergency_contact_name: "",
+};
+
 export function PersonnelForm({ lines, orgs, canSensitive }: { lines: Option[]; orgs: Option[]; canSensitive: boolean }) {
   return (
-    <Form
-      schema={personnelSchema}
-      defaultValues={{ first_name: "", last_name: "", employee_no: "", title: "", service_line: "", organization_id: "", hire_date: "", phone: "", email: "", national_id: "", iban: "" }}
-      action={createPersonnel}
-      className="space-y-4 p-5"
-    >
-      <FormGrid cols={3}>
-        <TextField name="first_name" label="Ad" required />
-        <TextField name="last_name" label="Soyad" required />
-        <TextField name="employee_no" label="Sicil no" />
-        <TextField name="title" label="Ünvan" placeholder="Örn. Güvenlik görevlisi" />
-        <SelectField name="service_line" label="Hizmet alanı" options={lines} />
-        <SelectField name="organization_id" label="Çalıştığı firma" options={orgs} hint="Personelin kadrosunda olduğu müşteri. Boşsa ilk atandığı projenin firması yazılır." />
-        <TextField name="hire_date" type="date" label="İşe giriş" />
-        <TextField name="phone" type="tel" label="Telefon" placeholder="0532 000 00 00" />
-        <TextField name="email" type="email" label="E-posta" autoComplete="off" />
-        {canSensitive && (
-          <>
-            <TextField name="national_id" label="TC kimlik no" inputMode="numeric" maxLength={11} hint="Algoritma ile doğrulanır; yalnızca yetkili merkez kullanıcıları görür" />
-            <TextField name="iban" label="IBAN" placeholder="TR00 0000 0000 0000 0000 0000 00" className="sm:col-span-2" />
-          </>
-        )}
-      </FormGrid>
+    <Form schema={personnelCreateSchema} defaultValues={emptyCard} action={createPersonnel} className="space-y-6 p-5">
+      <PersonnelFields lines={lines} orgs={orgs} canSensitive={canSensitive} />
       <SubmitButton>Personeli kaydet</SubmitButton>
     </Form>
   );
@@ -178,7 +264,7 @@ export function AssignForm({ projectId, candidates }: { projectId: string; candi
   return (
     <Form schema={assignSchema} defaultValues={{ project_id: projectId, personnel_id: "", position: "", start_date: "" }} action={assignPersonnel} className="space-y-4 p-5">
       <FormGrid cols={3}>
-        <SelectField name="personnel_id" label="Personel" options={candidates} required />
+        <SelectField name="personnel_id" label="Personel" options={candidates} required searchable />
         <TextField name="position" label="Görev" placeholder="Örn. Güvenlik görevlisi" />
         <TextField name="start_date" type="date" label="Başlangıç" hint="Boşsa bugün" />
       </FormGrid>
@@ -187,51 +273,38 @@ export function AssignForm({ projectId, candidates }: { projectId: string; candi
   );
 }
 
+type CardKey =
+  | "id" | "first_name" | "last_name" | "title" | "service_line" | "organization_id" | "hire_date" | "phone" | "email" | "status"
+  | "birth_date" | "birth_place" | "hometown" | "address" | "marital_status" | "height_cm" | "weight_kg"
+  | "pants_size" | "shirt_size" | "coat_size" | "shoe_size" | "emergency_phone" | "emergency_contact_name";
+
 export function PersonnelEditForm({
   person, lines, orgs, canSensitive,
 }: {
-  person: {
-    id: string; first_name: string; last_name: string; employee_no: string | null; title: string | null; service_line: string | null;
-    organization_id: string | null; hire_date: string | null; phone: string | null; email: string | null; status: "active" | "passive" | "terminated";
-    national_id: string | null; iban: string | null;
-  };
+  person: Pick<Personnel, CardKey> & { national_id: string | null; iban: string | null };
   lines: Option[];
   orgs: Option[];
   canSensitive: boolean;
 }) {
+  const s = (v: string | number | null | undefined) => (v === null || v === undefined ? "" : String(v));
   return (
     <Form
-      schema={personnelUpdateSchema}
+      schema={personnelEditSchema}
       defaultValues={{
-        id: person.id, first_name: person.first_name, last_name: person.last_name, employee_no: person.employee_no ?? "", title: person.title ?? "",
-        service_line: person.service_line ?? "", organization_id: person.organization_id ?? "", hire_date: person.hire_date ?? "", phone: person.phone ?? "", email: person.email ?? "",
-        national_id: person.national_id ?? "", iban: person.iban ?? "", status: person.status,
+        id: person.id, status: person.status,
+        first_name: person.first_name, last_name: person.last_name, title: s(person.title), service_line: s(person.service_line),
+        organization_id: s(person.organization_id), hire_date: s(person.hire_date), phone: s(person.phone), email: s(person.email),
+        national_id: s(person.national_id), iban: s(person.iban),
+        birth_date: s(person.birth_date), birth_place: s(person.birth_place), hometown: s(person.hometown), address: s(person.address),
+        marital_status: s(person.marital_status), height_cm: s(person.height_cm), weight_kg: s(person.weight_kg),
+        pants_size: s(person.pants_size), shirt_size: s(person.shirt_size), coat_size: s(person.coat_size), shoe_size: s(person.shoe_size),
+        emergency_phone: s(person.emergency_phone), emergency_contact_name: s(person.emergency_contact_name),
       }}
       action={updatePersonnel}
       resetOnSuccess={false}
-      className="space-y-4 p-5"
+      className="space-y-6 p-5"
     >
-      <FormGrid cols={3}>
-        <TextField name="first_name" label="Ad" required />
-        <TextField name="last_name" label="Soyad" required />
-        <TextField name="employee_no" label="Sicil no" />
-        <TextField name="title" label="Ünvan" />
-        <SelectField name="service_line" label="Hizmet alanı" options={lines} />
-        <SelectField name="organization_id" label="Çalıştığı firma" options={orgs} hint="Projeye atanmış personelin firması değiştirilemez." />
-        <TextField name="hire_date" type="date" label="İşe giriş" />
-        <TextField name="phone" type="tel" label="Telefon" />
-        <TextField name="email" type="email" label="E-posta" autoComplete="off" />
-        <SelectField
-          name="status" label="Durum" placeholder=""
-          options={[{ value: "active", label: "Aktif" }, { value: "passive", label: "Pasif" }, { value: "terminated", label: "Ayrıldı" }]}
-        />
-        {canSensitive && (
-          <>
-            <TextField name="national_id" label="TC kimlik no" inputMode="numeric" maxLength={11} />
-            <TextField name="iban" label="IBAN" className="sm:col-span-2" />
-          </>
-        )}
-      </FormGrid>
+      <PersonnelFields lines={lines} orgs={orgs} canSensitive={canSensitive} edit />
       <SubmitButton>Kartı kaydet</SubmitButton>
     </Form>
   );

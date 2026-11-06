@@ -1,27 +1,31 @@
-import Link from "next/link";
 import type { Metadata } from "next";
-import { Download } from "lucide-react";
-import { Card, CardHeader, EmptyState, PageHeader, Table, btn, cn, td, tdNum } from "@/components/ui";
+import { Badge, Card, CardHeader, EmptyState, PageHeader, Table, cn, td } from "@/components/ui";
 import { FilterBar, yearOptions } from "@/components/filter-bar";
-import { canAnywhere, requireUser } from "@/lib/auth";
+import { DownloadLink } from "@/components/doc-ui";
+import { Pagination } from "@/components/pagination";
 import { ServiceDocuments } from "@/components/service-documents";
+import { hasPermission } from "@/lib/auth";
 import { requireAccess } from "@/lib/modules";
 import { getAccessibleProjects, isUuid, str1 } from "@/lib/lookups";
+import { pagingFrom } from "@/lib/paging";
 import { createClient } from "@/lib/supabase/server";
-import { MONTHS, formatNumber } from "@/lib/format";
+import { MONTHS, formatDate, formatPeriod } from "@/lib/format";
+import { TimesheetTabs } from "./tabs";
 
 export const metadata: Metadata = { title: "Puantaj" };
 
 type Row = {
-  id: string; project_id: string; worked_days: number; leave_days: number; absence_days: number; overtime_hours: number;
-  projects: { name: string } | null; personnel: { full_name: string } | null;
+  id: string; title: string; file_name: string; period_year: number | null; period_month: number | null;
+  created_at: string; customer_visible: boolean;
+  projects: { name: string; organizations: { name: string } | null } | null;
 };
 
+const isSheet = (fileName: string) => /\.(xlsx?|csv)$/i.test(fileName);
+
 export default async function TimesheetsAllPage({ searchParams }: PageProps<"/puantaj">) {
-  const user = await requireUser();
+  const user = await requireAccess("puantaj", "timesheets.read");
   const sp = await searchParams;
   if (user.kind === "customer") {
-    await requireAccess("puantaj", "timesheets.read");
     return (
       <ServiceDocuments
         category="puantaj"
@@ -35,67 +39,87 @@ export default async function TimesheetsAllPage({ searchParams }: PageProps<"/pu
       />
     );
   }
-  const now = new Date();
-  const year = Number(str1(sp.yil) ?? now.getFullYear());
-  const month = Number(str1(sp.ay) ?? now.getMonth() + 1);
+
+  // Merkez: tüm projelerin puantaj dosyaları
   const projectId = str1(sp.proje);
-  const projects = await getAccessibleProjects();
+  const orgId = str1(sp.firma);
+  const month = str1(sp.ay);
+  const year = str1(sp.yil);
+  const title = str1(sp.baslik)?.replace(/[%_*,()]/g, "").trim() || undefined;
+  const visibility = str1(sp.durum);
+  const manage = hasPermission(user, "documents.manage");
+  const { from, to } = pagingFrom(sp);
 
   const supabase = await createClient();
   let q = supabase
-    .from("timesheets")
-    .select("id, project_id, worked_days, leave_days, absence_days, overtime_hours, projects(name), personnel(full_name)")
-    .eq("period_year", year).eq("period_month", month).limit(2000);
+    .from("documents")
+    .select("id, title, file_name, period_year, period_month, created_at, customer_visible, projects!inner(name, organization_id, organizations(name))", { count: "exact" })
+    .eq("category_code", "puantaj")
+    .order("period_year", { ascending: false, nullsFirst: false })
+    .order("period_month", { ascending: false, nullsFirst: false })
+    .order("created_at", { ascending: false })
+    .range(from, to);
   if (isUuid(projectId)) q = q.eq("project_id", projectId);
-  const { data } = await q;
-  const rows = ((data ?? []) as unknown as Row[]).sort(
-    (a, b) => (a.projects?.name ?? "").localeCompare(b.projects?.name ?? "", "tr") || (a.personnel?.full_name ?? "").localeCompare(b.personnel?.full_name ?? "", "tr"),
-  );
-  const sum = (k: "worked_days" | "leave_days" | "absence_days" | "overtime_hours") => rows.reduce((a, r) => a + Number(r[k] ?? 0), 0);
-  const manage = canAnywhere(user, "timesheets.manage");
-  const exportHref = `/api/reports?type=timesheet&yil=${year}&ay=${month}${isUuid(projectId) ? `&proje=${projectId}` : ""}`;
+  if (isUuid(orgId)) q = q.eq("projects.organization_id", orgId);
+  if (month && /^\d{1,2}$/.test(month)) q = q.eq("period_month", Number(month));
+  if (year && /^\d{4}$/.test(year)) q = q.eq("period_year", Number(year));
+  if (title) q = q.ilike("title", `%${title}%`);
+  if (visibility === "yayinda") q = q.eq("customer_visible", true);
+  if (visibility === "gizli") q = q.eq("customer_visible", false);
+
+  const [{ data, count }, projects, { data: orgs }] = await Promise.all([
+    q,
+    getAccessibleProjects(),
+    supabase.from("organizations").select("id, name").order("name"),
+  ]);
+  const rows = (data ?? []) as unknown as Row[];
+  const total = count ?? 0;
+  const filtered = Boolean(projectId || orgId || month || year || title || visibility);
 
   return (
     <>
-      <PageHeader
-        title="Puantaj"
-        description="Tüm projelerin aylık puantajı."
-        actions={canAnywhere(user, "reports.read") && <a href={exportHref} className={btn("secondary", "md")}><Download className="size-4" aria-hidden /> Excel indir</a>}
-      />
+      <PageHeader title="Puantaj" description="Tüm projelerin puantaj dosyaları. PDF indirebilir veya indirmeden Görüntüle ile açabilirsiniz." />
+      <TimesheetTabs manage={manage} />
       <FilterBar
         action="/puantaj"
         fields={[
           { name: "proje", label: "Proje", value: projectId, all: "Tüm projeler", options: projects.map((p) => ({ value: p.id, label: p.name })) },
-          { name: "ay", label: "Ay", value: String(month), options: MONTHS.map((m, i) => ({ value: String(i + 1), label: m })) },
-          { name: "yil", label: "Yıl", value: String(year), options: yearOptions() },
+          { name: "firma", label: "Firma", value: orgId, all: "Tüm firmalar", options: ((orgs ?? []) as { id: string; name: string }[]).map((o) => ({ value: o.id, label: o.name })) },
+          { name: "ay", label: "Ay", value: month, all: "Tümü", options: MONTHS.map((m, i) => ({ value: String(i + 1), label: m })) },
+          { name: "yil", label: "Yıl", value: year, all: "Tümü", options: yearOptions() },
+          { name: "baslik", label: "Başlık", kind: "text", value: title, placeholder: "Belge adı…" },
+          { name: "durum", label: "Görünürlük", value: visibility, all: "Tümü", options: [{ value: "yayinda", label: "Yayında" }, { value: "gizli", label: "Gizli" }] },
         ]}
       />
       <Card>
-        <CardHeader title={`${MONTHS[month - 1]} ${year}`} description={`${rows.length} kayıt`} />
+        <CardHeader title={`${total} puantaj`} description="Dönem sırasıyla, en yeni üstte" />
         {rows.length === 0 ? (
-          <EmptyState title="Bu dönem için puantaj yok" description={manage ? "Proje sayfasından girebilir veya Excel ile toplu aktarabilirsiniz." : undefined} />
+          <EmptyState
+            title={filtered ? "Filtrelere uyan puantaj yok" : "Henüz puantaj yüklenmemiş"}
+            description={manage ? "“Puantaj ekle” sekmesinden proje ve dönem seçip dosya yükleyebilirsiniz." : undefined}
+          />
         ) : (
-          <Table numeric={[2, 3, 4, 5]} head={["Proje", "Personel", "Çalışılan gün", "İzin", "Devamsızlık", "Fazla mesai (sa)", manage ? "" : null].filter((h) => h !== null)}>
-            {rows.map((r) => (
-              <tr key={r.id}>
-                <td className={td}>{r.projects?.name}</td>
-                <td className={cn(td, "font-medium")}>{r.personnel?.full_name}</td>
-                <td className={tdNum}>{formatNumber(r.worked_days)}</td>
-                <td className={tdNum}>{formatNumber(r.leave_days)}</td>
-                <td className={tdNum}>{formatNumber(r.absence_days)}</td>
-                <td className={tdNum}>{formatNumber(r.overtime_hours)}</td>
-                {manage && <td className={td}><Link href={`/projeler/${r.project_id}/puantaj?ay=${month}&yil=${year}`} className="text-sm text-brand">Düzenle</Link></td>}
-              </tr>
-            ))}
-            <tr className="bg-surface-2 font-medium">
-              <td className={td} colSpan={2}>Toplam</td>
-              <td className={tdNum}>{formatNumber(sum("worked_days"))}</td>
-              <td className={tdNum}>{formatNumber(sum("leave_days"))}</td>
-              <td className={tdNum}>{formatNumber(sum("absence_days"))}</td>
-              <td className={tdNum}>{formatNumber(sum("overtime_hours"))}</td>
-              {manage && <td className={td} />}
-            </tr>
-          </Table>
+          <>
+            <Table head={["Belge", "Proje", "Firma", "Dönem", "Yükleme tarihi", "Durum", ""]}>
+              {rows.map((d) => (
+                <tr key={d.id}>
+                  <td className={td}>
+                    <p className="font-medium">{d.title}</p>
+                    <p className="text-xs text-muted">{d.file_name}</p>
+                  </td>
+                  <td className={td}>{d.projects?.name}</td>
+                  <td className={cn(td, "text-muted")}>{d.projects?.organizations?.name ?? "—"}</td>
+                  <td className={td}>{formatPeriod(d.period_year, d.period_month)}</td>
+                  <td className={td}>{formatDate(d.created_at)}</td>
+                  <td className={td}><Badge tone={d.customer_visible ? "success" : "neutral"}>{d.customer_visible ? "Yayında" : "Gizli"}</Badge></td>
+                  <td className={cn(td, "whitespace-nowrap text-right")}>
+                    <DownloadLink id={d.id} title={d.title} label={isSheet(d.file_name) ? "Excel indir" : "PDF indir"} />
+                  </td>
+                </tr>
+              ))}
+            </Table>
+            <Pagination path="/puantaj" searchParams={sp} total={total} />
+          </>
         )}
       </Card>
     </>

@@ -30,6 +30,9 @@ Veritabanı şeması `supabase/migrations/` altındadır ve sırayla uygulanır:
 | `20261019…customer_modules` | müşteri modül anahtarları (`app_modules`), Teknik Personel hizmeti, kıyafet / savunma / denetim / risk / cari ekstre belge türleri, personel → işveren firma |
 | `20261019…opsuyon_ai` | Opsüyon AI modül anahtarı |
 | `20261020…notes_round3` | Formlar (form şablonları), `forms.read`, Savunmalar adı, Yaklaşan Sözleşme anahtarı |
+| `20261105…notes_round5` | Hizmet alanları (Danışma / Tesis Yönetimi; Kurumsal Tedarik pasif), personel kartı alanları (doğum, adres, medeni hal, beden ölçüleri, yedek telefon), Vardiya kaldırıldı |
+| `20261105…leave_types` | İzin türleri: babalık, evlat edinme, engelli çocuk (İş K. Ek md. 2) |
+| `20261105…leave_docs_policy` | İzin yöneticisi (leaves.manage) izin evrakı yükleyebilir |
 | `20261028…one_project_per_person` | Personel aynı anda yalnızca 1 projede (tetikleyici + benzersiz dizin; eski çift atamalar temizlendi) |
 | `20261027…notes_round4` | Özlük evrak türleri (iş sözleşmesi, İSG, kimlik, ikametgah, adli sicil, sağlık raporu, onam formları), Eğitim ve İhtar belge türleri, `trainings.read`, modül adları |
 | `20261020…patrol` | Devriye: noktalar, okutma kayıtları, `record_patrol_scan()`, Devriye Görevlisi rolü |
@@ -62,6 +65,8 @@ node --env-file=.env scripts/bootstrap-admin.mjs --username=admin --name="Ad Soy
 - **Opsüyon AI (yardım asistanı):** sağ altta açılan, portalın ekranlarını bilen sohbet asistanı (yalnızca test aşaması). Claude Haiku kullanır; anahtar `CLAUDE_API_KEY` (yalnızca sunucu; Vercel'e de eklenmeli). Bilgisi `src/lib/assistant/guide.ts` içindedir ve **özellik eklendikçe/değiştikçe güncellenmelidir**. Soran kişinin menüsü de modele verilir; veritabanına erişmez, sohbet kaydedilmez. Canlıya çıkarken Merkez → Müşteri modülleri → *Opsüyon AI* anahtarını kapatın.
 - **Görüntüle:** her "PDF indir"in yanında "Görüntüle" düğmesi vardır (`ViewButton`); belge AppShell'deki tek görüntüleyicide, sayfanın altında açılır (`/api/documents/[id]/view`, `/api/forms/[id]/view`). Yeni bir indirme bağlantısı eklerken `DownloadLink`/`PdfIcon` kullanın, görüntüleme kendiliğinden gelir.
 - **Devriye (DEMO — henüz onaylanmadı; menüde rozet, ekranlarda uyarı):** noktalar (`patrol_points`) QR olarak basılır; devriye görevlisi telefonunda *Barkod Okut* ile okutur (`zxing`, kamera yalnızca https'te); günlük rapor okutma kayıtlarından her istekte PDF olarak üretilir (`pdf-lib`, Türkçe karakterler için gömülü Roboto). Okutma yalnızca `record_patrol_scan()` ile yazılır (yetki ve çift okuma kontrolü veritabanında).
+- **Listeler:** sunucu tabanlı 10'arlık sayfalama (`pagingFrom` + `<Pagination>`), filtreler `FilterBar` ile URL'de; Durum varsayılanı Aktif. Form/evrak ekleme kartları sayfanın üstünde ya da alt sekmede (`Tabs`).
+- **Yıllık izin:** `src/lib/leave-law.ts` — İş K. md. 53 hak edişi (kıdem + yaş) ve izin türleri (`LEAVE_TYPE_INFO`; yalnızca `yillik` bakiyeden düşer). Personel eklenince yılın bakiyesi otomatik açılır.
 - **Yeni özellik eklemek:** yeni izin = `permissions` satırı; yeni belge türü = `document_categories`
   satırı; yeni hizmet alanı = `service_lines` satırı. Yeni tablo → RLS aç, politikaları
   `app.has_project_permission(...)` ile yaz, `app.audit_row()` tetikleyicisini bağla.

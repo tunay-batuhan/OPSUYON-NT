@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import { Card, CardHeader, PageHeader } from "@/components/ui";
+import { PageHeader } from "@/components/ui";
 import { FormsLibrary, type FormItem } from "@/components/forms-library";
-import { FormTemplateUpload } from "@/components/forms/form-template-upload";
+import { FormsTabs } from "./tabs";
 import { canAnywhere } from "@/lib/auth";
 import { requireAccess } from "@/lib/modules";
 import { createClient } from "@/lib/supabase/server";
@@ -24,15 +24,8 @@ export default async function FormsPage() {
   return (
     <>
       <PageHeader title="Formlar" description="İzin, kıyafet teslim, savunma gibi form şablonları. Arama kutusuna birkaç harf yazarak formu bulun." />
-      <div className="space-y-6">
-        <FormsLibrary items={items} manage={manage} />
-        {manage && (
-          <Card>
-            <CardHeader title="Form ekle" description="Eklenen form, formları görme yetkisi olan tüm müşterilerde listelenir." />
-            <FormTemplateUpload />
-          </Card>
-        )}
-      </div>
+      <FormsTabs manage={manage} />
+      <FormsLibrary items={items} manage={manage} />
     </>
   );
 }

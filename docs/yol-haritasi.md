@@ -203,3 +203,40 @@ Veritabanı geçmişinden olay sırası çıkarıldı (27 Ekim). İki neden birl
 1. Hesap, projelerden **önce** açılmıştı; sonradan açılan projeye hesabın erişimi otomatik bağlanmıyordu (düzeltildi: Firma Yöneticisi hesaplarına otomatik erişim).
 2. Müşteri menüsünde **Projeler yok** (müşteri istemişti); müşteri projeleri yalnızca ana sayfadaki hizmet kartlarında sayı olarak görüyordu. → Kartların altına **proje adları** eklendi.
 Ayrıca eski bir projenin bitiş tarihi geçmişti; otomatik Pasif olup erişimi kapattı (formlara uyarı eklendi).
+
+---
+
+## 9. 5. tur (5 Kasım): sadeleştirme, sayfalama, personel kartı
+Kaynak: müşterinin el yazısı notu + Tunay'ın notları. Genel ilke: aynı işi yapan ekranlar tek sayfada / alt sekmede toplanır; **form ve evrak ekleme sayfanın en üstünde**; tüm listeler sunucu tabanlı **10'arlık sayfalama** ve tablodaki her sütunu kapsayan filtre alır.
+
+| İstek | Karar / uygulama |
+|---|---|
+| Danışma ve Tesis birbirinden ayrılacak (müşteri) / "sadece Danışma olacak" (Tunay) | Mevcut hat **Danışma** oldu, **Tesis Yönetimi** ayrı hat eklendi (iki notu birden karşılar) |
+| Kurumsal Tedarik kalkacak | Pasife alındı: yeni proje açılamaz, mevcut projeler durur |
+| Proje pasif edilince aktifler arasında görünmesin; personelde Aktif/Pasif/Ayrıldı filtresi | Projeler ve Personel listelerinde Durum filtresi, varsayılan **Aktif** |
+| Personel listesinde / kartta Sicil No olmasın | Arayüzden kaldırıldı (veritabanında duruyor; Excel eşleştirmesi için) |
+| Personel kartına: doğum yeri/tarihi, memleket, adres, medeni hal, boy, kilo, pantolon/gömlek/mont ölçüsü, ayakkabı no, yedek telefon + kime ait | Eklendi (migration `20261105000100`) |
+| İşe giriş + yaş + çalışma süresi → yıllık izin hakkı kanuna göre | `src/lib/leave-law.ts`: İş K. md. 53 (1–5 yıl 14, 5–15 yıl 20, 15+ 26 gün; ≤18 / ≥50 yaş en az 20). Kullanılan yıllık izin bakiyeden düşer |
+| Personel sayfası alt sekmeleri: Personel ekle, Evrak ekle; detayda evraklar açılır-kapanır + filtre; detaydaki Yıllık izin kartı kalkar | Yapıldı |
+| Puantaj: tüm projelerin puantaj dosyaları liste halinde (PDF indir + Görüntüle); "Puantaj ekle" alt sekmesi (Proje/Ay/Yıl/Gözat/Ekle) | Yapıldı; proje içindeki puantaj tablosu şimdilik duruyor |
+| Denetimler: Gece/Gündüz filtresi; "Yeni denetim ekle" alt sekmesi | Yapıldı |
+| İzin Yönetimi: filtre Proje/Ad Soyad/Yıl/İzin türü; "İzin evrakı ekle" alt sekmesi (personel, tür, gün, tarihler, imzalı evrak) | Yapıldı |
+| Vardiya Planı kaldırılacak; Sözleşmeler menüsü kalkacak | Menüden kaldırıldı (kod duruyor) |
+| Müşteri: Özlük Evrakları ve Eğitimler'de personel açılır kutuda değil listede; tıklayınca detay | Liste + detay sayfası |
+| Devriye mobil beklenmeyecek | Devriye olduğu gibi (demo) kaldı |
+| (6 Kasım, Tunay) Müşteri **Personel**'e tıklayınca tüm personeli görmeli | `/personel`: tüm aktif personel listesi (Hizmet / Proje / Ad soyad filtresi, 10'ar), alt menüde **Tüm Personel**. Kişiye tıklayınca `/personel/[id]`: özet + Özlük durumu (✓/eksik) + Yıllık izin (hak/kullanılan/kalan, kayıtlar, formlar) + Eğitimler + Kıyafet + Savunma/İhtar, tek sayfada; yetkisi/modülü olmayan bölüm görünmez; doğum tarihi, adres, telefon müşteriye gösterilmez. Ana sayfa hizmet kartları da bu listeye açılır |
+
+Not: "4TB – 12.000 ₺ + KDV" satırı teklif notu olarak okundu, sisteme yansıtılmadı.
+
+## 10. Sekme düzeni ve form kolaylıkları (6 Kasım, Tunay)
+| İstek | Uygulama |
+|---|---|
+| Sayfalar arası geçişte ilerleme çubuğu | `@bprogress/next` (nextjs-toploader indirme bağlantılarında takılı kalıyordu). Çubuk "Yükleniyor…" iskeleti boyunca sürer; /api/ indirmelerinde başlamaz. Filtre/arama formları `next/form` ile sayfa yenilemeden çalışır |
+| İzin girerken "işe başlama" soruluyor | Alan aslında izin dönüşüydü: adı **İşe dönüş tarihi** oldu (son tarih + 1 gün otomatik) |
+| Personel adı aranabilir olsun | Ortak aranabilir seçim kutusu (`SelectField searchable`): izin, evrak ekleme, belge yükleme, proje ataması |
+| İzin ekranında kalan izin | Personel seçilince bu yılın hak edilen / kullanılan / kalan günü ve "bu izinle kalan" |
+| Aynı ekranda birden çok iş olmasın; alt sayfalar sekme olsun | Sol menü açılır alt menüleri kalktı; Personel, Devriye, Cari Hesap alt sayfaları sekme (`sectionPages` + `SectionTabs`). Firmalar, Kullanıcılar, Formlar, Devriye noktaları: liste / ekle sekmeleri. Firma, kullanıcı ve personel detayları sekmeli (layout + alt sayfalar) |
+| Sekmeler daha belirgin, sağdaki kaydırma çubuğu | Sekme şeridi kart görünümünde, seçili sekme dolu mavi, sayılar rozet; kaydırma çubuğu gizli (`.no-scrollbar`) |
+
+Kalan: proje içi sekmelerde (Personel, Belgeler, İzinler, Puantaj) ekleme formu ile liste hâlâ aynı sayfada.
+

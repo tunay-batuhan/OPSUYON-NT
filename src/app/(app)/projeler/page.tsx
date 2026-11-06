@@ -5,7 +5,7 @@ import { Badge, Card, EmptyState, PageHeader, cn, lineColor, LineIcon } from "@/
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { requireModule } from "@/lib/modules";
-import { getServiceLines } from "@/lib/lines";
+import { getAllServiceLines } from "@/lib/lines";
 import { createClient } from "@/lib/supabase/server";
 import type { Project } from "@/lib/types";
 
@@ -19,15 +19,17 @@ export default async function ProjectsListPage({ searchParams }: PageProps<"/pro
   if (user.kind === "staff") redirect(activeLine ? `/merkez/projeler?hat=${encodeURIComponent(activeLine)}` : "/merkez/projeler");
 
   const supabase = await createClient();
-  const [lines, { data: projects }, { data: org }] = await Promise.all([
-    getServiceLines(),
+  const [allLines, { data: projects }, { data: org }] = await Promise.all([
+    getAllServiceLines(),
     supabase.from("projects").select("*").order("name"),
     user.organization_id ? supabase.from("organizations").select("name").eq("id", user.organization_id).maybeSingle() : Promise.resolve({ data: null }),
   ]);
 
   const all = (projects ?? []) as Project[];
-  const available = lines.filter((l) => all.some((p) => p.service_line === l.code));
-  const visible = activeLine ? all.filter((p) => p.service_line === activeLine) : all;
+  // Hat filtresi yalnızca aktif hatlar; pasif hattaki eski projeler "Tümü"nde adıyla görünür
+  const available = allLines.filter((l) => l.is_active && all.some((p) => p.service_line === l.code));
+  const lineFilter = available.some((l) => l.code === activeLine) ? activeLine : undefined;
+  const visible = lineFilter ? all.filter((p) => p.service_line === lineFilter) : all;
 
   return (
     <>
@@ -41,7 +43,7 @@ export default async function ProjectsListPage({ searchParams }: PageProps<"/pro
         <div className="mb-5 flex flex-wrap gap-2" role="group" aria-label="Hizmet alanı filtresi">
           <Link
             href="/projeler"
-            className={cn("rounded-full border px-3 py-1 text-sm", !activeLine ? "border-brand bg-brand-soft text-brand" : "border-border text-muted hover:text-fg")}
+            className={cn("rounded-full border px-3 py-1 text-sm", !lineFilter ? "border-brand bg-brand-soft text-brand" : "border-border text-muted hover:text-fg")}
           >
             Tümü
           </Link>
@@ -49,7 +51,7 @@ export default async function ProjectsListPage({ searchParams }: PageProps<"/pro
             <Link
               key={l.code}
               href={`/projeler?hat=${l.code}`}
-              className={cn("rounded-full border px-3 py-1 text-sm", activeLine === l.code ? "border-brand bg-brand-soft text-brand" : "border-border text-muted hover:text-fg")}
+              className={cn("rounded-full border px-3 py-1 text-sm", lineFilter === l.code ? "border-brand bg-brand-soft text-brand" : "border-border text-muted hover:text-fg")}
             >
               {l.name}
             </Link>
@@ -67,7 +69,7 @@ export default async function ProjectsListPage({ searchParams }: PageProps<"/pro
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {visible.map((p) => {
-            const line = lines.find((l) => l.code === p.service_line);
+            const line = allLines.find((l) => l.code === p.service_line);
             return (
               <Link
                 key={p.id}

@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { FileText, FolderKanban, Search, Users } from "lucide-react";
 import { Card, CardHeader, EmptyState, PageHeader } from "@/components/ui";
+import { NavForm } from "@/components/nav-progress";
 import { requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { str1 } from "@/lib/lookups";
@@ -30,10 +31,10 @@ export default async function SearchPage({ searchParams }: PageProps<"/ara">) {
   return (
     <>
       <PageHeader title="Ara" description="Proje, personel ve belge arayın." />
-      <form action="/ara" className="relative mb-6 max-w-xl">
+      <NavForm action="/ara" className="relative mb-6 max-w-xl">
         <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted" aria-hidden />
-        <input name="q" defaultValue={q} autoFocus placeholder="En az 2 karakter…" aria-label="Arama" className="h-11 w-full rounded-full border border-border bg-surface pl-10 pr-4 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20" />
-      </form>
+        <input key={q} name="q" defaultValue={q} autoFocus placeholder="En az 2 karakter…" aria-label="Arama" className="h-11 w-full rounded-full border border-border bg-surface pl-10 pr-4 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20" />
+      </NavForm>
 
       {q.length < 2 ? (
         <Card><EmptyState title="Aramaya başlayın" description="Proje adı, personel adı veya belge başlığı yazın." /></Card>
@@ -42,7 +43,7 @@ export default async function SearchPage({ searchParams }: PageProps<"/ara">) {
       ) : (
         <div className="grid gap-6 lg:grid-cols-3">
           <Results title="Projeler" icon={<FolderKanban className="size-4" aria-hidden />} items={pr.map((p) => ({ id: p.id, href: `/projeler/${p.id}`, label: p.name, sub: p.organizations?.name }))} />
-          <Results title="Personel" icon={<Users className="size-4" aria-hidden />} items={pe.map((p) => ({ id: p.id, href: user.kind === "staff" ? `/merkez/personel/${p.id}` : "/personel", label: p.full_name, sub: p.title ?? undefined }))} />
+          <Results title="Personel" icon={<Users className="size-4" aria-hidden />} items={pe.map((p) => ({ id: p.id, href: user.kind === "staff" ? `/merkez/personel/${p.id}` : `/personel/${p.id}`, label: p.full_name, sub: p.title ?? undefined }))} />
           <Results title="Belgeler" icon={<FileText className="size-4" aria-hidden />} items={dc.map((d) => ({ id: d.id, href: `/projeler/${d.project_id}/belgeler`, label: d.title, sub: d.projects?.name }))} />
         </div>
       )}

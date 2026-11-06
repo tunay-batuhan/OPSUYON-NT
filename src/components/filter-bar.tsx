@@ -1,5 +1,6 @@
 import { Filter } from "lucide-react";
 import { btn, cn, inputCls } from "@/components/ui";
+import { NavForm } from "@/components/nav-progress";
 
 export type FilterField = {
   name: string;
@@ -13,10 +14,14 @@ export type FilterField = {
   all?: string;
 };
 
-/** Plain GET form (no JS needed): selected filters live in the URL, so pages are linkable. */
+/**
+ * GET formu: seçilen filtreler adreste durur (sayfa paylaşılabilir). next/form ile sayfa baştan yüklenmeden
+ * gider ve üstteki ilerleme çubuğu çalışır; JavaScript yoksa normal form gibi çalışır.
+ */
 export function FilterBar({ action, fields, children }: { action: string; fields: FilterField[]; children?: React.ReactNode }) {
   return (
-    <form action={action} method="get" className="mb-5 flex flex-wrap items-end gap-3 rounded-2xl border border-border bg-surface p-4 shadow-card">
+    // key: adres değişince (geri tuşu, bağlantı) kutular yeni değerlerle yeniden çizilir
+    <NavForm key={fields.map((f) => `${f.name}=${f.value ?? ""}`).join("&")} action={action} className="mb-5 flex flex-wrap items-end gap-3 rounded-2xl border border-border bg-surface p-4 shadow-card">
       {fields.map((f) => (
         <label key={f.name} className="block text-sm">
           <span className="mb-1 block text-xs font-medium text-muted">{f.label}</span>
@@ -42,7 +47,7 @@ export function FilterBar({ action, fields, children }: { action: string; fields
         <Filter className="size-4" aria-hidden /> Filtrele
       </button>
       {children}
-    </form>
+    </NavForm>
   );
 }
 

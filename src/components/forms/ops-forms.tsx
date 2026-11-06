@@ -20,7 +20,7 @@ export function TimesheetForm({ projectId, year, month, people }: { projectId: s
       className="space-y-4 p-5"
     >
       <FormGrid cols={6}>
-        <SelectField name="personnel_id" label="Personel" options={people} required className="sm:col-span-2" />
+        <SelectField name="personnel_id" label="Personel" options={people} required searchable className="sm:col-span-2" />
         <TextField name="worked_days" label="Çalışılan gün" inputMode="decimal" placeholder="0" suffix="gün" />
         <TextField name="leave_days" label="İzin" inputMode="decimal" placeholder="0" suffix="gün" />
         <TextField name="absence_days" label="Devamsızlık" inputMode="decimal" placeholder="0" suffix="gün" />
@@ -42,7 +42,7 @@ export function LeaveForm({ projectId, year, people }: { projectId: string; year
       className="space-y-4 p-5"
     >
       <FormGrid cols={6}>
-        <SelectField name="personnel_id" label="Personel" options={people} required className="sm:col-span-2" />
+        <SelectField name="personnel_id" label="Personel" options={people} required searchable className="sm:col-span-2" />
         <TextField name="entitled_days" label="Hak edilen" inputMode="decimal" suffix="gün" />
         <TextField name="carried_days" label="Devreden" inputMode="decimal" suffix="gün" />
         <TextField name="used_days" label="Kullanılan" inputMode="decimal" suffix="gün" />
