@@ -1,8 +1,7 @@
-import { SectionTabs } from "@/components/section-tabs";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { Wallet } from "lucide-react";
-import { Card, CardHeader, EmptyState, PageHeader, Stat, Table, cn, td, tdNum } from "@/components/ui";
+import { Card, CardHeader, EmptyState, Stat, Table, cn, td, tdNum } from "@/components/ui";
 import { PdfIcon } from "@/components/doc-ui";
 import { getAccessibleProjects } from "@/lib/lookups";
 import { requireAccess } from "@/lib/modules";
@@ -36,8 +35,6 @@ export default async function LedgerAllPage() {
 
   return (
     <>
-      <PageHeader title="Cari Hesap" description="Son yüklenen cari ekstre ve güncel bakiye. Ekstreyi PDF olarak indirebilirsiniz." />
-      <SectionTabs section="cari" />
       {withBalance.length > 0 && (
         <div className="mb-6 grid gap-4 sm:grid-cols-2">
           <Stat label="Genel bakiye" value={formatMoney(total)} hint={total > 0 ? "Ödenecek" : total < 0 ? "Alacak" : "Bakiye yok"} icon={Wallet} tone={total > 0 ? "rose" : "emerald"} />

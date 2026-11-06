@@ -21,7 +21,7 @@ const chunk = <T,>(arr: T[], n: number) => Array.from({ length: Math.ceil(arr.le
  *  mode "expand": Yıllık İzinler / Kıyafet / Savunma — personel adına tıklayınca altında PDF'ler açılır
  */
 export async function PersonnelDocs({
-  categories, title, description, path, searchParams, mode, leave = false, nameFilter = false, lineNames, section,
+  categories, title, description, path, searchParams, mode, leave = false, nameFilter = false, lineNames, headless = false,
 }: {
   categories: string[];
   title: string;
@@ -34,8 +34,8 @@ export async function PersonnelDocs({
   /** Hizmet filtresinin yanına "Personel adı" arama kutusu (birkaç harf yeter) */
   nameFilter?: boolean;
   lineNames: Record<string, string>;
-  /** Bölüm sayfası: başlık bölüm adı olur, altına sekmeler gelir (ör. Personel › Yıllık İzinler). */
-  section?: { title: string; tabs: React.ReactNode };
+  /** Başlığı sayfanın layout.tsx dosyası çiziyor (sekmeli bölüm): bileşen başlık çizmez. */
+  headless?: boolean;
 }) {
   const hat = str1(searchParams.hat);
   const ad = nameFilter ? (str1(searchParams.ad) ?? "").trim() : "";
@@ -97,8 +97,7 @@ export async function PersonnelDocs({
 
   return (
     <>
-      <PageHeader title={section?.title ?? title} description={description} />
-      {section?.tabs}
+      {!headless && <PageHeader title={title} description={description} />}
       <FilterBar action={path} fields={fields} />
 
       <Card>

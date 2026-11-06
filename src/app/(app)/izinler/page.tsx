@@ -1,11 +1,10 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { Trash2 } from "lucide-react";
-import { Badge, Card, CardHeader, EmptyState, PageHeader, Table, cn, td, tdNum } from "@/components/ui";
+import { Badge, Card, CardHeader, EmptyState, Table, cn, td, tdNum } from "@/components/ui";
 import { FilterBar, yearOptions } from "@/components/filter-bar";
 import { Pagination } from "@/components/pagination";
 import { LeaveDocCell } from "@/components/forms/leave-forms";
-import { LeaveTabs } from "./tabs";
 import { redirect } from "next/navigation";
 import { hasPermission, requireUser } from "@/lib/auth";
 import { getEnabledModules } from "@/lib/modules";
@@ -98,8 +97,6 @@ export default async function LeavesAllPage({ searchParams }: PageProps<"/izinle
 
   return (
     <>
-      <PageHeader title="İzin Yönetimi" description="Personelin izin kayıtları, kalan yıllık izin süresi ve izin evrakları." />
-      <LeaveTabs manage={manage} />
       <FilterBar
         action="/izinler"
         fields={[

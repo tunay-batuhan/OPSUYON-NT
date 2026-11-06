@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
-import { Card, CardHeader, PageHeader } from "@/components/ui";
+import { Card, CardHeader } from "@/components/ui";
 import { yearOptions } from "@/components/filter-bar";
 import { TimesheetUploadForm } from "@/components/forms/ops-upload-forms";
 import { requireStaff } from "@/lib/auth";
 import { getAccessibleProjects } from "@/lib/lookups";
-import { TimesheetTabs } from "../tabs";
 
 export const metadata: Metadata = { title: "Puantaj ekle" };
 
@@ -16,8 +15,6 @@ export default async function TimesheetAddPage() {
 
   return (
     <>
-      <PageHeader title="Puantaj" description="Tüm projelerin puantaj dosyaları. PDF indirebilir veya indirmeden Görüntüle ile açabilirsiniz." />
-      <TimesheetTabs manage />
       <Card>
         <CardHeader
           title="Puantaj ekle"

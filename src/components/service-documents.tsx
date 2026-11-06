@@ -18,7 +18,7 @@ type Row = {
  * Bordro (toplu), Puantaj, Faturalar, Cari Ekstre, Risk Analizi için ortak ekran.
  */
 export async function ServiceDocuments({
-  category, title, description, path, searchParams, filters = { hat: true, period: true }, preview = false, emptyText, section,
+  category, title, description, path, searchParams, filters = { hat: true, period: true }, preview = false, emptyText, headless = false,
 }: {
   category: string;
   title: string;
@@ -29,8 +29,8 @@ export async function ServiceDocuments({
   /** İlk (veya seçilen) belgeyi sayfada göster */
   preview?: boolean;
   emptyText?: string;
-  /** Bölüm sayfası: başlık bölüm adı olur, altına sekmeler gelir (ör. Cari Hesap › Faturalar). */
-  section?: { title: string; tabs: React.ReactNode };
+  /** Başlığı sayfanın layout.tsx dosyası çiziyor (sekmeli bölüm): bileşen başlık çizmez. */
+  headless?: boolean;
 }) {
   const hat = str1(searchParams.hat);
   const projectId = str1(searchParams.proje);
@@ -79,8 +79,7 @@ export async function ServiceDocuments({
 
   return (
     <>
-      <PageHeader title={section?.title ?? title} description={description} />
-      {section?.tabs}
+      {!headless && <PageHeader title={title} description={description} />}
       {fields.length > 0 && <FilterBar action={path} fields={fields} />}
 
       <Card>

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Badge, Card, CardHeader, EmptyState, PageHeader, Table, cn, td } from "@/components/ui";
+import { Badge, Card, CardHeader, EmptyState, Table, cn, td } from "@/components/ui";
 import { FilterBar, yearOptions } from "@/components/filter-bar";
 import { DownloadLink } from "@/components/doc-ui";
 import { Pagination } from "@/components/pagination";
@@ -10,7 +10,6 @@ import { getAccessibleProjects, isUuid, str1 } from "@/lib/lookups";
 import { pagingFrom } from "@/lib/paging";
 import { createClient } from "@/lib/supabase/server";
 import { MONTHS, formatDate, formatPeriod } from "@/lib/format";
-import { TimesheetTabs } from "./tabs";
 
 export const metadata: Metadata = { title: "Puantaj" };
 
@@ -78,8 +77,6 @@ export default async function TimesheetsAllPage({ searchParams }: PageProps<"/pu
 
   return (
     <>
-      <PageHeader title="Puantaj" description="Tüm projelerin puantaj dosyaları. PDF indirebilir veya indirmeden Görüntüle ile açabilirsiniz." />
-      <TimesheetTabs manage={manage} />
       <FilterBar
         action="/puantaj"
         fields={[

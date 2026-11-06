@@ -78,6 +78,8 @@
 
 html {
   color-scheme: light;
+  /* Kaydırma çubuğunun yeri hep ayrılır: kısa/uzun sayfa arasında geçerken ortalanmış içerik sağa-sola kaymaz */
+  scrollbar-gutter: stable;
 }
 
 body {

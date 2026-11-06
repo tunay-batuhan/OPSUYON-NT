@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { ServiceDocuments } from "@/components/service-documents";
-import { SectionTabs } from "@/components/section-tabs";
 import { requireAccess } from "@/lib/modules";
 
 export const metadata: Metadata = { title: "Faturalar" };
@@ -16,7 +15,7 @@ export default async function InvoiceDocsPage({ searchParams }: PageProps<"/cari
       searchParams={await searchParams}
       filters={{ hat: false, project: false, period: true }}
       emptyText="Seçtiğiniz döneme ait fatura yüklenmemiş."
-      section={{ title: "Cari Hesap", tabs: <SectionTabs section="cari" /> }}
+      headless
     />
   );
 }

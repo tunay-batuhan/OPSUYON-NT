@@ -5,15 +5,20 @@ export function Bone({ className }: { className?: string }) {
   return <div aria-hidden className={cn("animate-pulse rounded-lg bg-border/70", className)} />;
 }
 
-/** Generic page placeholder: title + stat tiles + table card. */
-export function PageSkeleton({ stats = true }: { stats?: boolean }) {
+/**
+ * Genel sayfa iskeleti: başlık + istatistik kutuları + tablo kartı.
+ * header={false}: başlık ve sekmeler layout.tsx'te sabitse yalnızca içerik iskeleti (sekme değişince başlık titremez).
+ */
+export function PageSkeleton({ stats = true, header = true }: { stats?: boolean; header?: boolean }) {
   return (
     <div role="status" aria-busy="true" aria-label="Yükleniyor" className="space-y-6">
       <RouteProgress />
-      <div className="space-y-2">
-        <Bone className="h-4 w-40" />
-        <Bone className="h-8 w-72" />
-      </div>
+      {header && (
+        <div className="space-y-2">
+          <Bone className="h-4 w-40" />
+          <Bone className="h-8 w-72" />
+        </div>
+      )}
       {stats && (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (

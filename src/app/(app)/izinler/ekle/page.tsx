@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
-import { Card, CardHeader, PageHeader } from "@/components/ui";
+import { Card, CardHeader } from "@/components/ui";
 import { LeaveRecordForm, type LeaveBalanceInfo } from "@/components/forms/leave-forms";
 import { requireStaff } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { LEAVE_TYPE_INFO, legalAnnualLeaveDays } from "@/lib/leave-law";
-import { LeaveTabs } from "../tabs";
 
 export const metadata: Metadata = { title: "İzin evrakı ekle" };
 
@@ -53,8 +52,6 @@ export default async function LeaveAddPage() {
 
   return (
     <>
-      <PageHeader title="İzin Yönetimi" description="Personelin izin kayıtları, kalan yıllık izin süresi ve izin evrakları." />
-      <LeaveTabs manage />
       <Card>
         <CardHeader
           title="İzin evrakı ekle"

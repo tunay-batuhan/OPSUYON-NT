@@ -238,5 +238,7 @@ Not: "4TB – 12.000 ₺ + KDV" satırı teklif notu olarak okundu, sisteme yans
 | Aynı ekranda birden çok iş olmasın; alt sayfalar sekme olsun | Sol menü açılır alt menüleri kalktı; Personel, Devriye, Cari Hesap alt sayfaları sekme (`sectionPages` + `SectionTabs`). Firmalar, Kullanıcılar, Formlar, Devriye noktaları: liste / ekle sekmeleri. Firma, kullanıcı ve personel detayları sekmeli (layout + alt sayfalar) |
 | Sekmeler daha belirgin, sağdaki kaydırma çubuğu | Sekme şeridi kart görünümünde, seçili sekme dolu mavi, sayılar rozet; kaydırma çubuğu gizli (`.no-scrollbar`) |
 
+| Sekmeye basınca bütün sayfa yeniden çiziliyor; başlık hafif kayıyor | Başlık + sekmeler bölümün `layout.tsx` dosyasında (`SectionHeader`): sekme değişince yalnızca içerik yüklenir, iskelet başlıksız (`PageSkeleton header={false}`). Detay sayfaları sekmesiz kalsın diye sekmeli sayfalar `(sekme)` route group içinde. Kayma: kaydırma çubuğu kısa/uzun sayfada gelip gidiyordu → `html { scrollbar-gutter: stable }` |
+
 Kalan: proje içi sekmelerde (Personel, Belgeler, İzinler, Puantaj) ekleme formu ile liste hâlâ aynı sayfada.
 

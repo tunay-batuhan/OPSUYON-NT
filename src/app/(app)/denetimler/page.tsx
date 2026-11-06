@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Card, CardHeader, EmptyState, PageHeader, Table, cn, td } from "@/components/ui";
+import { Card, CardHeader, EmptyState, Table, cn, td } from "@/components/ui";
 import { FilterBar, yearOptions } from "@/components/filter-bar";
 import { PdfIcon } from "@/components/doc-ui";
 import { Pagination } from "@/components/pagination";
@@ -9,7 +9,6 @@ import { requireAccess } from "@/lib/modules";
 import { pagingFrom } from "@/lib/paging";
 import { createClient } from "@/lib/supabase/server";
 import { MONTHS, formatDate } from "@/lib/format";
-import { InspectionTabs } from "./tabs";
 
 export const metadata: Metadata = { title: "Denetimler" };
 
@@ -56,8 +55,6 @@ export default async function InspectionsPage({ searchParams }: PageProps<"/dene
 
   return (
     <>
-      <PageHeader title="Denetimler" description="Yapılan denetimlerin raporları." />
-      <InspectionTabs manage={manage} />
       <FilterBar
         action="/denetimler"
         fields={[

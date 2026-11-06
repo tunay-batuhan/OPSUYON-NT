@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
-import { Card, CardHeader, PageHeader } from "@/components/ui";
+import { Card, CardHeader } from "@/components/ui";
 import { InspectionUploadForm } from "@/components/forms/ops-upload-forms";
 import { requireStaff } from "@/lib/auth";
 import { getAccessibleProjects } from "@/lib/lookups";
-import { InspectionTabs } from "../tabs";
 
 export const metadata: Metadata = { title: "Yeni denetim ekle" };
 
@@ -14,8 +13,6 @@ export default async function InspectionAddPage() {
 
   return (
     <>
-      <PageHeader title="Denetimler" description="Yapılan denetimlerin raporları." />
-      <InspectionTabs manage />
       <Card>
         <CardHeader
           title="Yeni denetim ekle"

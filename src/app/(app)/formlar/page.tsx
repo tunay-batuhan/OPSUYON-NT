@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
-import { PageHeader } from "@/components/ui";
+
 import { FormsLibrary, type FormItem } from "@/components/forms-library";
-import { FormsTabs } from "./tabs";
 import { canAnywhere } from "@/lib/auth";
 import { requireAccess } from "@/lib/modules";
 import { createClient } from "@/lib/supabase/server";
@@ -23,8 +22,6 @@ export default async function FormsPage() {
 
   return (
     <>
-      <PageHeader title="Formlar" description="İzin, kıyafet teslim, savunma gibi form şablonları. Arama kutusuna birkaç harf yazarak formu bulun." />
-      <FormsTabs manage={manage} />
       <FormsLibrary items={items} manage={manage} />
     </>
   );

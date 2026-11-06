@@ -79,13 +79,13 @@ const lineOf = (code: string | null | undefined, lineNames: Record<string, strin
 /* Liste: Hizmet + Ad soyad filtresi, aktif personel, 10'ar kayıt       */
 /* ------------------------------------------------------------------ */
 export async function PersonnelFileList({
-  screen, searchParams, lineNames, section,
+  screen, searchParams, lineNames, headless = false,
 }: {
   screen: FileScreen;
   searchParams: SP;
   lineNames: Record<string, string>;
-  /** Bölüm sayfası: başlık bölüm adı olur, altına sekmeler gelir (ör. Personel › Özlük Evrakları). */
-  section?: { title: string; tabs: ReactNode };
+  /** Başlığı sayfanın layout.tsx dosyası çiziyor (sekmeli bölüm): bileşen başlık çizmez. */
+  headless?: boolean;
 }) {
   const { path } = screen;
   // Eski adres (?personel=ID, açılır kutu dönemi) detay sayfasına gider
@@ -142,8 +142,7 @@ export async function PersonnelFileList({
 
   return (
     <>
-      <PageHeader title={section?.title ?? screen.title} description={screen.description} />
-      {section?.tabs}
+      {!headless && <PageHeader title={screen.title} description={screen.description} />}
       <FilterBar action={path} fields={fields} />
       <Card>
         <CardHeader title={`${total} personel`} description={screen.mode === "checklist" ? "Evrakları görmek için personele tıklayın." : "Eğitimleri görmek için personele tıklayın."} />
