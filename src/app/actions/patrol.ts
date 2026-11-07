@@ -123,6 +123,16 @@ export async function removePatrolPoint(fd: FormData): Promise<void> {
   revalidatePath("/devriye/noktalar");
 }
 
+/** Merkez: noktanın konumunu siler; noktadaki bir sonraki isabetli (≤ 50 m) okutmadan yeniden öğrenilir. */
+export async function resetPatrolPointLocation(fd: FormData): Promise<void> {
+  await assertStaff("patrol.manage");
+  const id = str(fd, "id");
+  if (!id) return;
+  const supabase = await createClient();
+  await supabase.from("patrol_points").update({ lat: null, lng: null }).eq("id", id);
+  revalidatePath("/devriye/noktalar");
+}
+
 export async function setPatrolPointActive(fd: FormData): Promise<void> {
   await assertStaff("patrol.manage");
   const id = str(fd, "id");

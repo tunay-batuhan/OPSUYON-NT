@@ -11,11 +11,12 @@ import { requireModule } from "@/lib/modules";
 import { getAccessibleProjects, isUuid, str1 } from "@/lib/lookups";
 import { pageCount, pageHref, pagingFrom } from "@/lib/paging";
 import { createClient } from "@/lib/supabase/server";
-import { removePatrolPoint, setPatrolPointActive } from "@/app/actions/patrol";
+import { removePatrolPoint, resetPatrolPointLocation, setPatrolPointActive } from "@/app/actions/patrol";
+import { mapsUrl } from "@/lib/patrol";
 
 export const metadata: Metadata = { title: "Devriye Noktaları" };
 
-type Point = { id: string; project_id: string; name: string; code: string; is_active: boolean };
+type Point = { id: string; project_id: string; name: string; code: string; is_active: boolean; lat: number | null; lng: number | null };
 
 const PATH = "/devriye/noktalar";
 /** Durum filtresi: varsayılan "Aktif"; "Tümü" de URL'de kalsın diye boş değer yerine "tumu" kullanılır. */
@@ -43,7 +44,7 @@ export default async function PatrolPointsPage({ searchParams }: PageProps<"/dev
   const projects = (await getAccessibleProjects()).filter((p) => PATROL_LINES.includes(p.service_line));
   let q = supabase
     .from("patrol_points")
-    .select("id, project_id, name, code, is_active", { count: "exact" })
+    .select("id, project_id, name, code, is_active, lat, lng", { count: "exact" })
     .order("sort_order")
     .order("name")
     .order("id")
@@ -84,12 +85,25 @@ export default async function PatrolPointsPage({ searchParams }: PageProps<"/dev
                 description={filtered ? undefined : "Yeni nokta ekle sekmesinden ilk noktayı ekleyin."}
               />
             ) : (
-              <Table head={["Nokta", "Proje", "Barkod kodu", "Durum", ""]}>
+              <Table head={["Nokta", "Proje", "Barkod kodu", "Konum", "Durum", ""]}>
                 {points.map((p) => (
                   <tr key={p.id}>
                     <td className={td + " font-medium"}>{p.name}</td>
                     <td className={td}>{nameOf.get(p.project_id) ?? "—"}</td>
                     <td className={td + " font-mono text-xs"}>{p.code}</td>
+                    <td className={td + " whitespace-nowrap"}>
+                      {p.lat != null && p.lng != null ? (
+                        <>
+                          <a href={mapsUrl(p.lat, p.lng)} target="_blank" rel="noopener noreferrer" className="text-sm text-brand hover:underline">Haritada gör</a>
+                          <form action={resetPatrolPointLocation} className="ml-3 inline" title="Konum silinir; noktadaki ilk isabetli okutmadan yeniden öğrenilir">
+                            <input type="hidden" name="id" value={p.id} />
+                            <button className="text-sm text-muted hover:underline">Sıfırla</button>
+                          </form>
+                        </>
+                      ) : (
+                        <span className="text-sm text-muted" title="Noktadaki ilk isabetli okutmadan öğrenilir">İlk okutmada öğrenilecek</span>
+                      )}
+                    </td>
                     <td className={td}><Badge tone={p.is_active ? "success" : "neutral"}>{p.is_active ? "Aktif" : "Pasif"}</Badge></td>
                     <td className={td + " whitespace-nowrap text-right"}>
                       <Link href={`/devriye/noktalar/yazdir?proje=${p.project_id}&nokta=${p.id}`} className="mr-3 text-sm font-medium text-brand hover:underline">Etiketi yazdır</Link>
