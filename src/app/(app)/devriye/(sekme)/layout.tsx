@@ -14,10 +14,10 @@ export default async function PatrolSectionLayout({ children }: { children: Reac
         title="Devriye Sistemi"
         tabs={user ? sectionPages("devriye", user, on) : []}
         descriptions={{
-          "/devriye/okut": "Barkod Okut: devriyede her noktada barkodu okutun; rapor otomatik oluşur.",
-          "/devriye/rapor": "Gün, ay ve yıl seçin; o günün devriye raporu okutma kayıtlarından otomatik oluşur. PDF olarak indirebilirsiniz.",
-          "/devriye/noktalar": "Noktalar ve Etiketler: her nokta için barkod/QR etiketi yazdırıp noktaya yapıştırın; görevli telefonundan okutur.",
-          "/devriye/noktalar/ekle": "Yeni nokta: barkod içeriği otomatik üretilir. Ekledikten sonra Noktalar ve Etiketler sekmesinden etiketini yazdırın.",
+          "/devriye/rapor": "Görevliler noktadaki QR'ı telefonuyla okutur, proje PIN'ini girip listeden adını seçer; kayıtlar burada saniyesiyle listelenir. Kayıtlar 1 ay saklanır; günlük raporu PDF olarak indirebilirsiniz.",
+          "/devriye/noktalar": "Noktalar ve Etiketler: her nokta için QR etiketi yazdırıp noktaya yapıştırın; görevli telefonunun kamerasıyla okutur.",
+          "/devriye/noktalar/ekle": "Yeni nokta: QR içeriği otomatik üretilir. Ekledikten sonra Noktalar ve Etiketler sekmesinden etiketini yazdırın.",
+          "/devriye/pinler": "Her projeye 4 haneli bir PIN verin ve görevlilerle paylaşın. Görevli QR'ı okutup PIN'i girer, ardından projenin personel listesinden kendi adını seçer.",
         }}
       >
         <DemoNotice />

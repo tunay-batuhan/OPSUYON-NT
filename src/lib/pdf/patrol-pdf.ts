@@ -1,7 +1,7 @@
 import { PDFDocument, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 import { ROBOTO_MEDIUM_B64, ROBOTO_REGULAR_B64 } from "@/lib/pdf/roboto";
-import { fmtClock, fmtDateTime, fmtDayLong, type DailyReport } from "@/lib/patrol";
+import { fmtClock, fmtDateTime, fmtDayLong, locationLabel, type DailyReport } from "@/lib/patrol";
 
 const W = 595.28;
 const H = 841.89;
@@ -157,11 +157,13 @@ export async function buildPatrolReportPdf(r: DailyReport): Promise<Uint8Array> 
     "Okutma kayıtları",
     [
       { label: "#", width: 30, align: "right" },
-      { label: "Saat", width: 70, align: "center" },
-      { label: "Nokta", width: 235 },
-      { label: "Okutan", width: 180 },
+      { label: "Saat", width: 65, align: "center" },
+      { label: "Nokta", width: 175 },
+      { label: "Okutan", width: 150 },
+      { label: "Konum", width: 95, align: "center" },
     ],
-    r.scans.map((s, i) => [String(i + 1), fmtClock(s.scanned_at), pointName.get(s.point_id) ?? "—", s.by]),
+    r.scans.map((s, i) => [String(i + 1), fmtClock(s.scanned_at), pointName.get(s.point_id) ?? "—", s.by, locationLabel(s).text]),
+    r.scans.map((s) => [undefined, undefined, undefined, undefined, locationLabel(s).far ? BAD : undefined]),
   );
 
   /* ---- alt bilgi (her sayfa) ---- */

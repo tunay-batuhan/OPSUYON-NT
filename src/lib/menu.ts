@@ -26,10 +26,10 @@ export function sectionPages(section: Section, user: CurrentUser, on: Set<string
   if (section === "devriye") {
     if (customer && !on.has("devriye")) return [];
     const pages: (NavChild & { ok: boolean })[] = [
-      { href: "/devriye/okut", label: "Barkod Okut", ok: customer && can("patrol.scan") },
-      { href: "/devriye/rapor", label: "Devriye Rapor", ok: can("patrol.read") },
+      { href: "/devriye/rapor", label: "Devriye Kayıtları", ok: can("patrol.read") },
       { href: "/devriye/noktalar", label: "Noktalar ve Etiketler", exact: true, ok: !customer && can("patrol.manage") },
       { href: "/devriye/noktalar/ekle", label: "Yeni nokta ekle", ok: !customer && can("patrol.manage") },
+      { href: "/devriye/pinler", label: "Proje PIN'leri", ok: !customer && can("patrol.manage") },
     ];
     return pages.filter((p) => p.ok).map(({ href, label, exact }) => ({ href, label, exact }));
   }
