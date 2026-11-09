@@ -120,4 +120,7 @@ export async function deleteDocument(fd: FormData): Promise<void> {
   const { error } = await supabase.from("documents").delete().eq("id", id);
   if (!error) await createAdminClient().storage.from(BUCKET).remove([data.storage_path]);
   if (project_id) revalidatePath(`/projeler/${project_id}/belgeler`);
+  // Bordrolar / Denetimler / Puantaj listesinden silindiyse o liste yenilenir
+  const back = str(fd, "back");
+  if (back && /^\/[a-z0-9/-]+$/.test(back)) revalidatePath(back);
 }

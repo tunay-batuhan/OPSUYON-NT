@@ -20,15 +20,13 @@ const PAGE = 25;
 
 type Scan = { id: string; project_id: string; point_id: string; scanned_at: string; personnel_id: string | null; scanned_by: string | null; lat: number | null; lng: number | null; distance_m: number | null };
 
-/** Son PATROL_KEEP_DAYS günün tarihleri (bugün başta), Türkiye saatiyle. */
-function recentDays(): string[] {
-  const now = Date.now();
-  return Array.from({ length: PATROL_KEEP_DAYS }, (_, i) => istanbulDay(new Date(now - i * 86400000)));
-}
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
+/** Bugünden `n` gün önce (Türkiye saatiyle, YYYY-AA-GG). */
+const daysAgo = (n: number) => istanbulDay(new Date(Date.now() - n * 86400000));
 
 /**
  * Devriye kayıtları: sayfa her açıldığında güncel kayıtlar veritabanından okunur (en yeni üstte).
- * Kayıtlar 1 ay saklanır; gün seçilir (varsayılan bugün) ya da son 1 ayın tamamı listelenir.
+ * Kayıtlar 1 ay saklanır; başlangıç–bitiş tarih aralığı seçilir (varsayılan bugün).
  * Altta proje ve gün bazında günlük raporlar (PDF).
  */
 export default async function PatrolRecordsPage({ searchParams }: PageProps<"/devriye/rapor">) {
@@ -39,14 +37,18 @@ export default async function PatrolRecordsPage({ searchParams }: PageProps<"/de
   });
 
   const sp = await searchParams;
-  const days = recentDays();
-  const today = days[0];
-  // "Son 1 ay" seçilince adreste gun= boş gelir; hiç gelmezse bugün
-  const day = sp.gun === undefined ? today : (days.find((d) => d === str1(sp.gun)) ?? "");
+  const today = daysAgo(0);
+  const oldest = daysAgo(PATROL_KEEP_DAYS - 1);
+  // Tarih aralığı: boş/geçersizse bugün; saklama süresinin dışına taşmaz; ters girilirse yer değiştirir
+  const pick = (v: string | undefined, fallback: string) => (v && DAY.test(v) ? (v < oldest ? oldest : v > today ? today : v) : fallback);
+  let start = pick(str1(sp.bas), today);
+  let end = pick(str1(sp.bit), str1(sp.bas) && DAY.test(str1(sp.bas)!) ? start : today);
+  if (start > end) [start, end] = [end, start];
+  const oneDay = start === end;
   const projectId = str1(sp.proje);
   const paging = pagingFrom(sp, PAGE);
 
-  const range = day ? dayRange(day) : { from: dayRange(days[days.length - 1]).from, to: dayRange(today).to };
+  const range = { from: dayRange(start).from, to: dayRange(end).to };
   const supabase = await createClient();
   const projects = await getAccessibleProjects();
 
@@ -63,7 +65,7 @@ export default async function PatrolRecordsPage({ searchParams }: PageProps<"/de
   const [{ data: list, count }, { data: all }, { data: points }] = await Promise.all([
     listQ.order("scanned_at", { ascending: false }).range(paging.from, paging.to),
     allQ.order("scanned_at").limit(10000),
-    supabase.from("patrol_points").select("id, project_id, name, is_active"),
+    supabase.from("patrol_points").select("id, project_id, name, is_active").order("sort_order").order("name"),
   ]);
   const scans = (list ?? []) as Scan[];
   const total = count ?? 0;
@@ -91,31 +93,67 @@ export default async function PatrolRecordsPage({ searchParams }: PageProps<"/de
     g.last = s.scanned_at;
     groups.set(key, g);
   }
+  // seçili projede her aktif noktanın bu aralıktaki okutma sayısı ve son okutması (okutulmayan nokta hemen görünsün)
+  const perPoint = new Map<string, { count: number; last: string }>();
+  for (const s of (all ?? []) as Pick<Scan, "point_id" | "scanned_at">[]) {
+    const e = perPoint.get(s.point_id) ?? { count: 0, last: s.scanned_at };
+    e.count++;
+    if (s.scanned_at > e.last) e.last = s.scanned_at;
+    perPoint.set(s.point_id, e);
+  }
+  const pointSummary = isUuid(projectId)
+    ? (points ?? []).filter((p) => p.project_id === projectId && p.is_active).map((p) => ({ id: p.id as string, name: p.name as string, ...(perPoint.get(p.id as string) ?? { count: 0, last: null }) }))
+    : [];
+  const missed = pointSummary.filter((p) => p.count === 0).length;
+
   const reports = [...groups.values()].sort((a, b) => b.date.localeCompare(a.date) || (projectName.get(a.project) ?? "").localeCompare(projectName.get(b.project) ?? "", "tr"));
   const pdfHref = (g: Group) => `/api/patrol/report?proje=${g.project}&tarih=${g.date}`;
 
   const fields: FilterField[] = [
     { name: "proje", label: "Proje", value: projectId, all: "Tüm projeler", options: projects.filter((p) => withPoints.has(p.id)).map((p) => ({ value: p.id, label: p.name })) },
-    { name: "gun", label: "Gün", value: day, all: "Son 1 ay", options: days.map((d) => ({ value: d, label: d === today ? `Bugün (${fmtDay(d)})` : fmtDayLong(d) })) },
+    { name: "bas", nameTo: "bit", label: "Tarih aralığı", kind: "daterange", value: start, valueTo: end, min: oldest, max: today },
   ];
   const showProject = !isUuid(projectId);
+
+  const title = oneDay
+    ? start === today ? "Bugünkü okutmalar" : fmtDayLong(start)
+    : `${fmtDay(start)} – ${fmtDay(end)} okutmaları`;
 
   return (
     <>
       <FilterBar action={PATH} fields={fields} />
 
+      {pointSummary.length > 0 && (
+        <Card className="mb-6">
+          <CardHeader
+            title="Nokta durumu"
+            description={missed ? `${pointSummary.length} noktadan ${missed} tanesi bu aralıkta hiç okutulmadı.` : `${pointSummary.length} noktanın hepsi bu aralıkta en az bir kez okutuldu.`}
+          />
+          <ul className="grid gap-2 p-5 pt-0 sm:grid-cols-2 lg:grid-cols-3">
+            {pointSummary.map((p) => (
+              <li key={p.id} className={cn("flex items-center justify-between gap-3 rounded-lg border px-3 py-2", p.count ? "border-border" : "border-danger/40 bg-danger-soft")}>
+                <span className="min-w-0 truncate text-sm font-medium">{p.name}</span>
+                <span className={cn("shrink-0 text-right text-xs tabular-nums", p.count ? "text-muted" : "font-medium text-danger")}>
+                  {p.count ? <>{p.count} okutma · son {oneDay ? fmtClock(p.last!, false) : `${fmtDay(istanbulDay(p.last!))} ${fmtClock(p.last!, false)}`}</> : "Okutulmadı"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+
       <Card>
-        <CardHeader title={day ? (day === today ? "Bugünkü okutmalar" : fmtDayLong(day)) : "Son 1 ayın okutmaları"} description={`${total} okutma · en yeni üstte`} />
+        <CardHeader title={title} description={`${total} okutma · en yeni üstte · kayıtlar ${PATROL_KEEP_DAYS} gün saklanır`} />
         {scans.length === 0 ? (
-          <EmptyState title="Okutma kaydı yok" description={day ? "Bu gün için devriye okutması yapılmamış." : "Son 1 ayda devriye okutması yapılmamış."} />
+          <EmptyState title="Okutma kaydı yok" description={oneDay ? "Bu gün için devriye okutması yapılmamış." : "Seçilen tarih aralığında devriye okutması yapılmamış."} />
         ) : (
-          <Table head={[day ? "Saat" : "Tarih ve saat", "Nokta", "Personel", ...(showProject ? ["Proje"] : []), "Konum"]}>
+          <Table head={[oneDay ? "Saat" : "Tarih ve saat", "Nokta", "Personel", ...(showProject ? ["Proje"] : []), "Konum"]}>
             {scans.map((s) => {
               const loc = locationLabel(s);
               return (
                 <tr key={s.id}>
                   <td className={cn(td, "whitespace-nowrap font-medium tabular-nums")}>
-                    {!day && <span className="mr-2 text-muted">{fmtDay(istanbulDay(s.scanned_at))}</span>}
+                    {!oneDay && <span className="mr-2 text-muted">{fmtDay(istanbulDay(s.scanned_at))}</span>}
                     {fmtClock(s.scanned_at)}
                   </td>
                   <td className={td}>{pointName.get(s.point_id) ?? "—"}</td>

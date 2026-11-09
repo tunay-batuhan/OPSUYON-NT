@@ -50,8 +50,6 @@ export async function buildPatrolReportPdf(r: DailyReport): Promise<Uint8Array> 
   text(fit(r.project.name, W - 2 * M - 100, 10.5, regular), M, H - 60, 10.5, regular, rgb(0.78, 0.85, 0.97));
   const brand = "OPSÜYON";
   text(brand, W - M - bold.widthOfTextAtSize(brand, 13), H - 40, 13, bold, rgb(1, 1, 1));
-  const demo = "DEMO SÜRÜM";
-  text(demo, W - M - bold.widthOfTextAtSize(demo, 9), H - 58, 9, bold, rgb(0.98, 0.72, 0.2));
   y = H - 78 - 26;
 
   /* ---- künye ---- */

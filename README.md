@@ -37,6 +37,7 @@ Veritabanı şeması `supabase/migrations/` altındadır ve sırayla uygulanır:
 | `20261027…notes_round4` | Özlük evrak türleri (iş sözleşmesi, İSG, kimlik, ikametgah, adli sicil, sağlık raporu, onam formları), Eğitim ve İhtar belge türleri, `trainings.read`, modül adları |
 | `20261020…patrol` | Devriye: noktalar, okutma kayıtları, `record_patrol_scan()`, Devriye Görevlisi rolü |
 | `20261107…patrol_pin` | Devriye 2: herkese açık `/d/<kod>` sayfası + proje başına 4 haneli PIN ve isim seçimi (`patrol_pins`, `patrol_check_pin()`, `record_patrol_scan_pin()`), okutma konumu, hatalı PIN kilidi, 1 aylık saklama (`purge_old_patrol_data()`, pg_cron); giriş yaparak okutma ve `patrol.scan` kalktı |
+| `20261109…patrol_not_demo` | Devriye modül açıklamasından "DEMO" ibaresi kalktı |
 
 Test / demo hesapları (müşteri denemesi için):
 

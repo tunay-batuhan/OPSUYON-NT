@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Badge, Card, CardHeader, EmptyState, Table, cn, td } from "@/components/ui";
 import { FilterBar, yearOptions } from "@/components/filter-bar";
 import { DownloadLink } from "@/components/doc-ui";
+import { DeleteDocButton } from "@/components/delete-doc-button";
 import { Pagination } from "@/components/pagination";
 import { ServiceDocuments } from "@/components/service-documents";
 import { hasPermission } from "@/lib/auth";
@@ -29,7 +30,8 @@ export default async function TimesheetsAllPage({ searchParams }: PageProps<"/pu
       <ServiceDocuments
         category="puantaj"
         title="Puantaj"
-        description="Hizmet, ay ve yıl seçin; ilgili puantaj aşağıda görünür. PDF olarak indirebilirsiniz."
+        description=""
+        headless
         path="/puantaj"
         searchParams={sp}
         filters={{ hat: true, period: true }}
@@ -111,6 +113,7 @@ export default async function TimesheetsAllPage({ searchParams }: PageProps<"/pu
                   <td className={td}><Badge tone={d.customer_visible ? "success" : "neutral"}>{d.customer_visible ? "Yayında" : "Gizli"}</Badge></td>
                   <td className={cn(td, "whitespace-nowrap text-right")}>
                     <DownloadLink id={d.id} title={d.title} label={isSheet(d.file_name) ? "Excel indir" : "PDF indir"} />
+                    {manage && <DeleteDocButton id={d.id} title={d.title} back="/puantaj" className="ml-2" />}
                   </td>
                 </tr>
               ))}

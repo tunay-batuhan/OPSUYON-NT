@@ -46,7 +46,7 @@ export default async function PatrolLabelsPage({ searchParams }: PageProps<"/dev
     <>
       <style>{`@media print { aside, header, nav, .no-print { display: none !important } main { padding: 0 !important } .label { break-inside: avoid } }`}</style>
       <div className="no-print mb-5 flex flex-wrap items-center justify-between gap-3">
-        <Link href={`/devriye/noktalar?proje=${projectId}`} className="inline-flex items-center gap-1 text-sm text-muted hover:text-fg"><ChevronLeft className="size-4" aria-hidden /> Devriye Noktaları</Link>
+        <Link href={`/devriye/noktalar/${projectId}`} className="inline-flex items-center gap-1 text-sm text-muted hover:text-fg"><ChevronLeft className="size-4" aria-hidden /> Projenin noktaları</Link>
         <PrintButton />
       </div>
       {local && (

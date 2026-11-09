@@ -7,7 +7,7 @@ import { streamInline } from "@/lib/inline-file";
  * güvenlik başlığı gönderdiği için dosya bizim üzerimizden akıtılır. Yetki, çağıranın
  * oturumuyla yapılan RLS okumasıyla belirlenir.
  */
-export async function GET(_req: NextRequest, ctx: RouteContext<"/api/documents/[id]/view">) {
+export async function GET(req: NextRequest, ctx: RouteContext<"/api/documents/[id]/view">) {
   const { id } = await ctx.params;
   if (!/^[0-9a-f-]{36}$/i.test(id)) return new NextResponse("Not found", { status: 404 });
 
@@ -22,5 +22,5 @@ export async function GET(_req: NextRequest, ctx: RouteContext<"/api/documents/[
     .maybeSingle();
   if (!doc) return new NextResponse("Not found", { status: 404 });
 
-  return streamInline(doc, `/api/documents/${id}`);
+  return streamInline(doc, `/api/documents/${id}`, req.nextUrl.searchParams.has("ham"));
 }

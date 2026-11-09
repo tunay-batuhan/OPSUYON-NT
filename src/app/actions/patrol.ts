@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { guard, pgMessage, str, validate } from "@/lib/form";
 import { newPatrolPin, newPointCode, normalizeCode } from "@/lib/patrol";
-import { patrolPointSchema, type PatrolPointValues } from "@/lib/schemas";
+import { patrolPointsBulkSchema, type PatrolPointsBulkValues } from "@/lib/schemas";
 import type { ActionState } from "@/lib/action-types";
 
 export type ScanResult =
@@ -74,7 +74,7 @@ export async function generateProjectPin(fd: FormData): Promise<void> {
   const pin = newPatrolPin();
   const supabase = await createClient();
   await supabase.from("patrol_pins").upsert({ project_id: id, pin }, { onConflict: "project_id" });
-  revalidatePath("/devriye/pinler");
+  revalidatePath("/devriye", "layout");
 }
 
 /** Merkez: projenin PIN'ini kaldırır; PIN yokken o projede okutma yapılamaz. */
@@ -84,31 +84,99 @@ export async function removeProjectPin(fd: FormData): Promise<void> {
   if (!id) return;
   const supabase = await createClient();
   await supabase.from("patrol_pins").delete().eq("project_id", id);
-  revalidatePath("/devriye/pinler");
+  revalidatePath("/devriye", "layout");
 }
 
-/** Merkez: projeye yeni devriye noktası ekler; barkod içeriği otomatik üretilir. */
-export async function createPatrolPoint(values: PatrolPointValues): Promise<ActionState> {
+const clean = (s: string) => s.replace(/\s+/g, " ").trim();
+const key = (s: string) => clean(s).toLocaleLowerCase("tr");
+
+/**
+ * Merkez: projeye bir veya birden çok nokta ekler (her satır bir nokta adı). Barkod/QR içeriği otomatik üretilir.
+ * Projede aynı adda nokta varsa o satır atlanır.
+ */
+export async function addPatrolPoints(values: PatrolPointsBulkValues): Promise<ActionState> {
   return guard(async () => {
     await assertStaff("patrol.manage");
-    const v = validate(patrolPointSchema, values);
+    const v = validate(patrolPointsBulkSchema, values);
     if (!v.ok) return v.state;
-    const d = v.data;
+    const { project_id } = v.data;
 
     const supabase = await createClient();
-    const { data: last } = await supabase.from("patrol_points").select("sort_order").eq("project_id", d.project_id).order("sort_order", { ascending: false }).limit(1).maybeSingle();
-    const sort = ((last?.sort_order as number | undefined) ?? 0) + 10;
+    const { data: existing } = await supabase.from("patrol_points").select("name, sort_order").eq("project_id", project_id);
+    const taken = new Set((existing ?? []).map((p) => key(p.name as string)));
+    let sort = Math.max(0, ...(existing ?? []).map((p) => p.sort_order as number));
+
+    const skipped: string[] = [];
+    const names: string[] = [];
+    for (const line of v.data.names.split(/\r?\n/)) {
+      const name = clean(line);
+      if (!name) continue;
+      if (taken.has(key(name))) {
+        skipped.push(name);
+        continue;
+      }
+      taken.add(key(name));
+      names.push(name);
+    }
+    if (names.length === 0) return { error: "Yazdığınız adların hepsi bu projede zaten var.", fieldErrors: { names: "Bu adlarda nokta zaten var" } };
 
     for (let attempt = 0; attempt < 4; attempt++) {
-      const { error } = await supabase.from("patrol_points").insert({ project_id: d.project_id, name: d.name, code: newPointCode(), sort_order: sort });
+      const rows = names.map((name, i) => ({ project_id, name, code: newPointCode(), sort_order: sort + (i + 1) * 10 }));
+      const { error } = await supabase.from("patrol_points").insert(rows);
       if (!error) {
-        revalidatePath("/devriye/noktalar");
-        return { ok: true, message: "Nokta eklendi. Barkod etiketini yazdırabilirsiniz." };
+        sort += names.length * 10;
+        revalidatePath("/devriye", "layout");
+        const added = names.length === 1 ? `“${names[0]}” eklendi.` : `${names.length} nokta eklendi.`;
+        return { ok: true, message: skipped.length ? `${added} Zaten olduğu için atlananlar: ${skipped.join(", ")}` : `${added} Etiketlerini yazdırabilirsiniz.` };
       }
       if (error.code !== "23505") return { error: pgMessage(error) };
     }
     return { error: "Barkod üretilemedi, lütfen tekrar deneyin." };
   });
+}
+
+/** Merkez: noktanın adını değiştirir (QR kodu aynı kalır, etiketi yeniden yazdırmak gerekmez ama etiketteki ad eskir). */
+export async function renamePatrolPoint(id: string, rawName: string): Promise<{ ok: true } | { error: string }> {
+  try {
+    await assertStaff("patrol.manage");
+  } catch {
+    return { error: "Bu işlem için yetkiniz yok." };
+  }
+  const name = clean(String(rawName ?? ""));
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return { error: "Nokta bulunamadı." };
+  if (name.length < 2 || name.length > 80) return { error: "Nokta adı 2–80 karakter olmalı." };
+  const supabase = await createClient();
+  const { data: point } = await supabase.from("patrol_points").select("project_id").eq("id", id).maybeSingle();
+  if (!point) return { error: "Nokta bulunamadı." };
+  const { data: same } = await supabase.from("patrol_points").select("id, name").eq("project_id", point.project_id).neq("id", id);
+  if ((same ?? []).some((p) => key(p.name as string) === key(name))) return { error: "Bu projede aynı adda başka bir nokta var." };
+  const { error } = await supabase.from("patrol_points").update({ name }).eq("id", id);
+  if (error) return { error: pgMessage(error) };
+  revalidatePath("/devriye", "layout");
+  return { ok: true };
+}
+
+/** Merkez: noktayı listede bir üste / alta taşır (etiket ve rapor sırası). */
+export async function movePatrolPoint(fd: FormData): Promise<void> {
+  await assertStaff("patrol.manage");
+  const id = str(fd, "id");
+  const dir = fd.get("dir") === "up" ? -1 : 1;
+  if (!id) return;
+  const supabase = await createClient();
+  const { data: point } = await supabase.from("patrol_points").select("project_id").eq("id", id).maybeSingle();
+  if (!point) return;
+  const { data } = await supabase.from("patrol_points").select("id, sort_order").eq("project_id", point.project_id).order("sort_order").order("name").order("id");
+  const list = (data ?? []).map((p) => p.id as string);
+  const i = list.indexOf(id);
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= list.length) return;
+  [list[i], list[j]] = [list[j], list[i]];
+  // sıra 10, 20, 30… olarak yeniden yazılır (yalnızca değişenler)
+  const current = new Map((data ?? []).map((p) => [p.id as string, p.sort_order as number]));
+  await Promise.all(
+    list.map((pid, k) => ((k + 1) * 10 !== current.get(pid) ? supabase.from("patrol_points").update({ sort_order: (k + 1) * 10 }).eq("id", pid) : null)),
+  );
+  revalidatePath("/devriye", "layout");
 }
 
 /** Okutma kaydı olmayan nokta silinir; kaydı olan nokta rapor geçmişi bozulmasın diye pasife alınır. */
@@ -120,7 +188,7 @@ export async function removePatrolPoint(fd: FormData): Promise<void> {
   const { count } = await supabase.from("patrol_scans").select("id", { count: "exact", head: true }).eq("point_id", id);
   if ((count ?? 0) > 0) await supabase.from("patrol_points").update({ is_active: false }).eq("id", id);
   else await supabase.from("patrol_points").delete().eq("id", id);
-  revalidatePath("/devriye/noktalar");
+  revalidatePath("/devriye", "layout");
 }
 
 /** Merkez: noktanın konumunu siler; noktadaki bir sonraki isabetli (≤ 50 m) okutmadan yeniden öğrenilir. */
@@ -130,7 +198,7 @@ export async function resetPatrolPointLocation(fd: FormData): Promise<void> {
   if (!id) return;
   const supabase = await createClient();
   await supabase.from("patrol_points").update({ lat: null, lng: null }).eq("id", id);
-  revalidatePath("/devriye/noktalar");
+  revalidatePath("/devriye", "layout");
 }
 
 export async function setPatrolPointActive(fd: FormData): Promise<void> {
@@ -139,5 +207,5 @@ export async function setPatrolPointActive(fd: FormData): Promise<void> {
   if (!id) return;
   const supabase = await createClient();
   await supabase.from("patrol_points").update({ is_active: fd.get("active") === "1" }).eq("id", id);
-  revalidatePath("/devriye/noktalar");
+  revalidatePath("/devriye", "layout");
 }

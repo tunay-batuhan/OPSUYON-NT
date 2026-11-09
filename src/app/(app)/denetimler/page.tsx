@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Card, CardHeader, EmptyState, Table, cn, td } from "@/components/ui";
 import { FilterBar, yearOptions } from "@/components/filter-bar";
 import { PdfIcon } from "@/components/doc-ui";
+import { DeleteDocButton } from "@/components/delete-doc-button";
 import { Pagination } from "@/components/pagination";
 import { hasPermission } from "@/lib/auth";
 import { getAccessibleProjects, isUuid, str1 } from "@/lib/lookups";
@@ -73,13 +74,18 @@ export default async function InspectionsPage({ searchParams }: PageProps<"/dene
           />
         ) : (
           <>
-            <Table head={["Tarih", "Gece / Gündüz", "Proje", "Denetim raporu"]}>
+            <Table head={["Tarih", "Gece / Gündüz", "Proje", "Denetim raporu", manage ? "" : null].filter((h) => h !== null)}>
               {rows.map((r) => (
                 <tr key={r.id}>
                   <td className={cn(td, "font-medium")}>{formatDate(r.metadata?.inspection_date ?? r.created_at)}</td>
                   <td className={td}>{SHIFT[r.metadata?.inspection_shift ?? ""] ?? "—"}</td>
                   <td className={cn(td, "text-muted")}>{r.projects?.name}</td>
                   <td className={td}><PdfIcon id={r.id} title={r.title} /></td>
+                  {manage && (
+                    <td className={cn(td, "text-right")}>
+                      <DeleteDocButton id={r.id} title={r.title} back="/denetimler" />
+                    </td>
+                  )}
                 </tr>
               ))}
             </Table>

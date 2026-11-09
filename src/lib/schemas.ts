@@ -252,9 +252,14 @@ export const formTemplateSchema = z.object({
   size_bytes: z.string(),
 });
 
-export const patrolPointSchema = z.object({
+/** Projeye birden çok nokta: her satır bir nokta adı (2–80 karakter, en fazla 50 satır). */
+export const patrolPointsBulkSchema = z.object({
   project_id: uuid("Proje"),
-  name: str("Nokta adı", 80).refine((v) => v.length >= 2, "Nokta adı en az 2 karakter olmalı"),
+  names: z
+    .string()
+    .refine((v) => v.split(/\r?\n/).some((l) => l.trim().length > 0), "En az bir nokta adı yazın")
+    .refine((v) => v.split(/\r?\n/).every((l) => l.trim().length === 0 || (l.trim().length >= 2 && l.trim().length <= 80)), "Her nokta adı 2–80 karakter olmalı")
+    .refine((v) => v.split(/\r?\n/).filter((l) => l.trim()).length <= 50, "Bir seferde en fazla 50 nokta eklenebilir"),
 });
 
 export const importSchema = z.object({
@@ -284,4 +289,4 @@ export type StaffRoleValues = z.infer<typeof staffRoleSchema>;
 export type MembershipValues = z.infer<typeof membershipSchema>;
 export type DocumentValues = z.infer<typeof documentSchema>;
 export type FormTemplateValues = z.infer<typeof formTemplateSchema>;
-export type PatrolPointValues = z.infer<typeof patrolPointSchema>;
+export type PatrolPointsBulkValues = z.infer<typeof patrolPointsBulkSchema>;

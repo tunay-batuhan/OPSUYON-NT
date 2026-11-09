@@ -24,8 +24,8 @@ async function projectName(projectId: string): Promise<string | null> {
 
 const notFoundProject = { error: "Proje bulunamadı.", fieldErrors: { project_id: "Proje bulunamadı" } };
 
-/** Puantaj ekle: dosya Storage'da; başlık "Puantaj AA/YYYY – Proje adı" olarak üretilir. */
-export async function addTimesheetDocument(values: TimesheetDocValues): Promise<ActionState> {
+/** Dönemlik dosya (Puantaj, Bordro): başlık "<Ad> AA/YYYY – Proje adı" olarak üretilir. */
+async function addPeriodDocument(values: TimesheetDocValues, category: "puantaj" | "bordro", label: string, path: string): Promise<ActionState> {
   return guard(async () => {
     await assertStaff("documents.manage");
     const v = validate(timesheetDocSchema, values);
@@ -36,17 +36,27 @@ export async function addTimesheetDocument(values: TimesheetDocValues): Promise<
 
     const month = Number(d.period_month);
     const year = Number(d.period_year);
-    const title = fit(`Puantaj ${String(month).padStart(2, "0")}/${year} – ${name}`);
+    const title = fit(`${label} ${String(month).padStart(2, "0")}/${year} – ${name}`);
     const res = await registerDocument({
-      project_id: d.project_id, category_code: "puantaj", title, personnel_id: "",
+      project_id: d.project_id, category_code: category, title, personnel_id: "",
       period_month: String(month), period_year: String(year), description: "", customer_visible: d.customer_visible,
       storage_path: d.storage_path, file_name: d.file_name, mime_type: d.mime_type, size_bytes: d.size_bytes,
       inspection_date: "", inspection_shift: "",
     });
     if (!res?.ok) return res;
-    revalidatePath("/puantaj");
-    return { ok: true, message: `Puantaj eklendi: ${title}` };
+    revalidatePath(path);
+    return { ok: true, message: `${label} eklendi: ${title}` };
   });
+}
+
+/** Puantaj ekle: dosya Storage'da; başlık "Puantaj AA/YYYY – Proje adı". */
+export async function addTimesheetDocument(values: TimesheetDocValues): Promise<ActionState> {
+  return addPeriodDocument(values, "puantaj", "Puantaj", "/puantaj");
+}
+
+/** Bordro ekle (proje + dönem, toplu bordro): başlık "Bordro AA/YYYY – Proje adı". */
+export async function addPayrollDocument(values: TimesheetDocValues): Promise<ActionState> {
+  return addPeriodDocument(values, "bordro", "Bordro", "/bordrolar");
 }
 
 /** Yeni denetim ekle: başlık "Denetim Raporu GG.AA.YYYY Gece/Gündüz – Proje"; dönem tarihten türetilir. */

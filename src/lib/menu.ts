@@ -27,9 +27,8 @@ export function sectionPages(section: Section, user: CurrentUser, on: Set<string
     if (customer && !on.has("devriye")) return [];
     const pages: (NavChild & { ok: boolean })[] = [
       { href: "/devriye/rapor", label: "Devriye Kayıtları", ok: can("patrol.read") },
-      { href: "/devriye/noktalar", label: "Noktalar ve Etiketler", exact: true, ok: !customer && can("patrol.manage") },
-      { href: "/devriye/noktalar/ekle", label: "Yeni nokta ekle", ok: !customer && can("patrol.manage") },
-      { href: "/devriye/pinler", label: "Proje PIN'leri", ok: !customer && can("patrol.manage") },
+      // proje seçilir; noktalar, etiketler ve PIN o projenin ekranında birlikte yönetilir
+      { href: "/devriye/noktalar", label: "Noktalar ve PIN", ok: !customer && can("patrol.manage") },
     ];
     return pages.filter((p) => p.ok).map(({ href, label, exact }) => ({ href, label, exact }));
   }
@@ -68,7 +67,7 @@ function customerMenu(user: CurrentUser, on: Set<string>): NavItem[] {
   if (on.has("izin_yonetimi") && can("leaves.read")) items.push({ href: "/izinler", label: "İzin Yönetimi", icon: "leaves" });
   if (on.has("denetimler") && can("inspections.read")) items.push({ href: "/denetimler", label: "Denetimler", icon: "inspections" });
   const patrol = sectionPages("devriye", user, on);
-  if (patrol.length) items.push({ href: patrol[0].href, label: "Devriye Sistemi", icon: "patrol", badge: "Demo", match: ["/devriye"] });
+  if (patrol.length) items.push({ href: patrol[0].href, label: "Devriye Sistemi", icon: "patrol", match: ["/devriye"] });
 
   if (on.has("risk_analizi") && can("risk.read")) items.push({ href: "/risk-analizi", label: "Risk Analizi", icon: "risk" });
 
@@ -91,7 +90,7 @@ function staffMenu(user: CurrentUser): NavItem[] {
     { href: "/bordrolar", label: "Bordrolar", icon: "payroll", anyOf: ["payroll.read"] },
     { href: "/formlar", label: "Formlar", icon: "forms", anyOf: ["forms.read"] },
     { href: "/denetimler", label: "Denetimler", icon: "inspections", anyOf: ["inspections.read"] },
-    { href: "/devriye/rapor", label: "Devriye Sistemi", icon: "patrol", badge: "Demo", anyOf: ["patrol.read", "patrol.manage"], match: ["/devriye"] },
+    { href: "/devriye/rapor", label: "Devriye Sistemi", icon: "patrol", anyOf: ["patrol.read", "patrol.manage"], match: ["/devriye"] },
     { href: "/risk-analizi", label: "Risk Analizi", icon: "risk", anyOf: ["risk.read"] },
     { href: "/faturalar", label: "Faturalar", icon: "invoices", anyOf: ["invoices.read"] },
     { href: "/cari-hesap", label: "Cari Hesap", icon: "ledger", anyOf: ["ledger.read"], match: ["/cari-hesap"] },

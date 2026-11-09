@@ -1,130 +1,114 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
-import { Printer } from "lucide-react";
-import { Badge, Card, CardHeader, EmptyState, Table, btn, td } from "@/components/ui";
-import { FilterBar, type FilterField } from "@/components/filter-bar";
-import { Pagination } from "@/components/pagination";
+import { ChevronRight } from "lucide-react";
+import { Badge, Card, CardHeader, EmptyState, Table, cn, td } from "@/components/ui";
+import { FilterBar } from "@/components/filter-bar";
 import { PATROL_LINES } from "./lines";
 import { requireStaff } from "@/lib/auth";
 import { requireModule } from "@/lib/modules";
 import { getAccessibleProjects, isUuid, str1 } from "@/lib/lookups";
-import { pageCount, pageHref, pagingFrom } from "@/lib/paging";
 import { createClient } from "@/lib/supabase/server";
-import { removePatrolPoint, resetPatrolPointLocation, setPatrolPointActive } from "@/app/actions/patrol";
-import { mapsUrl } from "@/lib/patrol";
+import { PATROL_KEEP_DAYS, fmtDateTime } from "@/lib/patrol";
 
 export const metadata: Metadata = { title: "Devriye Noktaları" };
 
-type Point = { id: string; project_id: string; name: string; code: string; is_active: boolean; lat: number | null; lng: number | null };
+/** Saklama süresinin başı (bu tarihten eski okutmalar silinmiştir). */
+const keepSince = () => new Date(Date.now() - PATROL_KEEP_DAYS * 86400000).toISOString();
 
 const PATH = "/devriye/noktalar";
-/** Durum filtresi: varsayılan "Aktif"; "Tümü" de URL'de kalsın diye boş değer yerine "tumu" kullanılır. */
-const DURUM = [
-  { value: "tumu", label: "Tümü" },
-  { value: "aktif", label: "Aktif" },
-  { value: "pasif", label: "Pasif" },
-];
 
-/** PostgREST `ilike` / `.or()` içinde anlamı olan karakterleri temizler. */
-const likeTerm = (s: string) => s.replace(/[%_*,()\\"]/g, "").trim();
-
-/** Merkez: projelerin devriye noktalarını tanımlar ve barkod/QR etiketlerini yazdırır. */
-export default async function PatrolPointsPage({ searchParams }: PageProps<"/devriye/noktalar">) {
+/**
+ * Merkez: devriye yapılabilen projeler. Her satır projenin nokta sayısını, PIN durumunu ve son okutmayı gösterir;
+ * proje açılınca noktalar (ekle, adlandır, sırala, etiket), PIN ve konumlar tek ekranda yönetilir.
+ */
+export default async function PatrolProjectsPage({ searchParams }: PageProps<"/devriye/noktalar">) {
   await requireStaff("patrol.manage");
   await requireModule("devriye");
   const sp = await searchParams;
-  const projectId = str1(sp.proje);
-  const ad = (str1(sp.ad) ?? "").trim();
-  const term = likeTerm(ad);
-  const durum = DURUM.find((d) => d.value === sp.durum)?.value ?? "aktif";
-  const paging = pagingFrom(sp);
+  // eski bağlantılar (?proje=…) projenin ekranına gider
+  const old = str1(sp.proje);
+  if (isUuid(old)) redirect(`${PATH}/${old}`);
+  const ara = (str1(sp.ara) ?? "").trim().toLocaleLowerCase("tr");
 
+  // yalnızca aktif (ve duraklatılmış) projeler; pasif projede devriye yönetilmez
+  const projects = (await getAccessibleProjects()).filter((p) => PATROL_LINES.includes(p.service_line) && p.status !== "closed");
+  const ids = projects.map((p) => p.id);
+  const since = keepSince();
   const supabase = await createClient();
-  const projects = (await getAccessibleProjects()).filter((p) => PATROL_LINES.includes(p.service_line));
-  let q = supabase
-    .from("patrol_points")
-    .select("id, project_id, name, code, is_active, lat, lng", { count: "exact" })
-    .order("sort_order")
-    .order("name")
-    .order("id")
-    .range(paging.from, paging.to);
-  if (isUuid(projectId)) q = q.eq("project_id", projectId);
-  if (term) q = q.or(`name.ilike.%${term}%,code.ilike.%${term}%`);
-  if (durum !== "tumu") q = q.eq("is_active", durum === "aktif");
-  const { data, count } = await q;
-  const points = (data ?? []) as Point[];
-  const total = count ?? 0;
-  if (paging.page > 1 && points.length === 0) redirect(pageHref(PATH, sp, total ? pageCount(total) : 1));
-  const nameOf = new Map(projects.map((p) => [p.id, p.name]));
+  const [{ data: points }, { data: pins }, { data: scans }] = ids.length
+    ? await Promise.all([
+        supabase.from("patrol_points").select("project_id, is_active").in("project_id", ids),
+        supabase.from("patrol_pins").select("project_id, pin").in("project_id", ids),
+        supabase.from("patrol_scans").select("project_id, scanned_at").in("project_id", ids).gte("scanned_at", since).order("scanned_at", { ascending: false }).limit(5000),
+      ])
+    : [{ data: [] }, { data: [] }, { data: [] }];
 
-  const fields: FilterField[] = [
-    { name: "proje", label: "Proje", value: projectId, all: "Tüm projeler", options: projects.map((p) => ({ value: p.id, label: p.name })) },
-    { name: "ad", label: "Nokta adı", kind: "text", value: ad, placeholder: "Ad veya barkod kodu…" },
-    { name: "durum", label: "Durum", value: durum, options: DURUM },
-  ];
-  const filtered = Boolean(term) || durum !== "aktif" || isUuid(projectId);
+  const active = new Map<string, number>();
+  const passive = new Map<string, number>();
+  for (const p of points ?? []) {
+    const m = p.is_active ? active : passive;
+    m.set(p.project_id as string, (m.get(p.project_id as string) ?? 0) + 1);
+  }
+  const pinOf = new Map((pins ?? []).map((p) => [p.project_id as string, p.pin as string]));
+  const lastScan = new Map<string, string>();
+  for (const s of scans ?? []) if (!lastScan.has(s.project_id as string)) lastScan.set(s.project_id as string, s.scanned_at as string);
+
+  const total = (id: string) => (active.get(id) ?? 0) + (passive.get(id) ?? 0);
+  const rows = projects
+    .filter((p) => !ara || p.name.toLocaleLowerCase("tr").includes(ara) || (p.organizations?.name ?? "").toLocaleLowerCase("tr").includes(ara))
+    // noktası olan projeler üstte
+    .sort((a, b) => Number(total(b.id) > 0) - Number(total(a.id) > 0) || a.name.localeCompare(b.name, "tr"));
 
   return (
     <>
-
-      <div>
-        <div>
-          <FilterBar action={PATH} fields={fields} />
-          <Card>
-            <CardHeader
-              title={`${total} nokta`}
-              description={isUuid(projectId) ? undefined : "Tüm etiketleri yazdırmak için bir proje seçin."}
-              action={isUuid(projectId) && total > 0 ? (
-                <Link href={`/devriye/noktalar/yazdir?proje=${projectId}`} className={btn("primary", "sm")}><Printer className="size-4" aria-hidden /> Tüm etiketleri yazdır</Link>
-              ) : undefined}
-            />
-            {points.length === 0 ? (
-              <EmptyState
-                title={filtered ? "Filtrelere uyan devriye noktası yok" : "Henüz devriye noktası yok"}
-                description={filtered ? undefined : "Yeni nokta ekle sekmesinden ilk noktayı ekleyin."}
-              />
-            ) : (
-              <Table head={["Nokta", "Proje", "Barkod kodu", "Konum", "Durum", ""]}>
-                {points.map((p) => (
-                  <tr key={p.id}>
-                    <td className={td + " font-medium"}>{p.name}</td>
-                    <td className={td}>{nameOf.get(p.project_id) ?? "—"}</td>
-                    <td className={td + " font-mono text-xs"}>{p.code}</td>
-                    <td className={td + " whitespace-nowrap"}>
-                      {p.lat != null && p.lng != null ? (
-                        <>
-                          <a href={mapsUrl(p.lat, p.lng)} target="_blank" rel="noopener noreferrer" className="text-sm text-brand hover:underline">Haritada gör</a>
-                          <form action={resetPatrolPointLocation} className="ml-3 inline" title="Konum silinir; noktadaki ilk isabetli okutmadan yeniden öğrenilir">
-                            <input type="hidden" name="id" value={p.id} />
-                            <button className="text-sm text-muted hover:underline">Sıfırla</button>
-                          </form>
-                        </>
-                      ) : (
-                        <span className="text-sm text-muted" title="Noktadaki ilk isabetli okutmadan öğrenilir">İlk okutmada öğrenilecek</span>
-                      )}
-                    </td>
-                    <td className={td}><Badge tone={p.is_active ? "success" : "neutral"}>{p.is_active ? "Aktif" : "Pasif"}</Badge></td>
-                    <td className={td + " whitespace-nowrap text-right"}>
-                      <Link href={`/devriye/noktalar/yazdir?proje=${p.project_id}&nokta=${p.id}`} className="mr-3 text-sm font-medium text-brand hover:underline">Etiketi yazdır</Link>
-                      <form action={setPatrolPointActive} className="mr-3 inline">
-                        <input type="hidden" name="id" value={p.id} />
-                        <input type="hidden" name="active" value={p.is_active ? "0" : "1"} />
-                        <button className="text-sm text-muted hover:underline">{p.is_active ? "Pasife al" : "Aktifleştir"}</button>
-                      </form>
-                      <form action={removePatrolPoint} className="inline" title="Okutma kaydı olan nokta silinmez, pasife alınır">
-                        <input type="hidden" name="id" value={p.id} />
-                        <button className="text-sm text-danger hover:underline">Sil</button>
-                      </form>
-                    </td>
-                  </tr>
-                ))}
-              </Table>
-            )}
-            <Pagination path={PATH} searchParams={sp} total={total} />
-          </Card>
-        </div>
-      </div>
+      {projects.length > 8 && <FilterBar action={PATH} fields={[{ name: "ara", label: "Proje", kind: "text", value: str1(sp.ara), placeholder: "Proje veya firma adı…" }]} />}
+      <Card>
+        <CardHeader title={`${rows.length} proje`} description="Bir projeyi açın: noktalarını ekleyip adlandırın, etiketlerini yazdırın ve projeye PIN verin." />
+        {rows.length === 0 ? (
+          <EmptyState
+            title={ara ? "Aramaya uyan proje yok" : "Devriye için uygun proje yok"}
+            description={ara ? undefined : "Devriye; aktif Güvenlik, Danışma ve Tesis Yönetimi projelerinde kullanılır. Pasif projeler burada görünmez."}
+          />
+        ) : (
+          <Table head={["Proje", "Firma", "Noktalar", "PIN", "Son okutma", ""]}>
+            {rows.map((p) => {
+              const a = active.get(p.id) ?? 0;
+              const ps = passive.get(p.id) ?? 0;
+              const pin = pinOf.get(p.id);
+              const last = lastScan.get(p.id);
+              const href = `${PATH}/${p.id}`;
+              return (
+                <tr key={p.id} className="group">
+                  <td className={cn(td, "font-medium")}>
+                    <Link href={href} className="hover:text-brand hover:underline">{p.name}</Link>
+                    {p.status === "paused" && <span className="ml-2"><Badge tone="warning">Duraklatıldı</Badge></span>}
+                  </td>
+                  <td className={cn(td, "text-muted")}>{p.organizations?.name ?? "—"}</td>
+                  <td className={td}>
+                    {a + ps === 0 ? (
+                      <span className="text-muted">Nokta yok</span>
+                    ) : (
+                      <span className="tabular-nums">
+                        {a} aktif{ps > 0 && <span className="text-muted"> · {ps} pasif</span>}
+                      </span>
+                    )}
+                  </td>
+                  <td className={td}>
+                    {pin ? <span className="font-mono font-semibold tracking-[0.25em] tabular-nums">{pin}</span> : <Badge tone="warning">PIN yok</Badge>}
+                  </td>
+                  <td className={cn(td, "whitespace-nowrap tabular-nums", !last && "text-muted")}>{last ? fmtDateTime(last) : "—"}</td>
+                  <td className={cn(td, "text-right")}>
+                    <Link href={href} className="inline-flex items-center gap-1 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-sm font-medium text-brand hover:bg-brand-soft">
+                      Noktaları yönet <ChevronRight className="size-4" aria-hidden />
+                    </Link>
+                  </td>
+                </tr>
+              );
+            })}
+          </Table>
+        )}
+      </Card>
     </>
   );
 }

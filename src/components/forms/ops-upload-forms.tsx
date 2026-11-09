@@ -4,7 +4,7 @@ import { useId, useState } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
 import { CheckCircle2, FileUp, Loader2 } from "lucide-react";
 import { prepareUpload } from "@/app/actions/documents";
-import { addInspectionDocument, addTimesheetDocument } from "@/app/actions/ops-docs";
+import { addInspectionDocument, addPayrollDocument, addTimesheetDocument } from "@/app/actions/ops-docs";
 import { EMPTY_FILE, inspectionDocSchema, timesheetDocSchema } from "@/lib/schemas-ops";
 import { MONTHS } from "@/lib/format";
 import { CheckboxField, Form, FormGrid, SelectField, SubmitButton, TextField } from "@/components/forms/form";
@@ -127,11 +127,31 @@ function TitlePreview({ build }: { build: (v: Record<string, string>) => string 
 }
 
 /* ------------------------------------------------------------------ */
-/* Puantaj ekle                                                         */
+/* Puantaj ekle / Bordro ekle (proje + dönem + dosya)                   */
 /* ------------------------------------------------------------------ */
-export function TimesheetUploadForm({
-  projects, years, month, year,
-}: { projects: Option[]; years: Option[]; month: number; year: number }) {
+const PERIOD_DOCS = {
+  puantaj: {
+    label: "Puantaj",
+    action: addTimesheetDocument,
+    accept: ".pdf,.xls,.xlsx,.csv,image/*",
+    hint: "Puantaj dosyasını seçin (PDF, Excel veya görsel — en fazla 50 MB)",
+    visible: "İşaretliyse müşteri Puantaj ekranında bu dosyayı görür (yetkisi varsa).",
+    submit: "Ekle",
+  },
+  bordro: {
+    label: "Bordro",
+    action: addPayrollDocument,
+    accept: ".pdf,.xls,.xlsx,image/*",
+    hint: "Bordro dosyasını seçin (PDF, Excel veya görsel — en fazla 50 MB)",
+    visible: "İşaretliyse müşteri Bordrolar ekranında bu dosyayı görür (yetkisi varsa).",
+    submit: "Bordroyu ekle",
+  },
+} as const;
+
+type PeriodFormProps = { projects: Option[]; years: Option[]; month: number; year: number };
+
+function PeriodUploadForm({ kind, projects, years, month, year }: PeriodFormProps & { kind: keyof typeof PERIOD_DOCS }) {
+  const cfg = PERIOD_DOCS[kind];
   const [fileKey, setFileKey] = useState(0);
   const reset = () => setFileKey((k) => k + 1);
   const nameOf = new Map(projects.map((p) => [p.value, p.label]));
@@ -140,7 +160,7 @@ export function TimesheetUploadForm({
     <Form
       schema={timesheetDocSchema}
       defaultValues={{ project_id: "", period_month: String(month), period_year: String(year), customer_visible: true, ...EMPTY_FILE }}
-      action={addTimesheetDocument}
+      action={cfg.action}
       onSuccess={reset}
       className="space-y-4 p-5"
     >
@@ -148,20 +168,28 @@ export function TimesheetUploadForm({
         <OwnerSelect name="project_id" label="Proje adı" options={projects} onReset={reset} className="sm:col-span-2" />
         <SelectField name="period_month" label="Ay" placeholder="" required className="sm:col-span-2" options={MONTHS.map((m, i) => ({ value: String(i + 1), label: m }))} />
         <SelectField name="period_year" label="Yıl" placeholder="" required className="sm:col-span-2" options={years} />
-        <FileArea key={fileKey} category="puantaj" accept=".pdf,.xls,.xlsx,.csv,image/*" hint="Puantaj dosyasını seçin (PDF, Excel veya görsel — en fazla 50 MB)" />
-        <CheckboxField name="customer_visible" label="Müşteri görebilsin" hint="İşaretliyse müşteri Puantaj ekranında bu dosyayı görür (yetkisi varsa)." className="sm:col-span-6" />
+        <FileArea key={fileKey} category={kind} accept={cfg.accept} hint={cfg.hint} />
+        <CheckboxField name="customer_visible" label="Müşteri görebilsin" hint={cfg.visible} className="sm:col-span-6" />
         <TitlePreview
           build={(v) => {
             const name = nameOf.get(v.project_id);
-            return name && v.period_month && v.period_year ? `Puantaj ${v.period_month.padStart(2, "0")}/${v.period_year} – ${name}` : null;
+            return name && v.period_month && v.period_year ? `${cfg.label} ${v.period_month.padStart(2, "0")}/${v.period_year} – ${name}` : null;
           }}
         />
       </FormGrid>
       <SubmitButton>
-        <FileUp className="size-4" aria-hidden /> Ekle
+        <FileUp className="size-4" aria-hidden /> {cfg.submit}
       </SubmitButton>
     </Form>
   );
+}
+
+export function TimesheetUploadForm(props: PeriodFormProps) {
+  return <PeriodUploadForm kind="puantaj" {...props} />;
+}
+
+export function PayrollUploadForm(props: PeriodFormProps) {
+  return <PeriodUploadForm kind="bordro" {...props} />;
 }
 
 /* ------------------------------------------------------------------ */

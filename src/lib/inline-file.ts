@@ -23,9 +23,28 @@ export function notPreviewablePage(fileName: string, downloadHref: string) {
   return new NextResponse(html, { headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "private, no-store" } });
 }
 
-/** Yetkisi çağıran tarafından doğrulanmış dosyayı, indirmeden (inline) tarayıcıya akıtır. */
-export async function streamInline(f: FileRef, downloadHref: string) {
+const isImage = (f: Pick<FileRef, "file_name" | "mime_type">) =>
+  !/\.pdf$/i.test(f.file_name) && ((f.mime_type ?? "").startsWith("image/") || /\.(png|jpe?g|gif|webp)$/i.test(f.file_name));
+
+/**
+ * Görsel (ör. telefonla çekilmiş rapor fotoğrafı) gerçek boyutunda açılınca görüntüleyiciye sığmıyordu:
+ * görsel önce bütünüyle görünecek şekilde sığdırılır; tıklayınca genişliğe büyür (okumak için), tekrar tıklayınca küçülür.
+ */
+function imagePage(fileName: string) {
+  const html = `<!doctype html><html lang="tr"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${esc(fileName)}</title>
+<style>html,body{margin:0;background:#f1f5f9}img{display:block;max-width:100%;max-height:100vh;width:auto;height:auto;margin:0 auto;cursor:zoom-in;background:#fff}img.big{max-height:none;cursor:zoom-out}</style>
+<body><img src="?ham=1" alt="${esc(fileName)}" onclick="this.classList.toggle('big')"></body></html>`;
+  return new NextResponse(html, { headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "private, no-store" } });
+}
+
+/**
+ * Yetkisi çağıran tarafından doğrulanmış dosyayı, indirmeden (inline) tarayıcıya akıtır.
+ * Görseller önce sığdırılmış bir sayfa olarak döner; o sayfa görselin kendisini `?ham=1` ile ister.
+ */
+export async function streamInline(f: FileRef, downloadHref: string, raw = false) {
   if (!isPreviewable(f)) return notPreviewablePage(f.file_name, downloadHref);
+  if (!raw && isImage(f)) return imagePage(f.file_name);
 
   const { data: signed, error } = await createAdminClient().storage.from(f.storage_bucket).createSignedUrl(f.storage_path, 60);
   if (error || !signed) return new NextResponse("Dosya bulunamadı", { status: 404 });

@@ -16,7 +16,7 @@ export const metadata: Metadata = { title: "Projeler" };
 
 const PATH = "/merkez/projeler";
 
-/** URL'deki durum → veritabanı durumu ("tumu" = filtre yok; varsayılan "aktif"). */
+/** URL'deki durum → veritabanı durumu ("tumu" = filtre yok; varsayılan "aktif": sayfa açılınca aktif projeler gelir). */
 const STATUS = { aktif: "active", duraklatildi: "paused", pasif: "closed" } as const;
 const DURUM = ["tumu", "aktif", "duraklatildi", "pasif"] as const;
 const statusLabel = { active: "Aktif", paused: "Duraklatıldı", closed: "Pasif" } as const;
@@ -55,7 +55,7 @@ export default async function ProjectsPage({ searchParams }: PageProps<"/merkez/
     // filtre seçenekleri: projesi olan firmalar ve pasif hatlar
     supabase.from("projects").select("organization_id, service_line").limit(5000),
     supabase.from("organizations").select("id, name").order("name"),
-    q.order("created_at", { ascending: false }).range(from, to),
+    q.order("status").order("created_at", { ascending: false }).range(from, to),
   ]);
   const usedLines = new Set((usage ?? []).map((u) => u.service_line as string));
   const usedOrgs = new Set((usage ?? []).map((u) => u.organization_id as string));
