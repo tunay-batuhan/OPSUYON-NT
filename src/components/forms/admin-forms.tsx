@@ -192,9 +192,9 @@ function PersonnelFields({ lines, orgs, canSensitive, edit }: { lines: Option[];
     <>
       <FormSection title="İş bilgileri">
         <FormGrid cols={3}>
-          <TextField name="first_name" label="Ad" required />
-          <TextField name="last_name" label="Soyad" required />
-          <TextField name="title" label="Ünvan" placeholder="Örn. Güvenlik görevlisi" />
+          <TextField name="first_name" label="Ad" required titleCase />
+          <TextField name="last_name" label="Soyad" required titleCase />
+          <TextField name="title" label="Ünvan" placeholder="Örn. Güvenlik Görevlisi" titleCase />
           <SelectField name="service_line" label="Hizmet alanı" options={lines} />
           <SelectField
             name="organization_id" label="Çalıştığı firma" options={orgs}

@@ -9,20 +9,44 @@ import { fmtClock } from "@/lib/patrol";
 type Person = { id: string; name: string };
 const LAST_KEY = "opsuyon:devriye:son";
 
-/** Konum isteğe bağlıdır: izin verilmezse ya da 6 sn içinde gelmezse kayıt konumsuz yapılır. */
+const LOC_WAIT_MS = 8000;
+const LOC_GOOD_M = 15;
+
+/**
+ * Konum isteğe bağlıdır: izin verilmezse ya da süre dolunca kayıt eldekiyle (ya da konumsuz) yapılır.
+ * Telefon ilk anda kaba (Wi-Fi/baz istasyonu) bir konum verir, GPS birkaç saniye sonra oturur; bu yüzden
+ * tek okuma yerine LOC_WAIT_MS boyunca gelen konumlar izlenir ve en isabetlisi alınır (≤ LOC_GOOD_M gelirse hemen biter).
+ */
 function getLocation(): Promise<ScanLocation> {
   return new Promise((resolve) => {
     if (typeof navigator === "undefined" || !navigator.geolocation) return resolve(null);
-    const done = (v: ScanLocation) => {
+    let best: ScanLocation = null;
+    let watch: number | null = null;
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
       clearTimeout(timer);
-      resolve(v);
+      if (watch != null) navigator.geolocation.clearWatch(watch);
+      resolve(best);
     };
-    const timer = setTimeout(() => done(null), 6000);
-    navigator.geolocation.getCurrentPosition(
-      (p) => done({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: Number.isFinite(p.coords.accuracy) ? p.coords.accuracy : null }),
-      () => done(null),
-      { enableHighAccuracy: true, timeout: 5500, maximumAge: 30000 },
-    );
+    const timer = setTimeout(finish, LOC_WAIT_MS);
+    try {
+      watch = navigator.geolocation.watchPosition(
+        (p) => {
+          const accuracy = Number.isFinite(p.coords.accuracy) ? p.coords.accuracy : null;
+          if (!best || best.accuracy == null || (accuracy != null && accuracy < best.accuracy)) best = { lat: p.coords.latitude, lng: p.coords.longitude, accuracy };
+          if (accuracy != null && accuracy <= LOC_GOOD_M) finish();
+        },
+        (e) => {
+          // izin reddi: beklemeye gerek yok; geçici hatalarda süre dolana kadar beklenir
+          if (e.code === e.PERMISSION_DENIED) finish();
+        },
+        { enableHighAccuracy: true, timeout: LOC_WAIT_MS, maximumAge: 0 },
+      );
+    } catch {
+      finish();
+    }
   });
 }
 
@@ -168,6 +192,9 @@ export function PatrolPinForm({ code }: { code: string }) {
           ))}
           {ordered.length === 0 && <li className="py-4 text-center text-sm text-muted">Bu adla personel yok.</li>}
         </ul>
+        {busy && busy !== "pin" && (
+          <p className="text-center text-xs text-muted" role="status">Konum alınıyor, birkaç saniye sürebilir…</p>
+        )}
       </div>
     );
   }

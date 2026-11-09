@@ -68,12 +68,24 @@ export function isoTimeFromNow(offsetMs: number): string {
 }
 
 /** "atlas PLAZA güvenlik" → "Atlas Plaza Güvenlik" (Turkish-aware, also after - / and parentheses). */
+/**
+ * Her kelimenin ilk harfi büyük, kalanı küçük (Türkçe: i→İ, I→ı). Telefonda yanlışlıkla karışık yazılanı
+ * ("Nufus CüZDanı") düzeltir. 4 harfe kadar tamamı büyük yazılmış kelimeler kısaltma sayılır (NT, SGK, A.Ş., TC)
+ * ve olduğu gibi bırakılır.
+ */
 export function toTitleCase(input: string): string {
-  return input
-    .replace(/\s+/g, " ")
-    .trim()
-    .toLocaleLowerCase("tr")
-    .replace(/(^|[\s\-/(])(\p{L})/gu, (_, sep: string, ch: string) => sep + ch.toLocaleUpperCase("tr"));
+  const text = input.replace(/\s+/g, " ").trim();
+  // metnin tamamı BÜYÜK yazılmışsa (CAPS LOCK) 4 harfli kelimeler kısaltma sayılmaz; yalnızca noktalı (A.Ş.) ve 2 harfe kadar olanlar (TC, NT) korunur
+  const allCaps = text === text.toLocaleUpperCase("tr") && text !== text.toLocaleLowerCase("tr");
+  return text
+    .split(" ")
+    .map((word) => {
+      const letters = word.replace(/[^\p{L}]/gu, "");
+      const isCaps = letters.length > 0 && letters === letters.toLocaleUpperCase("tr") && letters !== letters.toLocaleLowerCase("tr");
+      if (isCaps && (allCaps ? letters.length <= 2 || word.includes(".") : letters.length <= 4)) return word;
+      return word.toLocaleLowerCase("tr").replace(/(^|[\-/(.'’])(\p{L})/gu, (_, sep: string, ch: string) => sep + ch.toLocaleUpperCase("tr"));
+    })
+    .join(" ");
 }
 
 export const LEAVE_TYPE_LABELS: Record<string, string> = {

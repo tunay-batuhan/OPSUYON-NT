@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { guard, pgMessage, str, validate } from "@/lib/form";
 import { newPatrolPin, newPointCode, normalizeCode } from "@/lib/patrol";
+import { toTitleCase } from "@/lib/format";
 import { patrolPointsBulkSchema, type PatrolPointsBulkValues } from "@/lib/schemas";
 import type { ActionState } from "@/lib/action-types";
 
@@ -87,7 +88,8 @@ export async function removeProjectPin(fd: FormData): Promise<void> {
   revalidatePath("/devriye", "layout");
 }
 
-const clean = (s: string) => s.replace(/\s+/g, " ").trim();
+// "a blok girişi" → "A Blok Girişi" (kısaltmalar korunur)
+const clean = (s: string) => toTitleCase(s);
 const key = (s: string) => clean(s).toLocaleLowerCase("tr");
 
 /**

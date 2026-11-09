@@ -46,7 +46,7 @@ export function CustomerUserForm({
       className="space-y-4 p-5"
     >
       <FormGrid>
-        <TextField name="full_name" label="Ad soyad" required placeholder="Örn. Mehmet Yılmaz" />
+        <TextField name="full_name" label="Ad soyad" required placeholder="Örn. Mehmet Yılmaz" titleCase />
         <TextField name="username" label="Kullanıcı adı" autoComplete="off" hint="Boş bırakırsanız addan üretilir (örn. mehmet-yilmaz)." />
         <FirmSelect orgs={orgs} projects={projects} />
         <SelectField name="role_id" label="Yetki düzeyi" options={customerRoles} placeholder="" hint="Sonradan kişiye özel izin ver / engelle ile ince ayar yapılabilir." />
@@ -77,7 +77,7 @@ export function StaffUserForm({ staffRoles }: { staffRoles: Option[] }) {
   return (
     <Form schema={staffUserSchema} defaultValues={{ full_name: "", username: "", phone: "", password: "", staff_role_id: "" }} action={createStaffUser} className="space-y-4 p-5">
       <FormGrid>
-        <TextField name="full_name" label="Ad soyad" required />
+        <TextField name="full_name" label="Ad soyad" required titleCase />
         <TextField name="username" label="Kullanıcı adı" autoComplete="off" hint="Boşsa addan üretilir." />
         <SelectField name="staff_role_id" label="Başlangıç rolü (şablon)" options={staffRoles} required hint="Kişiye özel yetkileri oluşturduktan sonra kullanıcı sayfasından ayarlarsınız." />
         <PasswordField name="password" label="Parola" autoComplete="new-password" hint="Boşsa güvenli parola üretilir. En az 8 karakter." />

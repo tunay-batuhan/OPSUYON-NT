@@ -51,7 +51,7 @@ export async function setOrganizationStatus(fd: FormData): Promise<void> {
 
 export async function createProject(values: ProjectCreateValues): Promise<ActionState> {
   return guard(async () => {
-    await assertStaff("projects.manage");
+    const actor = await assertStaff("projects.manage");
     const v = validate(projectCreateSchema, values);
     if (!v.ok) return v.state;
     const d = v.data;
@@ -78,7 +78,7 @@ export async function createProject(values: ProjectCreateValues): Promise<Action
       return { error: pgMessage(error) };
     }
     // Aksi halde yeni proje, firmanın mevcut hesaplarında görünmez: firmanın "Firma Yöneticisi" hesaplarına erişim ver.
-    const granted = await grantProjectToFirmManagers(data.id as string, d.organization_id);
+    const granted = await grantProjectToFirmManagers(data.id as string, d.organization_id, actor.id);
     revalidatePath("/merkez/projeler");
     redirect(`/projeler/${data.id}${granted ? `?erisim=${granted}` : ""}`);
   });
@@ -147,8 +147,8 @@ export async function updateOrganization(values: OrganizationUpdateValues): Prom
  * Firmanın (başka projelerinde) "Firma Yöneticisi" rolündeki aktif hesaplarını yeni projeye de ekler.
  * Yetki kontrolü çağıranda yapılır (projects.manage); üyelik tablosu için yönetici istemci kullanılır.
  */
-async function grantProjectToFirmManagers(projectId: string, organizationId: string): Promise<number> {
-  const admin = createAdminClient();
+async function grantProjectToFirmManagers(projectId: string, organizationId: string, actorId: string): Promise<number> {
+  const admin = createAdminClient(actorId);
   const { data: role } = await admin.from("roles").select("id").eq("code", "customer_manager").maybeSingle();
   if (!role) return 0;
   const { data: others } = await admin.from("projects").select("id").eq("organization_id", organizationId).neq("id", projectId);

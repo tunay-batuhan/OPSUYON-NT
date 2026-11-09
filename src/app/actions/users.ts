@@ -39,7 +39,7 @@ async function createAccount(actor: Awaited<ReturnType<typeof assertStaff>>, d: 
     return { error: "Kullanıcı adı oluşturulamadı.", fieldErrors: { username: "3-32 karakter; harf, rakam, . _ - kullanın" } };
   }
 
-  const admin = createAdminClient();
+  const admin = createAdminClient(actor.id);
   const organization_id = d.kind === "customer" ? (d.organization_id ?? null) : null;
   let staff_role_id: string | null = null;
 
@@ -168,7 +168,7 @@ export async function setUserActive(fd: FormData): Promise<void> {
   const id = str(fd, "id");
   if (!id || id === actor.id) return; // never lock yourself out
   const active = fd.get("active") === "1";
-  const admin = createAdminClient();
+  const admin = createAdminClient(actor.id);
   await admin.from("profiles").update({ is_active: active }).eq("id", id);
   // Also block Auth itself so refresh tokens / password sign-ins stop immediately.
   await admin.auth.admin.updateUserById(id, { ban_duration: active ? "none" : "876000h" });

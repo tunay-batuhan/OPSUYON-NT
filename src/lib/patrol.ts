@@ -10,6 +10,8 @@ export type PatrolScanRow = {
   lat: number | null;
   lng: number | null;
   distance_m: number | null;
+  /** telefonun bildirdiği isabet (metre); konum yoksa boş */
+  accuracy_m: number | null;
 };
 export type DailyReport = {
   project: { id: string; name: string; organization: string | null };
@@ -17,6 +19,26 @@ export type DailyReport = {
   points: PatrolPoint[];
   scans: PatrolScanRow[];
 };
+/** Birden çok günü kapsayan (haftalık / aylık) rapor: aralıktaki her gün, okutma olmasa da listelenir. */
+export type RangeReport = {
+  project: { id: string; name: string; organization: string | null };
+  start: string; // YYYY-MM-DD
+  end: string; // YYYY-MM-DD (dahil)
+  points: PatrolPoint[];
+  days: { date: string; scans: PatrolScanRow[] }[];
+};
+
+/** start..end (dahil) arasındaki günler, YYYY-AA-GG; en fazla 400 gün. */
+export function eachDay(start: string, end: string): string[] {
+  const out: string[] = [];
+  let t = Date.parse(`${start}T12:00:00+03:00`);
+  const last = Date.parse(`${end}T12:00:00+03:00`);
+  while (t <= last && out.length < 400) {
+    out.push(istanbulDay(new Date(t)));
+    t += 86400000;
+  }
+  return out;
+}
 
 export const isIsoDate = (v: unknown): v is string => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v));
 
@@ -67,11 +89,16 @@ export const PATROL_KEEP_DAYS = 31;
 export const mapsUrl = (lat: number, lng: number) => `https://maps.google.com/?q=${lat.toFixed(6)},${lng.toFixed(6)}`;
 
 /** Konum özeti: "✓ 12 m", "⚠ 320 m uzakta", "Konum var" (noktanın konumu henüz bilinmiyor) ya da "—". */
-export function locationLabel(s: Pick<PatrolScanRow, "lat" | "distance_m">): { text: string; far: boolean } {
-  if (s.lat == null) return { text: "—", far: false };
-  if (s.distance_m == null) return { text: "Konum var", far: false };
-  if (s.distance_m > PATROL_FAR_M) return { text: `${s.distance_m} m uzakta`, far: true };
-  return { text: `${s.distance_m} m`, far: false };
+/**
+ * Konum etiketi. Telefon konumu her zaman bir isabet payıyla gelir (açık alanda 5–20 m, bina içinde 50–100 m olabilir);
+ * "uzak" uyarısı ancak isabet payı düşüldükten sonra bile PATROL_FAR_M'yi aşıyorsa verilir. `hint` isabet payını açıklar.
+ */
+export function locationLabel(s: Pick<PatrolScanRow, "lat" | "distance_m" | "accuracy_m">): { text: string; far: boolean; hint?: string } {
+  if (s.lat == null) return { text: "—", far: false, hint: "Telefon konum vermedi" };
+  const hint = s.accuracy_m != null ? `Telefonun isabet payı ±${s.accuracy_m} m` : undefined;
+  if (s.distance_m == null) return { text: "Konum var", far: false, hint };
+  const far = s.distance_m - (s.accuracy_m ?? 0) > PATROL_FAR_M;
+  return { text: far ? `${s.distance_m} m uzakta` : `${s.distance_m} m`, far, hint };
 }
 
 /** QR etiketinin içeriği: sitedeki herkese açık okutma sayfası. */

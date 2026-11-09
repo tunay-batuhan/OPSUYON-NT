@@ -38,6 +38,8 @@ Veritabanı şeması `supabase/migrations/` altındadır ve sırayla uygulanır:
 | `20261020…patrol` | Devriye: noktalar, okutma kayıtları, `record_patrol_scan()`, Devriye Görevlisi rolü |
 | `20261107…patrol_pin` | Devriye 2: herkese açık `/d/<kod>` sayfası + proje başına 4 haneli PIN ve isim seçimi (`patrol_pins`, `patrol_check_pin()`, `record_patrol_scan_pin()`), okutma konumu, hatalı PIN kilidi, 1 aylık saklama (`purge_old_patrol_data()`, pg_cron); giriş yaparak okutma ve `patrol.scan` kalktı |
 | `20261109…patrol_not_demo` | Devriye modül açıklamasından "DEMO" ibaresi kalktı |
+| `20261109…audit_retention` | İşlem geçmişi: giriş saati güncellemeleri yazılmaz; kayıtlar 1 ay saklanır (`purge_old_audit_logs()`, pg_cron) |
+| `20261109…audit_actor` | İşlem geçmişi: tam yetkili bağlantıdaki işlemlerde işlemi yapan kullanıcı (`x-actor-id`, yalnızca service_role), hesapsız işlemlerde `actor_note` (ör. devriye okutması: personel adı) |
 
 Test / demo hesapları (müşteri denemesi için):
 

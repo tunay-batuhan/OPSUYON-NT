@@ -1,19 +1,19 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { dayRange, type DailyReport, type PatrolPoint, type PatrolScanRow } from "@/lib/patrol";
+import { dayRange, eachDay, istanbulDay, type DailyReport, type PatrolPoint, type PatrolScanRow, type RangeReport } from "@/lib/patrol";
+
+type Loaded = { project: DailyReport["project"]; points: PatrolPoint[]; scans: PatrolScanRow[] };
 
 /**
- * Bir projenin bir günlük devriye raporunun verisi. Yetki kontrolü çağıranın sorumluluğundadır
+ * Bir projenin [from, to) aralığındaki devriye verisi. Yetki kontrolü çağıranın sorumluluğundadır
  * (rapor yetkisi doğrulandıktan sonra çağrılır); okutanların adları için yönetici istemci kullanılır.
  */
-export async function loadDailyReport(projectId: string, date: string): Promise<DailyReport | null> {
+async function loadReportData(projectId: string, from: string, to: string): Promise<Loaded | null> {
   const admin = createAdminClient();
-  const { from, to } = dayRange(date);
-
   const [{ data: project }, { data: points }, { data: scans }] = await Promise.all([
     admin.from("projects").select("id, name, organizations(name)").eq("id", projectId).maybeSingle(),
     admin.from("patrol_points").select("id, name, code, sort_order, is_active").eq("project_id", projectId).order("sort_order").order("name"),
-    admin.from("patrol_scans").select("id, point_id, scanned_at, scanned_by, personnel_id, lat, lng, distance_m").eq("project_id", projectId).gte("scanned_at", from).lt("scanned_at", to).order("scanned_at").limit(5000),
+    admin.from("patrol_scans").select("id, point_id, scanned_at, scanned_by, personnel_id, lat, lng, distance_m, accuracy_m").eq("project_id", projectId).gte("scanned_at", from).lt("scanned_at", to).order("scanned_at").limit(20000),
   ]);
   if (!project) return null;
 
@@ -27,12 +27,32 @@ export async function loadDailyReport(projectId: string, date: string): Promise<
     lat: (s.lat as number | null) ?? null,
     lng: (s.lng as number | null) ?? null,
     distance_m: (s.distance_m as number | null) ?? null,
+    accuracy_m: (s.accuracy_m as number | null) ?? null,
   }));
   const used = new Set(scanRows.map((s) => s.point_id));
-  // Pasife alınmış bir nokta o gün okutulduysa raporda yine görünür
+  // Pasife alınmış bir nokta aralıkta okutulduysa raporda yine görünür
   const reportPoints = ((points ?? []) as PatrolPoint[]).filter((p) => p.is_active || used.has(p.id));
 
-  return { project: { id: project.id as string, name: project.name as string, organization: org?.name ?? null }, date, points: reportPoints, scans: scanRows };
+  return { project: { id: project.id as string, name: project.name as string, organization: org?.name ?? null }, points: reportPoints, scans: scanRows };
+}
+
+/** Bir günlük rapor verisi. */
+export async function loadDailyReport(projectId: string, date: string): Promise<DailyReport | null> {
+  const { from, to } = dayRange(date);
+  const d = await loadReportData(projectId, from, to);
+  return d && { project: d.project, date, points: d.points, scans: d.scans };
+}
+
+/** Tarih aralığı (haftalık / aylık) rapor verisi; aralıktaki her gün, okutma olmasa da yer alır. */
+export async function loadRangeReport(projectId: string, start: string, end: string): Promise<RangeReport | null> {
+  const d = await loadReportData(projectId, dayRange(start).from, dayRange(end).to);
+  if (!d) return null;
+  const byDay = new Map<string, PatrolScanRow[]>();
+  for (const s of d.scans) {
+    const k = istanbulDay(s.scanned_at);
+    byDay.set(k, [...(byDay.get(k) ?? []), s]);
+  }
+  return { project: d.project, start, end, points: d.points, days: eachDay(start, end).map((date) => ({ date, scans: byDay.get(date) ?? [] })) };
 }
 
 /**

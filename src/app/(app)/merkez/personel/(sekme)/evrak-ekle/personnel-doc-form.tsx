@@ -106,7 +106,7 @@ function Fields({ people, categories }: { people: DocPerson[]; categories: DocCa
         name="category_code" label="Kategori" required className="sm:col-span-3"
         options={categories.map((c) => ({ value: c.code, label: c.name }))}
       />
-      <TextField name="title" label="Başlık" required placeholder="Örn. Sağlık raporu 2026" className="sm:col-span-6" />
+      <TextField name="title" label="Başlık" required placeholder="Örn. Sağlık Raporu 2026" titleCase className="sm:col-span-6" />
       {cat?.requires_period && (
         <>
           <SelectField name="period_month" label="Ay" placeholder="" className="sm:col-span-2" options={MONTHS.map((m, i) => ({ value: String(i + 1), label: m }))} />

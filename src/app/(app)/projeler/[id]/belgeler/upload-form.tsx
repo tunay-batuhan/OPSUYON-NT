@@ -104,7 +104,7 @@ function UploadInner({
           options={categories.map((c) => ({ value: c.code, label: c.name }))}
           onValueChange={setCategory}
         />
-        <TextField name="title" label="Başlık" required placeholder="Örn. Eylül 2026 bordrosu" className="sm:col-span-4" />
+        <TextField name="title" label="Başlık" required placeholder="Örn. Eylül 2026 Bordrosu" titleCase className="sm:col-span-4" />
         {cat?.scope === "personnel" && (
           <SelectField name="personnel_id" label="Personel" required searchable className="sm:col-span-3" options={people.map((p) => ({ value: p.id, label: p.full_name }))} />
         )}

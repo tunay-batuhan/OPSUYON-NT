@@ -121,7 +121,7 @@ export function TextField({
   name, label, hint, required, className, disabled,
   type = "text", placeholder, autoComplete, inputMode, prefix, suffix, maxLength, titleCase,
 }: Common & {
-  /** Her kelimenin ilk harfini büyütür (alandan çıkınca). */
+  /** Her kelimenin ilk harfini büyütür (alandan çıkınca; telefon klavyesi de kelime başlarını büyük yazar). */
   titleCase?: boolean;
   type?: "text" | "email" | "tel" | "date" | "number";
   placeholder?: string;
@@ -146,6 +146,7 @@ export function TextField({
           inputMode={inputMode}
           maxLength={maxLength}
           disabled={disabled}
+          autoCapitalize={titleCase ? "words" : undefined}
           aria-invalid={invalid || undefined}
           aria-describedby={error ? `${id}-err` : hint ? `${id}-hint` : undefined}
           className={cn(control, "h-10", prefix && "pl-8", suffix && "pr-9")}

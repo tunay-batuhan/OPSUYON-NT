@@ -71,7 +71,7 @@ export function FormTemplateUpload() {
       className="space-y-4 p-5"
     >
       <FormGrid cols={2}>
-        <TextField name="title" label="Form adı" required placeholder="Örn. Yıllık İzin Talep Formu" />
+        <TextField name="title" label="Form adı" required placeholder="Örn. Yıllık İzin Talep Formu" titleCase />
         <TextField name="description" label="Açıklama" placeholder="İsteğe bağlı kısa not" />
         <FileArea key={reset} />
       </FormGrid>

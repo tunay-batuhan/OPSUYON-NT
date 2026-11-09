@@ -30,7 +30,8 @@ export function Logo({
       <span className={cn("grid place-items-center rounded-full", dark && "bg-white", size === "lg" ? "size-14" : size === "sm" ? "size-8" : "size-10")}>
         <LogoMark className={size === "lg" ? "size-14" : size === "sm" ? "size-8" : "size-10"} />
       </span>
-      <span aria-hidden className={cn("-ml-1", dark ? "text-white" : "text-navy", size === "lg" ? "text-4xl" : size === "sm" ? "text-lg" : "text-2xl")}>
+      {/* işaret "O" harfidir; "PSÜYON" ile arasında küçük bir nefes payı bırakılır (bitişik durmasın) */}
+      <span aria-hidden className={cn(dark ? "text-white" : "text-navy", size === "lg" ? "ml-1.5 text-4xl" : size === "sm" ? "ml-0.5 text-lg" : "ml-1 text-2xl")}>
         {BRAND_WORD}
       </span>
     </Link>
