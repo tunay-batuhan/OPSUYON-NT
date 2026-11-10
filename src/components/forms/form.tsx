@@ -84,12 +84,12 @@ export function Form<V extends FieldValues>({
 /* ------------------------------------------------------------------ */
 type Common = { name: string; label: string; hint?: string; required?: boolean; className?: string; disabled?: boolean };
 
-const control =
+export const control =
   "w-full rounded-lg border border-border bg-surface px-3 text-sm text-fg placeholder:text-muted/60 " +
   "transition-colors focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 " +
   "disabled:cursor-not-allowed disabled:opacity-60 aria-invalid:border-danger aria-invalid:bg-danger-soft/40 aria-invalid:focus:ring-danger/20";
 
-function Shell({
+export function Shell({
   id, label, hint, required, error, className, children,
 }: { id: string; label: string; hint?: string; required?: boolean; error?: string; className?: string; children: ReactNode }) {
   return (

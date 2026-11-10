@@ -3,6 +3,7 @@ import { Download, Upload } from "lucide-react";
 import { Badge, Card, CardHeader, EmptyState, PageHeader, Table, btn, td } from "@/components/ui";
 import { FilterBar, yearOptions } from "@/components/filter-bar";
 import { ViewButton } from "@/components/doc-viewer";
+import { DeleteDocButton } from "@/components/delete-doc-button";
 import { Pagination } from "@/components/pagination";
 import { canAnywhere, requireUser } from "@/lib/auth";
 import { getAccessibleProjects, isUuid, str1 } from "@/lib/lookups";
@@ -95,6 +96,7 @@ export async function CategoryDocuments({
                       <Download className="size-4" aria-hidden /> İndir
                     </a>
                     <ViewButton src={`/api/documents/${d.id}/view`} title={d.title} downloadHref={`/api/documents/${d.id}`} className="ml-2" />
+                    {manage && user.kind === "staff" && <DeleteDocButton id={d.id} title={d.title} back={path} className="ml-2" />}
                   </td>
                 </tr>
               ))}

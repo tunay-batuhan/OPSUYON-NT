@@ -1,5 +1,6 @@
 "use client";
 
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { createOrganization, createProject, updateOrganization, updateProject } from "@/app/actions/projects";
 import { useState, type ReactNode } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
@@ -315,11 +316,11 @@ export function DeletePersonnelButton({ id, name }: { id: string; name: string }
   const [error, setError] = useState<string | null>(null);
   return (
     <div>
-      <button
-        type="button"
-        disabled={busy}
-        onClick={async () => {
-          if (!window.confirm(`${name} personel kartı kalıcı olarak silinsin mi?`)) return;
+      <ConfirmDialog
+        title={`${name} personel kartı silinsin mi?`}
+        description="Kart kalıcı olarak silinir, geri alınamaz. Proje ataması, puantaj, izin veya belge kaydı olan personel silinmez; onun durumunu “Ayrıldı” yapın."
+        confirmLabel="Kartı sil"
+        onConfirm={async () => {
           setBusy(true);
           setError(null);
           try {
@@ -332,10 +333,15 @@ export function DeletePersonnelButton({ id, name }: { id: string; name: string }
             setBusy(false);
           }
         }}
-        className="inline-flex h-10 items-center gap-2 rounded-lg bg-danger-soft px-4 text-sm font-medium text-danger hover:brightness-95 disabled:opacity-50"
       >
-        {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Trash2 className="size-4" aria-hidden />} Personel kartını sil
-      </button>
+        <button
+          type="button"
+          disabled={busy}
+          className="inline-flex h-10 items-center gap-2 rounded-lg bg-danger-soft px-4 text-sm font-medium text-danger hover:brightness-95 disabled:opacity-50"
+        >
+          {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Trash2 className="size-4" aria-hidden />} Personel kartını sil
+        </button>
+      </ConfirmDialog>
       {error && <p role="alert" className="mt-3 rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p>}
     </div>
   );

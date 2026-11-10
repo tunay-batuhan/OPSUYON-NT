@@ -1,39 +1,40 @@
 "use client";
 
-import { useFormStatus } from "react-dom";
-import { Loader2, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { deleteDocument } from "@/app/actions/documents";
+import { ConfirmSubmit, type ConfirmText } from "@/components/confirm-dialog";
 import { cn } from "@/components/ui";
 
-function Submit({ title }: { title: string }) {
-  const { pending } = useFormStatus();
-  return (
-    <button
-      disabled={pending}
-      aria-label={`${title} — sil`}
-      className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-sm font-medium text-danger hover:bg-danger-soft disabled:opacity-60"
-    >
-      {pending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Trash2 className="size-4" aria-hidden />} Sil
-    </button>
-  );
-}
-
 /**
- * Liste ekranlarındaki (Bordrolar, Denetimler, Puantaj) "Sil": onay sorar, belgeyi ve dosyasını kalıcı siler,
- * `back` listesini yeniler.
+ * Liste ekranlarındaki (Bordrolar, Denetimler, Puantaj, Faturalar, Risk Analizi…) "Sil": onay penceresi açar,
+ * belgeyi ve dosyasını kalıcı siler, `back` listesini yeniler. `action`/`confirm` ile başka kayıtlar için de
+ * kullanılır (ör. cari Excel ekstresi).
  */
-export function DeleteDocButton({ id, title, back, className }: { id: string; title: string; back: string; className?: string }) {
+export function DeleteDocButton({
+  id, title, back, className, action = deleteDocument, confirm, extra,
+}: {
+  id: string; title: string; back: string; className?: string;
+  action?: (fd: FormData) => Promise<void>;
+  /** Onay penceresinin metni; verilmezse "“<başlık>” silinsin mi?" */
+  confirm?: Partial<ConfirmText>;
+  /** forma eklenecek diğer gizli alanlar */
+  extra?: Record<string, string>;
+}) {
   return (
-    <form
-      action={deleteDocument}
-      onSubmit={(e) => {
-        if (!window.confirm(`“${title}” kalıcı olarak silinsin mi? Dosya da silinir, geri alınamaz.`)) e.preventDefault();
-      }}
-      className={cn("inline", className)}
-    >
+    <form action={action} className={cn("inline", className)}>
       <input type="hidden" name="id" value={id} />
       <input type="hidden" name="back" value={back} />
-      <Submit title={title} />
+      {extra && Object.entries(extra).map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />)}
+      <ConfirmSubmit
+        title={`“${title}” silinsin mi?`}
+        description="Kayıt ve yüklenen dosya kalıcı olarak silinir. Bu işlem geri alınamaz."
+        {...confirm}
+        label={`${title} — sil`}
+        icon={<Trash2 className="size-4" aria-hidden />}
+        className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-sm font-medium text-danger hover:bg-danger-soft disabled:opacity-60"
+      >
+        Sil
+      </ConfirmSubmit>
     </form>
   );
 }

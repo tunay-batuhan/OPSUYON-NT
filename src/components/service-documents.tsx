@@ -1,6 +1,8 @@
 import { Card, CardHeader, EmptyState, PageHeader, Table, cn, td } from "@/components/ui";
 import { FilterBar, yearOptions, type FilterField } from "@/components/filter-bar";
 import { DocPreview, DownloadLink } from "@/components/doc-ui";
+import { DeleteDocButton } from "@/components/delete-doc-button";
+import { getCurrentUser, hasPermission } from "@/lib/auth";
 import { Pagination } from "@/components/pagination";
 import { getAccessibleProjects, getHatOptions, isUuid, str1 } from "@/lib/lookups";
 import { pagingFrom } from "@/lib/paging";
@@ -18,7 +20,7 @@ type Row = {
  * Bordro (toplu), Puantaj, Faturalar, Cari Ekstre, Risk Analizi için ortak ekran.
  */
 export async function ServiceDocuments({
-  category, title, description, path, searchParams, filters = { hat: true, period: true }, preview = false, emptyText, headless = false,
+  category, title, description, path, searchParams, filters = { hat: true, period: true }, preview = false, emptyText, headless = false, deletable = false,
 }: {
   category: string;
   title: string;
@@ -31,7 +33,11 @@ export async function ServiceDocuments({
   emptyText?: string;
   /** Başlığı sayfanın layout.tsx dosyası çiziyor (sekmeli bölüm): bileşen başlık çizmez. */
   headless?: boolean;
+  /** Belge yöneticisi (merkez) satırda "Sil" görür. */
+  deletable?: boolean;
 }) {
+  const user = deletable ? await getCurrentUser() : null;
+  const canDelete = Boolean(user && hasPermission(user, "documents.manage"));
   const hat = str1(searchParams.hat);
   const projectId = str1(searchParams.proje);
   const month = str1(searchParams.ay);
@@ -106,6 +112,7 @@ export async function ServiceDocuments({
                       </a>
                     )}
                     <DownloadLink id={d.id} title={d.title} view={!preview} />
+                    {canDelete && <DeleteDocButton id={d.id} title={d.title} back={path} className="ml-2" />}
                   </td>
                 </tr>
               ))}

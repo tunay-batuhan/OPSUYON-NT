@@ -193,3 +193,13 @@ body {
     cursor: not-allowed;
   }
 }
+
+/* Onay penceresi (components/confirm-dialog.tsx): açılış/kapanış animasyonu */
+@keyframes confirm-fade-in { from { opacity: 0 } }
+@keyframes confirm-fade-out { to { opacity: 0 } }
+@keyframes confirm-pop-in { from { opacity: 0; scale: 0.95 } }
+@keyframes confirm-pop-out { to { opacity: 0; scale: 0.97 } }
+.confirm-overlay[data-state="open"] { animation: confirm-fade-in 160ms ease-out }
+.confirm-overlay[data-state="closed"] { animation: confirm-fade-out 120ms ease-in }
+.confirm-content[data-state="open"] { animation: confirm-pop-in 180ms cubic-bezier(0.16, 1, 0.3, 1) }
+.confirm-content[data-state="closed"] { animation: confirm-pop-out 120ms ease-in }

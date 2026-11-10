@@ -3,6 +3,9 @@ import type { Metadata } from "next";
 import { Wallet } from "lucide-react";
 import { Card, CardHeader, EmptyState, Stat, Table, cn, td, tdNum } from "@/components/ui";
 import { PdfIcon } from "@/components/doc-ui";
+import { DeleteDocButton } from "@/components/delete-doc-button";
+import { deleteLedgerRow } from "@/app/actions/ledger";
+import { hasPermission } from "@/lib/auth";
 import { getAccessibleProjects } from "@/lib/lookups";
 import { requireAccess } from "@/lib/modules";
 import { createClient } from "@/lib/supabase/server";
@@ -10,17 +13,21 @@ import { formatDate, formatDateTime, formatMoney } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Cari Hesap" };
 
-type Stmt = { project_id: string; closing_balance: number; as_of_date: string | null; created_at: string };
+type Stmt = { id: string; project_id: string; closing_balance: number; as_of_date: string | null; created_at: string };
 type Ekstre = { id: string; project_id: string; title: string; created_at: string };
 
 /** Cari Hesap: her projenin SON yüklenen cari ekstresi (PDF indirilebilir) ve güncel bakiyesi. */
 export default async function LedgerAllPage() {
-  await requireAccess("cari_hesap", "ledger.read");
+  const user = await requireAccess("cari_hesap", "ledger.read");
+  // merkez: PDF ekstreyi (belge yöneticisi) ve Excel ekstresini (finans yöneticisi) satırda silebilir
+  const manageDocs = hasPermission(user, "documents.manage");
+  const manageLedger = hasPermission(user, "finance.manage");
+  const manage = manageDocs || manageLedger;
   const projects = await getAccessibleProjects();
   const supabase = await createClient();
 
   const [{ data: stmts }, { data: docs }] = await Promise.all([
-    supabase.from("ledger_statements").select("project_id, closing_balance, as_of_date, created_at").eq("is_current", true).limit(500),
+    supabase.from("ledger_statements").select("id, project_id, closing_balance, as_of_date, created_at").eq("is_current", true).limit(500),
     supabase.from("documents").select("id, project_id, title, created_at").eq("category_code", "cari_ekstre").order("created_at", { ascending: false }).limit(500),
   ]);
   const stmtOf = new Map(((stmts ?? []) as Stmt[]).map((s) => [s.project_id, s]));
@@ -46,7 +53,7 @@ export default async function LedgerAllPage() {
         {list.length === 0 ? (
           <EmptyState title="Henüz cari ekstre yüklenmemiş" description="Ekstre yüklendiğinde burada görünür." />
         ) : (
-          <Table numeric={[3]} head={["Proje", "Firma", "Ekstre tarihi", "Güncel bakiye", "Ekstre (PDF)"]}>
+          <Table numeric={[3]} head={["Proje", "Firma", "Ekstre tarihi", "Güncel bakiye", "Ekstre (PDF)", ...(manage ? [""] : [])]}>
             {list.map(({ project, stmt, pdf }) => (
               <tr key={project.id}>
                 <td className={td}>
@@ -56,11 +63,37 @@ export default async function LedgerAllPage() {
                 <td className={td}>{formatDate(stmt?.as_of_date ?? pdf?.created_at)}<span className="block text-xs text-muted">{formatDateTime(pdf?.created_at ?? stmt?.created_at)}</span></td>
                 <td className={cn(tdNum, "font-semibold", stmt && Number(stmt.closing_balance) > 0 ? "text-danger" : "text-success")}>{stmt ? formatMoney(stmt.closing_balance) : "—"}</td>
                 <td className={td}>{pdf ? <PdfIcon id={pdf.id} title={pdf.title} /> : <span className="text-sm text-muted">PDF yüklenmemiş</span>}</td>
+                {manage && (
+                  <td className={cn(td, "text-right")}>
+                    {(pdf && manageDocs) || (stmt && manageLedger) ? (
+                      <DeleteLedgerRowButton project={project.name} pdf={manageDocs ? pdf : undefined} stmt={manageLedger ? stmt : undefined} />
+                    ) : null}
+                  </td>
+                )}
               </tr>
             ))}
           </Table>
         )}
       </Card>
     </>
+  );
+}
+
+/** Satırda görünen ekstrenin tamamını (son PDF + güncel Excel ekstresi) siler; onay metni neyin silineceğini söyler. */
+function DeleteLedgerRowButton({ project, pdf, stmt }: { project: string; pdf?: Ekstre; stmt?: Stmt }) {
+  const items = [pdf && `PDF ekstre: ${pdf.title}`, stmt && `Excel ekstresi ve bakiye: ${formatMoney(stmt.closing_balance)}`].filter((x): x is string => Boolean(x));
+  return (
+    <DeleteDocButton
+      id={pdf?.id ?? ""}
+      title={`${project} ekstresi`}
+      back="/cari-hesap"
+      action={deleteLedgerRow}
+      extra={stmt ? { stmt: stmt.id } : undefined}
+      confirm={{
+        title: `“${project}” ekstresi silinsin mi?`,
+        description: "Aşağıdakiler kalıcı olarak silinir. Projenin daha önce yüklenmiş bir ekstresi varsa o güncel olur. Bu işlem geri alınamaz.",
+        items,
+      }}
+    />
   );
 }

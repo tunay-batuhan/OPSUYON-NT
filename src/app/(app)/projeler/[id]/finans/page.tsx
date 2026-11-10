@@ -6,6 +6,8 @@ import { formatDate, formatDateTime, formatMoney } from "@/lib/format";
 import { can, getProjectContext } from "@/lib/project";
 import { createClient } from "@/lib/supabase/server";
 import type { StatementRow } from "@/lib/types";
+import { DeleteDocButton } from "@/components/delete-doc-button";
+import { deleteLedgerStatement } from "@/app/actions/ledger";
 
 type Stmt = { id: string; file_name: string; row_count: number; closing_balance: number; as_of_date: string | null; is_current: boolean; created_at: string };
 
@@ -58,7 +60,23 @@ export default async function LedgerPage({ params }: PageProps<"/projeler/[id]/f
       </Card>
 
       <Card>
-        <CardHeader title="Cari hesap ekstresi" description={current ? `${current.file_name} · ${current.row_count} satır` : undefined} />
+        <CardHeader
+          title="Cari hesap ekstresi"
+          description={current ? `${current.file_name} · ${current.row_count} satır` : undefined}
+          action={manage && current && (
+            <DeleteDocButton
+              id={current.id}
+              title={current.file_name}
+              back={`/projeler/${id}/finans`}
+              action={deleteLedgerStatement}
+              confirm={{
+                title: "Güncel ekstre silinsin mi?",
+                description: "Ekstre ve satırları kalıcı olarak silinir. Önceki ekstre varsa o güncel olur ve bakiye ona döner. Bu işlem geri alınamaz.",
+                items: [`${current.file_name} · bakiye ${formatMoney(current.closing_balance)}`],
+              }}
+            />
+          )}
+        />
         {statement.length === 0 ? (
           <EmptyState
             title="Ekstre bulunmuyor"
@@ -88,7 +106,10 @@ export default async function LedgerPage({ params }: PageProps<"/projeler/[id]/f
             {statements.filter((s) => !s.is_current).map((s) => (
               <li key={s.id} className="flex items-center justify-between gap-3 px-5 py-3">
                 <span className="flex items-center gap-2"><FileSpreadsheet className="size-4 text-muted" aria-hidden /> {s.file_name}</span>
-                <span className="text-muted">{formatDateTime(s.created_at)} · bakiye {formatMoney(s.closing_balance)}</span>
+                <span className="flex items-center gap-3 text-muted">
+                  {formatDateTime(s.created_at)} · bakiye {formatMoney(s.closing_balance)}
+                  <DeleteDocButton id={s.id} title={s.file_name} back={`/projeler/${id}/finans`} action={deleteLedgerStatement} confirm={{ title: "Önceki ekstre silinsin mi?", description: "Arşivdeki bu ekstre kalıcı olarak silinir. Güncel bakiye değişmez.", items: [`${s.file_name} · bakiye ${formatMoney(s.closing_balance)}`] }} />
+                </span>
               </li>
             ))}
           </ul>

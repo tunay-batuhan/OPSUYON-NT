@@ -4,7 +4,7 @@ import { useId, useState } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
 import { CheckCircle2, FileUp, Loader2 } from "lucide-react";
 import { prepareUpload } from "@/app/actions/documents";
-import { addInspectionDocument, addPayrollDocument, addTimesheetDocument } from "@/app/actions/ops-docs";
+import { addInspectionDocument, addPayrollDocument, addRiskDocument, addTimesheetDocument } from "@/app/actions/ops-docs";
 import { EMPTY_FILE, inspectionDocSchema, timesheetDocSchema } from "@/lib/schemas-ops";
 import { MONTHS } from "@/lib/format";
 import { CheckboxField, Form, FormGrid, SelectField, SubmitButton, TextField } from "@/components/forms/form";
@@ -127,7 +127,7 @@ function TitlePreview({ build }: { build: (v: Record<string, string>) => string 
 }
 
 /* ------------------------------------------------------------------ */
-/* Puantaj ekle / Bordro ekle (proje + dönem + dosya)                   */
+/* Puantaj / Bordro / Risk analizi ekle (proje + dönem + dosya)         */
 /* ------------------------------------------------------------------ */
 const PERIOD_DOCS = {
   puantaj: {
@@ -145,6 +145,14 @@ const PERIOD_DOCS = {
     hint: "Bordro dosyasını seçin (PDF, Excel veya görsel — en fazla 50 MB)",
     visible: "İşaretliyse müşteri Bordrolar ekranında bu dosyayı görür (yetkisi varsa).",
     submit: "Bordroyu ekle",
+  },
+  risk_analizi: {
+    label: "Risk Analizi",
+    action: addRiskDocument,
+    accept: ".pdf,image/*",
+    hint: "Risk analizi raporunu seçin (PDF veya görsel — en fazla 50 MB)",
+    visible: "İşaretliyse müşteri Risk Analizi ekranında bu raporu görür (yetkisi varsa).",
+    submit: "Risk analizini ekle",
   },
 } as const;
 
@@ -190,6 +198,10 @@ export function TimesheetUploadForm(props: PeriodFormProps) {
 
 export function PayrollUploadForm(props: PeriodFormProps) {
   return <PeriodUploadForm kind="bordro" {...props} />;
+}
+
+export function RiskUploadForm(props: PeriodFormProps) {
+  return <PeriodUploadForm kind="risk_analizi" {...props} />;
 }
 
 /* ------------------------------------------------------------------ */

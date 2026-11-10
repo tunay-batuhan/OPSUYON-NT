@@ -24,8 +24,8 @@ async function projectName(projectId: string): Promise<string | null> {
 
 const notFoundProject = { error: "Proje bulunamadı.", fieldErrors: { project_id: "Proje bulunamadı" } };
 
-/** Dönemlik dosya (Puantaj, Bordro): başlık "<Ad> AA/YYYY – Proje adı" olarak üretilir. */
-async function addPeriodDocument(values: TimesheetDocValues, category: "puantaj" | "bordro", label: string, path: string): Promise<ActionState> {
+/** Dönemlik dosya (Puantaj, Bordro, Risk Analizi): başlık "<Ad> AA/YYYY – Proje adı" olarak üretilir. */
+async function addPeriodDocument(values: TimesheetDocValues, category: "puantaj" | "bordro" | "risk_analizi", label: string, path: string): Promise<ActionState> {
   return guard(async () => {
     await assertStaff("documents.manage");
     const v = validate(timesheetDocSchema, values);
@@ -57,6 +57,11 @@ export async function addTimesheetDocument(values: TimesheetDocValues): Promise<
 /** Bordro ekle (proje + dönem, toplu bordro): başlık "Bordro AA/YYYY – Proje adı". */
 export async function addPayrollDocument(values: TimesheetDocValues): Promise<ActionState> {
   return addPeriodDocument(values, "bordro", "Bordro", "/bordrolar");
+}
+
+/** Risk analizi ekle (proje + dönem): başlık "Risk Analizi AA/YYYY – Proje adı". */
+export async function addRiskDocument(values: TimesheetDocValues): Promise<ActionState> {
+  return addPeriodDocument(values, "risk_analizi", "Risk Analizi", "/risk-analizi");
 }
 
 /** Yeni denetim ekle: başlık "Denetim Raporu GG.AA.YYYY Gece/Gündüz – Proje"; dönem tarihten türetilir. */

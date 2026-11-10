@@ -2,13 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
-import { Download, FileUp, Loader2 } from "lucide-react";
+import { CalendarCheck, Download, FileUp, Loader2, Pencil } from "lucide-react";
 import { attachLeaveDocument, createLeaveRecord } from "@/app/actions/leaves";
 import { prepareUpload } from "@/app/actions/documents";
 import { EMPTY_FILE, leaveRecordDocSchema } from "@/lib/schemas-ops";
 import { LEAVE_TYPE_INFO } from "@/lib/leave-law";
 import { Form, FormGrid, SelectField, SubmitButton, TextField } from "@/components/forms/form";
 import { FileArea, OwnerSelect } from "@/components/forms/ops-upload-forms";
+import { DateField, DateRangeFormField } from "@/components/forms/date-fields";
 import { ViewButton } from "@/components/doc-viewer";
 
 type Option = { value: string; label: string };
@@ -75,6 +76,7 @@ const span = (start: string, end: string) => Math.round((Date.parse(end) - Date.
  *  - Gün: elle girilmediyse, son tarih elle girildiyse tarihlerden; değilse türün yasal süresinden; o da yoksa tarihlerden.
  *  - Son tarih: elle girilmediyse başlangıç + gün − 1.
  *  - İşe dönüş (izin bitince): elle girilmediyse son tarihten bir gün sonra.
+ * Formda yalnızca Gün ve Başlangıç sorulur; son tarih ve işe dönüş bunlardan hesaplanıp özet olarak gösterilir.
  */
 function Suggest() {
   const { control, setValue, getFieldState, formState } = useFormContext();
@@ -105,6 +107,80 @@ function Suggest() {
     }
   }, [type, start, end, days, ret, setValue, getFieldState, formState]);
   return null;
+}
+
+const trDate = (iso: string) =>
+  new Intl.DateTimeFormat("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric", weekday: "long", timeZone: "UTC" }).format(new Date(iso + "T00:00:00Z"));
+
+/**
+ * Normalde başlangıç (takvim) + gün girilir; son gün ve işe dönüş hesaplanıp özet olarak görünür. "Tarihleri elle
+ * değiştir" denince başlangıç–son gün tek aralık seçiciden (gün sayısı ondan hesaplanır), işe dönüş ayrı tarihten
+ * seçilir. Tarihlerde hata varsa elle giriş kendiliğinden açılır.
+ */
+function LeaveDates() {
+  const { control, formState, setValue, resetField } = useFormContext();
+  const [start, end, ret] = useWatch({ control, name: ["start_date", "end_date", "return_date"] }) as string[];
+  const [manual, setManual] = useState(false);
+  const open = manual || Boolean(formState.errors.end_date || formState.errors.return_date);
+
+  if (open) {
+    return (
+      <>
+        <DateRangeFormField
+          name="start_date"
+          nameTo="end_date"
+          label="İzin tarihleri"
+          required
+          className="sm:col-span-2"
+          hint="Başlangıç ve son gün; gün sayısı buradan hesaplanır"
+          onRange={(f, t) => setValue("days", String(span(f, t)), { shouldDirty: true, shouldValidate: true })}
+        />
+        <div className="sm:col-span-2">
+          <DateField name="return_date" label="İşe dönüş tarihi" required align="right" hint="Son günden sonraki gün gelir; değiştirebilirsiniz" />
+          <button
+            type="button"
+            onClick={() => {
+              resetField("end_date", { defaultValue: "" });
+              resetField("return_date", { defaultValue: "" });
+              setManual(false);
+            }}
+            className="mt-1 text-xs font-medium text-brand hover:underline"
+          >
+            Otomatik hesaplamaya dön
+          </button>
+        </div>
+      </>
+    );
+  }
+  const ready = ISO.test(start ?? "") && ISO.test(end ?? "") && ISO.test(ret ?? "");
+  return (
+    <>
+      <DateField name="start_date" label="İzin başlangıç" required className="sm:col-span-2" />
+      <div className="sm:col-span-2">
+        <span className="mb-1.5 block text-sm font-medium">İzin bitişi ve işe dönüş</span>
+        <div className="flex min-h-10 items-start gap-2 rounded-lg border border-dashed border-border bg-surface-2/50 px-3 py-2 text-sm">
+          {ready ? (
+            <>
+              <CalendarCheck className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />
+              <p className="leading-relaxed">
+                <span className="text-muted">Son gün:</span> <span className="font-medium">{trDate(end)}</span>
+                <br />
+                <span className="text-muted">İşe dönüş:</span> <span className="font-medium">{trDate(ret)}</span>
+              </p>
+            </>
+          ) : (
+            <p className="py-0.5 text-muted">Gün ve başlangıç girilince otomatik hesaplanır</p>
+          )}
+        </div>
+        <p className="mt-1.5 text-xs text-muted">
+          Otomatik hesaplanır.{" "}
+          <button type="button" onClick={() => setManual(true)} className="inline-flex items-center gap-1 font-medium text-brand hover:underline">
+            <Pencil className="size-3" aria-hidden /> Tarihleri elle değiştir
+          </button>
+        </p>
+      </div>
+    </>
+  );
 }
 
 /** İzin türü; altında seçilen türün yasal notu (ör. "Yasal hak: 3 gün ücretli; yıllık izinden düşmez"). */
@@ -138,11 +214,9 @@ export function LeaveRecordForm({ people, balances = {} }: { people: Option[]; b
         <OwnerSelect name="assignment" label="Personel adı" options={people} onReset={reset} className="sm:col-span-3" />
         <LeaveTypeField className="sm:col-span-3" />
         <BalanceBox balances={balances} />
-        <TextField name="days" label="Gün (izin süresi)" required inputMode="decimal" suffix="gün" className="sm:col-span-2" hint="Yasal süreden veya tarihlerden önerilir; değiştirebilirsiniz" />
-        <TextField name="start_date" type="date" label="İzin başlangıç" required className="sm:col-span-2" />
-        <TextField name="end_date" type="date" label="İzin son tarihi" required className="sm:col-span-2" hint="Başlangıç + gün ile önerilir" />
-        <TextField name="return_date" type="date" label="İşe dönüş tarihi" required className="sm:col-span-2" hint="İzin bitince işe döneceği gün (işe giriş tarihi değil); son tarih + 1 gün otomatik gelir" />
-        <TextField name="note" label="Not" className="sm:col-span-4" />
+        <TextField name="days" label="Gün (izin süresi)" required inputMode="decimal" suffix="gün" className="sm:col-span-2" hint="İzin türünün yasal süresi önerilir" />
+        <LeaveDates />
+        <TextField name="note" label="Not (isteğe bağlı)" className="sm:col-span-6" />
         <FileArea
           key={fileKey}
           category="yillik_izin"

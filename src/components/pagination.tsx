@@ -8,10 +8,14 @@ import { PAGE_SIZE, pageCount, pageHref } from "@/lib/paging";
  * Kullanım: <Pagination path="/merkez/personel" searchParams={sp} total={count} />
  */
 export function Pagination({
-  path, searchParams, total, size = PAGE_SIZE, className, hash,
-}: { path: string; searchParams: Record<string, string | string[] | undefined>; total: number; size?: number; className?: string; /** Sayfa bağlantısı bu çapaya insin (form üstte olan sayfalarda "liste") */ hash?: string }) {
+  path, searchParams, total, size = PAGE_SIZE, className, hash, param = "sayfa",
+}: {
+  path: string; searchParams: Record<string, string | string[] | undefined>; total: number; size?: number; className?: string;
+  /** Sayfa bağlantısı bu çapaya insin (form üstte olan sayfalarda "liste") */ hash?: string;
+  /** Sayfa numarasının adresteki adı; aynı ekrandaki ikinci liste için farklı olmalı (ör. "bsayfa") */ param?: string;
+}) {
   const pages = pageCount(total, size);
-  const current = Math.min(Math.max(1, Number(typeof searchParams.sayfa === "string" ? searchParams.sayfa : 1) || 1), pages);
+  const current = Math.min(Math.max(1, Number(typeof searchParams[param] === "string" ? searchParams[param] : 1) || 1), pages);
   if (total <= size) return null;
   const first = (current - 1) * size + 1;
   const last = Math.min(current * size, total);
@@ -28,7 +32,7 @@ export function Pagination({
       </p>
       <div className="flex items-center gap-1">
         {current > 1 ? (
-          <Link href={pageHref(path, searchParams, current - 1, hash)} aria-label="Önceki sayfa" className={cn(btn, "border-border hover:bg-surface-2")}><ChevronLeft className="size-4" aria-hidden /></Link>
+          <Link href={pageHref(path, searchParams, current - 1, hash, param)} aria-label="Önceki sayfa" className={cn(btn, "border-border hover:bg-surface-2")}><ChevronLeft className="size-4" aria-hidden /></Link>
         ) : (
           <span className={cn(btn, "border-border text-muted/50")}><ChevronLeft className="size-4" aria-hidden /></span>
         )}
@@ -38,12 +42,12 @@ export function Pagination({
             {n === current ? (
               <span aria-current="page" className={cn(btn, "border-brand bg-brand text-brand-fg")}>{n}</span>
             ) : (
-              <Link href={pageHref(path, searchParams, n, hash)} className={cn(btn, "border-border hover:bg-surface-2")}>{n}</Link>
+              <Link href={pageHref(path, searchParams, n, hash, param)} className={cn(btn, "border-border hover:bg-surface-2")}>{n}</Link>
             )}
           </span>
         ))}
         {current < pages ? (
-          <Link href={pageHref(path, searchParams, current + 1, hash)} aria-label="Sonraki sayfa" className={cn(btn, "border-border hover:bg-surface-2")}><ChevronRight className="size-4" aria-hidden /></Link>
+          <Link href={pageHref(path, searchParams, current + 1, hash, param)} aria-label="Sonraki sayfa" className={cn(btn, "border-border hover:bg-surface-2")}><ChevronRight className="size-4" aria-hidden /></Link>
         ) : (
           <span className={cn(btn, "border-border text-muted/50")}><ChevronRight className="size-4" aria-hidden /></span>
         )}

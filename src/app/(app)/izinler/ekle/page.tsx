@@ -55,7 +55,7 @@ export default async function LeaveAddPage() {
       <Card>
         <CardHeader
           title="İzin evrakı ekle"
-          description="Personeli ve izin türünü seçin, süreyi ve tarihleri girin; imzalı izin evrakını da ekleyip tek seferde kaydedin. Yıllık izin, kalan izin bakiyesinden düşer."
+          description="Personeli ve izin türünü seçin, gün sayısını ve başlangıç tarihini girin (bitiş ve işe dönüş otomatik hesaplanır); imzalı izin evrakını da ekleyip tek seferde kaydedin. Yıllık izin, kalan izin bakiyesinden düşer."
         />
         <LeaveRecordForm people={people} balances={balances} />
       </Card>

@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { ArrowDown, ArrowUp, ChevronLeft, ClipboardList, KeyRound, Printer, Trash2 } from "lucide-react";
 import { Badge, Card, CardHeader, EmptyState, Table, btn, cn, td } from "@/components/ui";
-import { ConfirmSubmit } from "@/components/confirm-submit";
+import { ConfirmSubmit } from "@/components/confirm-dialog";
 import { PatrolPointName, PatrolPointsAddForm } from "@/components/forms/patrol-forms";
 import { PATROL_LINES } from "../lines";
 import { requireStaff } from "@/lib/auth";
@@ -92,7 +92,7 @@ export default async function PatrolProjectPage({ params }: PageProps<"/devriye/
               <form action={generateProjectPin}>
                 <input type="hidden" name="project_id" value={id} />
                 {pin ? (
-                  <ConfirmSubmit message="PIN değiştirilsin mi? Eski PIN hemen geçersiz olur; yeni PIN'i görevlilere bildirmeniz gerekir." className={btn("secondary", "sm")}>
+                  <ConfirmSubmit tone="warning" title="PIN değiştirilsin mi?" description="Eski PIN hemen geçersiz olur; yeni PIN'i görevlilere bildirmeniz gerekir." confirmLabel="PIN'i değiştir" className={btn("secondary", "sm")}>
                     PIN&apos;i değiştir
                   </ConfirmSubmit>
                 ) : (
@@ -102,7 +102,7 @@ export default async function PatrolProjectPage({ params }: PageProps<"/devriye/
               {pin && (
                 <form action={removeProjectPin}>
                   <input type="hidden" name="project_id" value={id} />
-                  <ConfirmSubmit message="PIN kaldırılsın mı? PIN yokken bu projede okutma yapılamaz." className="text-sm text-danger hover:underline">
+                  <ConfirmSubmit title="PIN kaldırılsın mı?" description="PIN yokken bu projede okutma yapılamaz." confirmLabel="Kaldır" className="text-sm text-danger hover:underline">
                     Kaldır
                   </ConfirmSubmit>
                 </form>
@@ -155,7 +155,7 @@ export default async function PatrolProjectPage({ params }: PageProps<"/devriye/
                         <a href={mapsUrl(p.lat, p.lng)} target="_blank" rel="noopener noreferrer" className={linkBtn}>Haritada gör</a>
                         <form action={resetPatrolPointLocation} className="ml-3 inline" title="Konum silinir; noktadaki ilk isabetli okutmadan yeniden öğrenilir">
                           <input type="hidden" name="id" value={p.id} />
-                          <ConfirmSubmit message={`“${p.name}” noktasının konumu sıfırlansın mı? Noktada yapılacak ilk isabetli okutmadan yeniden öğrenilir.`} className={mutedBtn}>
+                          <ConfirmSubmit tone="warning" title={`“${p.name}” noktasının konumu sıfırlansın mı?`} description="Konum silinir; noktada yapılacak ilk isabetli okutmadan yeniden öğrenilir." confirmLabel="Sıfırla" className={mutedBtn}>
                             Sıfırla
                           </ConfirmSubmit>
                         </form>
@@ -177,11 +177,13 @@ export default async function PatrolProjectPage({ params }: PageProps<"/devriye/
                     <form action={removePatrolPoint} className="inline">
                       <input type="hidden" name="id" value={p.id} />
                       <ConfirmSubmit
-                        message={`“${p.name}” silinsin mi? Okutma kaydı olan nokta silinmez, pasife alınır (raporlar bozulmasın diye).`}
+                        title={`“${p.name}” silinsin mi?`}
+                        description="Okutma kaydı olan nokta silinmez, pasife alınır (raporlar bozulmasın diye)."
                         label={`${p.name} — sil`}
+                        icon={<Trash2 className="size-3.5" aria-hidden />}
                         className="inline-flex items-center gap-1 text-sm text-danger hover:underline"
                       >
-                        <Trash2 className="size-3.5" aria-hidden /> Sil
+                        Sil
                       </ConfirmSubmit>
                     </form>
                   </td>
