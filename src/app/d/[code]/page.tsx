@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { MapPin, QrCode, Repeat } from "lucide-react";
+import { QrCode } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { PatrolScan } from "@/components/patrol-scan";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -30,14 +30,7 @@ export default async function PatrolScanPage({ params }: PageProps<"/d/[code]">)
       <main className="mx-auto w-full max-w-md flex-1 px-5 pb-10">
         <div className="rounded-2xl border border-border bg-surface p-6 shadow-card">
           {point ? (
-            <>
-              <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted">
-                {point.kind === "tur" ? <><Repeat className="size-3.5" aria-hidden /> Devriye turu</> : <><MapPin className="size-3.5" aria-hidden /> Devriye noktası</>}
-              </p>
-              <h1 className="mt-1 text-2xl font-semibold tracking-tight">{point.name}</h1>
-              {point.projects?.name && <p className="mt-0.5 text-sm text-muted">{point.projects.name}</p>}
-              <PatrolScan code={code} kind={point.kind} />
-            </>
+            <PatrolScan code={code} kind={point.kind} point={point.name} project={point.projects?.name ?? null} />
           ) : (
             <div className="py-6 text-center">
               <span className="mx-auto grid size-12 place-items-center rounded-xl bg-surface-2 text-muted" aria-hidden>

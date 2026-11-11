@@ -264,7 +264,8 @@ Devriye, manyetik kalem/anahtar sisteminin QR karşılığıdır: **başlatılı
 | Noktalar | PIN/ad sorulmaz; sayfa açılınca okutma tura yazılır. Sıra serbest. Tur başlatılmadan okutulan nokta **kaydedilmez** |
 | Bitirme | Aynı etiket tekrar okutulur → durum + okutulmayan noktalar + **Devriyeyi bitir** düğmesi. Kendiliğinden bitmez (çift okutma korkusu). Eksikle bitirirken onay sorar |
 | Bitirilmeyen tur | Son okutmadan **1 saat** sonra "Zaman aşımı" ile kapanır |
-| Telefon turu tanımazsa | "Devriyeyi başlattım ama telefon tanımadı" → PIN + ad ile açık tura yeniden bağlanır |
+| Nokta okutma | Görevli tüm QR'ları telefonun kendi kamerasıyla okutur. Tur bulma: (1) telefonun anahtarı (çerez + yerel hafıza) açık tura denk geliyorsa o tur; (2) gelmiyorsa projedeki TEK açık tur (`app.patrol_find_tour`). Sebep (canlı test, 11 Kasım): bazı telefonların QR uygulaması her kodu hafızasız ayrı pencerede açıyor, çerez gelmiyor. Bilinçli ödün: tek açık tur varken o noktayı fiziken okutan herkesin okutması o tura yazılır ve başlat/bitir etiketinden PIN'siz bitirilebilir (etiket sahada; raporda görünür) |
+| Birden fazla açık tur | Telefon tanımazsa noktada "Hangi devriye?" → PIN + ad ile kişinin turuna yazılır. Başlat/bitir'de PIN + ad: kişinin açık turu varsa yenisi açılmaz, ona devam edilir (`patrol_tour_start` → "active") |
 | Rapor | Devriye Kayıtları tur bazlı: Tamamlandı / Eksik / Zaman aşımı / Devam ediyor / Yeni turla kapandı; atlanan noktalar; Nokta durumu (kaç turda atlandı); PDF de tur bazlı. Eski (tursuz) okutmalar ayrı kartta |
 | Etiket | **A7** (74×105 mm), A4 yatayda 8 adet, başlıkta logo; başlat/bitir etiketi lacivert başlıklı |
 Kod: migration `20261111000600_patrol_tours.sql` (kurallar veritabanında: `patrol_tour_scan/start/end/resume`), `src/app/actions/patrol-tour.ts`, `src/components/patrol-scan.tsx`, `src/lib/patrol-report.ts`.
