@@ -53,36 +53,27 @@ const PRINT_CSS = `
 .lbl.cut-r::after, .lbl.cut-b::before { content: ""; position: absolute; pointer-events: none }
 .lbl.cut-r::after { top: 0; bottom: 0; right: 0; border-right: 1px dashed #94a3b8 }
 .lbl.cut-b::before { left: 0; right: 0; bottom: 0; border-bottom: 1px dashed #94a3b8 }
-.lbl-in { --u: calc(100cqw / 74); position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; text-align: center; padding: calc(var(--u) * 5) calc(var(--u) * 5) calc(var(--u) * 4.5) }
+.lbl-in { --u: calc(100cqw / 74); position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; text-align: center; padding: 0 calc(var(--u) * 5) calc(var(--u) * 5) }
 
-.logo { display: flex; align-items: center; font-weight: 800; letter-spacing: -0.02em; line-height: 1 }
-.logo-mark { display: grid; place-items: center; width: calc(var(--u) * 6.5); height: calc(var(--u) * 6.5); border-radius: 9999px; background: #fff }
+/* Başlık bandı: tüm etiketlerde aynı (ortada logo, altında etiket türü) */
+.lbl-band { display: flex; flex-direction: column; align-items: center; justify-content: center; width: calc(100% + var(--u) * 10); height: calc(var(--u) * 19); margin: 0 calc(var(--u) * -5); padding-top: calc(var(--u) * 1.5); background: #0a2a63; color: #fff; border-bottom: calc(var(--u) * 1) solid #1f6fe5; flex-shrink: 0 }
+.logo { display: flex; align-items: center; justify-content: center; font-weight: 800; letter-spacing: -0.02em; line-height: 1 }
+.logo-mark { display: grid; place-items: center; width: calc(var(--u) * 7); height: calc(var(--u) * 7); border-radius: 9999px; background: #fff }
 .logo-mark svg { width: 100%; height: 100% }
-.logo-word { margin-left: calc(var(--u) * 0.4); font-size: calc(var(--u) * 4.2); color: #0a2a63 }
-.dark .logo-word { color: #fff }
+.logo-word { margin-left: calc(var(--u) * 0.4); font-size: calc(var(--u) * 4.6); color: #fff }
+.lbl-kind { margin-top: calc(var(--u) * 1.6); padding-left: 0.22em; font-size: calc(var(--u) * 2.5); font-weight: 700; letter-spacing: 0.22em; line-height: 1; text-transform: uppercase; opacity: 0.9 }
 
-.lbl-top { display: flex; width: 100%; height: calc(var(--u) * 7); align-items: center; justify-content: space-between }
-.lbl-no { display: flex; align-items: center; justify-content: center; min-width: calc(var(--u) * 6.5); height: calc(var(--u) * 6.5); padding: 0 calc(var(--u) * 1.2); border: calc(var(--u) * 0.45) solid #0a2a63; border-radius: 9999px; color: #0a2a63; font-size: calc(var(--u) * 3.5); font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1 }
-.lbl-proj { width: 100%; margin-top: calc(var(--u) * 1.5); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: calc(var(--u) * 2.6); font-weight: 600; line-height: 1.2; color: #475569 }
-.lbl-name { display: flex; width: 100%; height: calc(var(--u) * 13); margin-top: calc(var(--u) * 1); align-items: center; justify-content: center }
+.lbl-proj { width: 100%; margin-top: calc(var(--u) * 2.4); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: calc(var(--u) * 2.6); font-weight: 600; line-height: 1.2; color: #475569 }
+.lbl-name { display: flex; width: 100%; height: calc(var(--u) * 13); margin-top: calc(var(--u) * 0.6); align-items: center; justify-content: center }
 .lbl-name > span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; font-weight: 800; overflow-wrap: anywhere; text-wrap: balance }
 .nm-1 { font-size: calc(var(--u) * 6); line-height: 1.08 }
 .nm-2 { font-size: calc(var(--u) * 4.8); line-height: 1.1 }
 .nm-3 { font-size: calc(var(--u) * 3.9); line-height: 1.12 }
 .nm-4 { font-size: calc(var(--u) * 3.1); line-height: 1.15 }
-.lbl-qr { width: calc(var(--u) * 54); height: calc(var(--u) * 54); margin-top: calc(var(--u) * 2); flex-shrink: 0 }
+.tour .lbl-name > span { color: #1f6fe5; letter-spacing: 0.01em }
+.lbl-qr { width: calc(var(--u) * 54); height: calc(var(--u) * 54); margin-top: calc(var(--u) * 0.6); flex-shrink: 0 }
 .lbl-qr svg { display: block; width: 100%; height: 100% }
-.lbl-code { margin-top: calc(var(--u) * 1.5); font-family: var(--font-geist-mono), ui-monospace, monospace; font-size: calc(var(--u) * 3.4); font-weight: 600; letter-spacing: 0.12em; line-height: 1.2; color: #1e293b }
-.lbl-foot { margin-top: auto; font-size: calc(var(--u) * 2.2); font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: #64748b }
-
-/* Başlat / bitir etiketi: koyu üst bant */
-.tour .lbl-in { padding-top: 0; padding-bottom: calc(var(--u) * 3.5) }
-.lbl-band { width: calc(100% + var(--u) * 10); margin: 0 calc(var(--u) * -5); padding: calc(var(--u) * 4.5) calc(var(--u) * 5) calc(var(--u) * 2.5); background: #0a2a63; color: #fff; border-bottom: calc(var(--u) * 1) solid #1f6fe5; text-align: left }
-.lbl-band-k { margin-top: calc(var(--u) * 1.5); font-size: calc(var(--u) * 3.4); font-weight: 700; letter-spacing: 0.2em; line-height: 1.1; opacity: 0.85 }
-.lbl-band-t { font-size: calc(var(--u) * 5.8); font-weight: 800; letter-spacing: 0.02em; line-height: 1.1; white-space: nowrap }
-.tour .lbl-proj { margin-top: calc(var(--u) * 1.8) }
-.lbl-hint { margin-top: calc(var(--u) * 0.8); font-size: calc(var(--u) * 3); font-weight: 600; line-height: 1.2; color: #0f172a; text-wrap: balance }
-.tour .lbl-qr { margin-top: calc(var(--u) * 1.5) }
+.lbl-foot { display: flex; width: 100%; flex: 1; align-items: center; justify-content: center; font-size: calc(var(--u) * 2.5); font-weight: 600; line-height: 1.2; color: #334155; text-wrap: balance }
 
 @media print {
   html, body { background: #fff !important }
@@ -103,7 +94,7 @@ const PRINT_CSS = `
 type Row = { id: string; name: string; code: string; kind: "nokta" | "tur"; is_active: boolean; projects: { name: string } | null };
 type Label = Row & { no: number | null; svg: string };
 
-/** Etiket başı: logo (koyu bantta açık renkli kelime). Logo satır içi SVG'dir; her yazıcıda keskin çıkar. */
+/** Etiket başlığındaki logo (lacivert bantta beyaz). Satır içi SVG'dir; her yazıcıda keskin çıkar. */
 function LabelLogo() {
   return (
     <div className="logo">
@@ -119,39 +110,28 @@ function QrBox({ l }: { l: Label }) {
   return <div className="lbl-qr" dangerouslySetInnerHTML={{ __html: l.svg }} aria-label={`${l.name} QR kodu`} role="img" />;
 }
 
+/**
+ * Tüm etiketler aynı, ortalanmış düzendedir: lacivert başlık (logo + tür) · proje · ad · QR · alt satır.
+ * Başlat / bitir etiketi yalnızca yazılarıyla ayrışır (mavi "BAŞLAT / BİTİR" ve "başlarken ve bitirirken okutun").
+ * QR'ın altına kod yazılmaz: etiketi nokta adı tanıtır.
+ */
 function LabelCard({ l, index }: { l: Label; index: number }) {
   const col = index % COLS;
   const row = Math.floor((index % PER_SHEET) / COLS);
   const cut = cn(col < COLS - 1 && "cut-r", row === 0 && "cut-b");
-  if (l.kind === "tur") {
-    return (
-      <article className={cn("lbl tour", cut)} aria-label="Devriye başlat / bitir etiketi">
-        <div className="lbl-in">
-          <div className="lbl-band dark">
-            <LabelLogo />
-            <p className="lbl-band-k">DEVRİYE</p>
-            <p className="lbl-band-t">BAŞLAT / BİTİR</p>
-          </div>
-          <p className="lbl-proj">{l.projects?.name}</p>
-          <p className="lbl-hint">Devriyeye başlarken ve bitirirken bu kodu okutun</p>
-          <QrBox l={l} />
-          <p className="lbl-code">{l.code}</p>
-        </div>
-      </article>
-    );
-  }
+  const tour = l.kind === "tur";
+  const title = tour ? "BAŞLAT / BİTİR" : l.name;
   return (
-    <article className={cn("lbl", cut)} aria-label={`${l.name} etiketi`}>
+    <article className={cn("lbl", tour && "tour", cut)} aria-label={tour ? "Devriye başlat / bitir etiketi" : `${l.name} etiketi`}>
       <div className="lbl-in">
-        <div className="lbl-top">
+        <div className="lbl-band">
           <LabelLogo />
-          {l.no != null && <span className="lbl-no" title="Nokta sırası">{l.no}</span>}
+          <p className="lbl-kind">{tour ? "Devriye turu" : "Devriye noktası"}</p>
         </div>
         <p className="lbl-proj">{l.projects?.name}</p>
-        <h2 className="lbl-name"><span className={nameSize(l.name)}>{l.name}</span></h2>
+        <h2 className="lbl-name"><span className={nameSize(title)}>{title}</span></h2>
         <QrBox l={l} />
-        <p className="lbl-code">{l.code}</p>
-        <p className="lbl-foot">Devriye kontrol noktası</p>
+        <p className="lbl-foot">{tour ? "Devriyeye başlarken ve bitirirken okutun" : l.no != null ? `Nokta ${l.no}` : "Devriye noktası"}</p>
       </div>
     </article>
   );
