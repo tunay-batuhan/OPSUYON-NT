@@ -10,20 +10,14 @@ import { toTitleCase } from "@/lib/format";
 import { patrolPointsBulkSchema, type PatrolPointsBulkValues } from "@/lib/schemas";
 import type { ActionState } from "@/lib/action-types";
 
-export type ScanResult =
-  | { ok: true; point: string; project: string; person: string; scannedAt: string; duplicate: boolean }
-  | { ok: false; error: string };
-
 export type PinResult = { ok: true; people: { id: string; name: string }[] } | { ok: false; error: string };
-
-export type ScanLocation = { lat: number; lng: number; accuracy: number | null } | null;
 
 const cleanCode = (raw: unknown) => normalizeCode(String(raw ?? "")).slice(0, 40);
 const validCode = (code: string) => /^[A-Z0-9-]{6,32}$/.test(code);
 const validPin = (pin: string) => /^[0-9]{4}$/.test(pin);
 
 /**
- * Herkese açık okutma sayfası (/d/<kod>), 1. adım: projenin 4 haneli PIN'i. Doğruysa projede bugün çalışan
+ * Herkese açık okutma sayfası (/d/<kod>): devriye BAŞLATILIRKEN sorulan proje PIN'i (tur işlemleri: patrol-tour.ts). Doğruysa projede bugün çalışan
  * personel listesi döner (adlar PIN'den önce gösterilmez). Bir noktada 10 dk içinde 5 hatalı PIN olursa nokta kilitlenir.
  */
 export async function checkPatrolPin(rawCode: string, rawPin: string): Promise<PinResult> {
@@ -37,37 +31,7 @@ export async function checkPatrolPin(rawCode: string, rawPin: string): Promise<P
   return r.ok ? { ok: true, people: r.people ?? [] } : { ok: false, error: r.error ?? "PIN doğrulanamadı." };
 }
 
-/**
- * 2. adım: görevli listeden adını seçer, okutma kaydedilir. PIN ve kişinin bu projede çalıştığı veritabanında
- * yeniden denetlenir (record_patrol_scan_pin). Saat sunucudan alınır; telefonun saati kayda etki etmez.
- */
-export async function submitPatrolScan(rawCode: string, rawPin: string, personnelId: string, loc: ScanLocation): Promise<ScanResult> {
-  const code = cleanCode(rawCode);
-  const pin = String(rawPin ?? "").trim();
-  if (!validCode(code)) return { ok: false, error: "Bu QR kodu tanınmadı." };
-  if (!validPin(pin)) return { ok: false, error: "PIN 4 haneli olmalı." };
-  if (!/^[0-9a-f-]{36}$/i.test(String(personnelId ?? ""))) return { ok: false, error: "Listeden adınızı seçin." };
-
-  const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
-  const lat = num(loc?.lat);
-  const lng = num(loc?.lng);
-  const hasLoc = lat !== null && lng !== null && Math.abs(lat) <= 90 && Math.abs(lng) <= 180;
-
-  const { data, error } = await createAdminClient().rpc("record_patrol_scan_pin", {
-    p_code: code,
-    p_pin: pin,
-    p_personnel_id: personnelId,
-    p_lat: hasLoc ? lat : null,
-    p_lng: hasLoc ? lng : null,
-    p_accuracy: hasLoc ? num(loc?.accuracy) : null,
-  });
-  if (error) return { ok: false, error: "Kayıt yapılamadı. Bağlantınızı kontrol edip tekrar deneyin." };
-  const r = data as { ok: boolean; error?: string; point: string; project: string; person: string; scanned_at: string; duplicate: boolean };
-  if (!r.ok) return { ok: false, error: r.error ?? "Kayıt yapılamadı." };
-  return { ok: true, point: r.point, project: r.project, person: r.person, scannedAt: r.scanned_at, duplicate: Boolean(r.duplicate) };
-}
-
-/** Merkez: projeye yeni 4 haneli devriye PIN'i verir (varsa eskisi geçersiz olur). */
+/** Merkez: projeye yeni 4 haneli devriye PIN'i verir (varsa eskisi geçersiz olur). Görevli bu PIN'i devriyeyi başlatırken girer. */
 export async function generateProjectPin(fd: FormData): Promise<void> {
   await assertStaff("patrol.manage");
   const id = str(fd, "project_id");
@@ -78,7 +42,7 @@ export async function generateProjectPin(fd: FormData): Promise<void> {
   revalidatePath("/devriye", "layout");
 }
 
-/** Merkez: projenin PIN'ini kaldırır; PIN yokken o projede okutma yapılamaz. */
+/** Merkez: projenin PIN'ini kaldırır; PIN yokken o projede devriye başlatılamaz (PIN yalnızca başlat/bitir QR'ında sorulur). */
 export async function removeProjectPin(fd: FormData): Promise<void> {
   await assertStaff("patrol.manage");
   const id = str(fd, "project_id");
@@ -91,6 +55,14 @@ export async function removeProjectPin(fd: FormData): Promise<void> {
 // "a blok girişi" → "A Blok Girişi" (kısaltmalar korunur)
 const clean = (s: string) => toTitleCase(s);
 const key = (s: string) => clean(s).toLocaleLowerCase("tr");
+
+type Supa = Awaited<ReturnType<typeof createClient>>;
+type PointInfo = { project_id: string; kind: "nokta" | "tur" };
+/** Noktanın projesi ve türü. "tur" = projenin "Devriye başlat / bitir" etiketi: silinmez, pasife alınmaz, adı ve sırası değişmez. */
+async function pointInfo(supabase: Supa, id: string): Promise<PointInfo | null> {
+  const { data } = await supabase.from("patrol_points").select("project_id, kind").eq("id", id).maybeSingle();
+  return (data as PointInfo | null) ?? null;
+}
 
 /**
  * Merkez: projeye bir veya birden çok nokta ekler (her satır bir nokta adı). Barkod/QR içeriği otomatik üretilir.
@@ -148,8 +120,9 @@ export async function renamePatrolPoint(id: string, rawName: string): Promise<{ 
   if (!/^[0-9a-f-]{36}$/i.test(id)) return { error: "Nokta bulunamadı." };
   if (name.length < 2 || name.length > 80) return { error: "Nokta adı 2–80 karakter olmalı." };
   const supabase = await createClient();
-  const { data: point } = await supabase.from("patrol_points").select("project_id").eq("id", id).maybeSingle();
+  const point = await pointInfo(supabase, id);
   if (!point) return { error: "Nokta bulunamadı." };
+  if (point.kind === "tur") return { error: "“Devriye başlat / bitir” etiketinin adı değiştirilemez." };
   const { data: same } = await supabase.from("patrol_points").select("id, name").eq("project_id", point.project_id).neq("id", id);
   if ((same ?? []).some((p) => key(p.name as string) === key(name))) return { error: "Bu projede aynı adda başka bir nokta var." };
   const { error } = await supabase.from("patrol_points").update({ name }).eq("id", id);
@@ -165,9 +138,10 @@ export async function movePatrolPoint(fd: FormData): Promise<void> {
   const dir = fd.get("dir") === "up" ? -1 : 1;
   if (!id) return;
   const supabase = await createClient();
-  const { data: point } = await supabase.from("patrol_points").select("project_id").eq("id", id).maybeSingle();
-  if (!point) return;
-  const { data } = await supabase.from("patrol_points").select("id, sort_order").eq("project_id", point.project_id).order("sort_order").order("name").order("id");
+  const point = await pointInfo(supabase, id);
+  if (!point || point.kind === "tur") return;
+  // yalnızca kontrol noktaları sıralanır; başlat/bitir etiketi (sort_order -1) dokunulmadan kalır
+  const { data } = await supabase.from("patrol_points").select("id, sort_order").eq("project_id", point.project_id).eq("kind", "nokta").order("sort_order").order("name").order("id");
   const list = (data ?? []).map((p) => p.id as string);
   const i = list.indexOf(id);
   const j = i + dir;
@@ -187,6 +161,8 @@ export async function removePatrolPoint(fd: FormData): Promise<void> {
   const id = str(fd, "id");
   if (!id) return;
   const supabase = await createClient();
+  const point = await pointInfo(supabase, id);
+  if (!point || point.kind === "tur") return;
   const { count } = await supabase.from("patrol_scans").select("id", { count: "exact", head: true }).eq("point_id", id);
   if ((count ?? 0) > 0) await supabase.from("patrol_points").update({ is_active: false }).eq("id", id);
   else await supabase.from("patrol_points").delete().eq("id", id);
@@ -203,11 +179,15 @@ export async function resetPatrolPointLocation(fd: FormData): Promise<void> {
   revalidatePath("/devriye", "layout");
 }
 
+/** Merkez: noktayı pasife alır / yeniden aktifleştirir. Başlat/bitir etiketi pasife alınamaz (aktifleştirmek serbest). */
 export async function setPatrolPointActive(fd: FormData): Promise<void> {
   await assertStaff("patrol.manage");
   const id = str(fd, "id");
   if (!id) return;
+  const active = fd.get("active") === "1";
   const supabase = await createClient();
-  await supabase.from("patrol_points").update({ is_active: fd.get("active") === "1" }).eq("id", id);
+  const point = await pointInfo(supabase, id);
+  if (!point || (point.kind === "tur" && !active)) return;
+  await supabase.from("patrol_points").update({ is_active: active }).eq("id", id);
   revalidatePath("/devriye", "layout");
 }

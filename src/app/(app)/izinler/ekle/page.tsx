@@ -4,6 +4,7 @@ import { LeaveRecordForm, type LeaveBalanceInfo } from "@/components/forms/leave
 import { requireStaff } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { LEAVE_TYPE_INFO, legalAnnualLeaveDays } from "@/lib/leave-law";
+import type { Holiday } from "@/lib/leave-days";
 
 export const metadata: Metadata = { title: "İzin evrakı ekle" };
 
@@ -21,13 +22,14 @@ export default async function LeaveAddPage() {
   await requireStaff("leaves.manage");
   const supabase = await createClient();
   const year = new Date().getFullYear();
-  const [{ data }, { data: bal }, { data: recs }] = await Promise.all([
+  const [{ data }, { data: bal }, { data: hol }, { data: recs }] = await Promise.all([
     supabase
       .from("personnel_assignments")
       .select("project_id, personnel(id, full_name, hire_date, birth_date), projects(name)")
       .is("end_date", null)
       .limit(2000),
     supabase.from("leave_balances").select("personnel_id, entitled_days, carried_days, used_days, remaining_days").eq("year", year).limit(5000),
+    supabase.from("public_holidays").select("day, name, half").gte("day", `${year - 1}-01-01`).lte("day", `${year + 1}-12-31`).order("day"),
     supabase.from("leave_records").select("personnel_id, days").in("leave_type", DEDUCTING).gte("start_date", `${year}-01-01`).lte("start_date", `${year}-12-31`).limit(20000),
   ]);
 
@@ -55,9 +57,9 @@ export default async function LeaveAddPage() {
       <Card>
         <CardHeader
           title="İzin evrakı ekle"
-          description="Personeli ve izin türünü seçin, gün sayısını ve başlangıç tarihini girin (bitiş ve işe dönüş otomatik hesaplanır); imzalı izin evrakını da ekleyip tek seferde kaydedin. Yıllık izin, kalan izin bakiyesinden düşer."
+          description="Personeli ve izin türünü seçin, günü ve başlangıcı girin; son gün ve işe dönüş hesaplanır. Yıllık izinde hafta tatili ve resmi tatiller sayılmaz (öneridir, günü elle değiştirebilirsiniz). Yıllık izin, kalan bakiyeden düşer."
         />
-        <LeaveRecordForm people={people} balances={balances} />
+        <LeaveRecordForm people={people} balances={balances} holidays={(hol ?? []) as Holiday[]} />
       </Card>
     </>
   );

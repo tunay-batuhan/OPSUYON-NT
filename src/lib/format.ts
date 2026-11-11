@@ -63,6 +63,24 @@ export function isoDayFromNow(offsetDays = 0): string {
   return new Date(Date.now() + offsetDays * 86400000).toISOString().slice(0, 10);
 }
 
+/**
+ * Türkiye saatine (Europe/Istanbul, UTC+3) göre YYYY-MM-DD; bugün + offset gün. Sunucu UTC'de çalıştığı için
+ * `isoDayFromNow` gece 00:00–03:00 arasında bir önceki günü verir; iş kuralı tarihlerinde (görev başlangıç/bitiş) bunu kullanın.
+ */
+export function isoDayInTurkey(offsetDays = 0): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Istanbul", year: "numeric", month: "2-digit", day: "2-digit" })
+    .format(new Date(Date.now() + offsetDays * 86400000));
+}
+
+/** Türkiye saatiyle şu an: { date: "YYYY-AA-GG", time: "SS:DD" } — sunucu UTC'de çalışsa da doğru günü ve saati verir. */
+export function istanbulNow(): { date: string; time: string } {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Istanbul", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+  }).formatToParts(new Date());
+  const p = (t: string) => parts.find((x) => x.type === t)?.value ?? "";
+  return { date: `${p("year")}-${p("month")}-${p("day")}`, time: `${p("hour")}:${p("minute")}` };
+}
+
 export function isoTimeFromNow(offsetMs: number): string {
   return new Date(Date.now() + offsetMs).toISOString();
 }

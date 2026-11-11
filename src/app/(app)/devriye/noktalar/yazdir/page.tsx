@@ -9,7 +9,7 @@ import { requireModule } from "@/lib/modules";
 import { isUuid, str1 } from "@/lib/lookups";
 import { createClient } from "@/lib/supabase/server";
 import { patrolScanUrl } from "@/lib/patrol";
-import { BRAND, BRAND_TAGLINE, BRAND_WORD } from "@/lib/brand";
+import { BRAND, BRAND_WORD } from "@/lib/brand";
 import { LogoMark } from "@/components/logo";
 import { cn } from "@/components/ui";
 import { PrintButton } from "./print-button";
@@ -25,38 +25,142 @@ async function siteOrigin(): Promise<string> {
   return `${proto}://${host}`;
 }
 
-/** Nokta adı uzadıkça küçülen yazı boyutu (cqw = A4 genişliğinin yüzdesi; 80 karaktere kadar). */
+/** Nokta adı uzadıkça küçülen yazı (en fazla 2 satır; daha uzunu "…" ile kesilir). 80 karaktere kadar. */
 function nameSize(name: string): string {
   const n = [...name].length;
-  if (n <= 18) return "text-[8cqw] leading-[1.05]";
-  if (n <= 34) return "text-[6.2cqw] leading-[1.1]";
-  if (n <= 56) return "text-[4.8cqw] leading-[1.15]";
-  return "text-[3.9cqw] leading-[1.2]";
+  if (n <= 14) return "nm-1";
+  if (n <= 26) return "nm-2";
+  if (n <= 44) return "nm-3";
+  return "nm-4";
 }
 
+/** Bir A4 yatay sayfaya sığan etiket sayısı: 4 sütun × 2 satır. */
+const COLS = 4;
+const PER_SHEET = 8;
+
 /*
- * Yazdırma: her etiket tam bir A4 dikey sayfa. Etiket içi ölçüler cqw (konteyner genişliği) ile verildiği
- * için ekrandaki önizleme ile kâğıt birebir aynı oranda çıkar. Ekranda etiketler alt alta, bir etiket ekrana
- * sığacak kadar küçültülmüş (yüksekliğe göre; en fazla 130 mm genişlik) A4 oranlı kartlar.
+ * Etiket A7 dikey (74 × 105 mm). A4 yatay sayfa (297 × 210 mm) → 4 × 74 = 296 mm, 2 × 105 = 210 mm: sayfada 8 etiket,
+ * yanlarda 0,5'er mm boşluk. (A4 dikeyde yalnızca 2 × 2 = 4 etiket sığardı.) Etiketler arasında kesik kesim çizgisi.
+ *
+ * Etiket içi ölçüler --u ile verilir: --u = etiket genişliğinin 1/74'ü, yani kâğıtta tam 1 mm. Ekrandaki önizleme
+ * aynı oranda küçülür; yazdırmada etiket 74 × 105 mm'dir. İçerik kenarlardan ≥ 4,5 mm içeride durur (yazıcının
+ * basamadığı kenar payı için).
  */
 const PRINT_CSS = `
-@page { size: A4 portrait; margin: 0 }
+@page { size: A4 landscape; margin: 0 }
+.sheet { width: 100%; max-width: 297mm; aspect-ratio: 297 / 210; display: grid; grid-template-columns: repeat(${COLS}, calc(100% * 74 / 297)); grid-auto-rows: auto; justify-content: center; align-content: start; overflow: hidden; background: #fff; print-color-adjust: exact; -webkit-print-color-adjust: exact }
+.lbl { position: relative; aspect-ratio: 74 / 105; overflow: hidden; container-type: inline-size; break-inside: avoid; page-break-inside: avoid; background: #fff; color: #0f172a }
+.lbl.cut-r::after, .lbl.cut-b::before { content: ""; position: absolute; pointer-events: none }
+.lbl.cut-r::after { top: 0; bottom: 0; right: 0; border-right: 1px dashed #94a3b8 }
+.lbl.cut-b::before { left: 0; right: 0; bottom: 0; border-bottom: 1px dashed #94a3b8 }
+.lbl-in { --u: calc(100cqw / 74); position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; text-align: center; padding: calc(var(--u) * 5) calc(var(--u) * 5) calc(var(--u) * 4.5) }
+
+.logo { display: flex; align-items: center; font-weight: 800; letter-spacing: -0.02em; line-height: 1 }
+.logo-mark { display: grid; place-items: center; width: calc(var(--u) * 6.5); height: calc(var(--u) * 6.5); border-radius: 9999px; background: #fff }
+.logo-mark svg { width: 100%; height: 100% }
+.logo-word { margin-left: calc(var(--u) * 0.4); font-size: calc(var(--u) * 4.2); color: #0a2a63 }
+.dark .logo-word { color: #fff }
+
+.lbl-top { display: flex; width: 100%; height: calc(var(--u) * 7); align-items: center; justify-content: space-between }
+.lbl-no { display: flex; align-items: center; justify-content: center; min-width: calc(var(--u) * 6.5); height: calc(var(--u) * 6.5); padding: 0 calc(var(--u) * 1.2); border: calc(var(--u) * 0.45) solid #0a2a63; border-radius: 9999px; color: #0a2a63; font-size: calc(var(--u) * 3.5); font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1 }
+.lbl-proj { width: 100%; margin-top: calc(var(--u) * 1.5); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: calc(var(--u) * 2.6); font-weight: 600; line-height: 1.2; color: #475569 }
+.lbl-name { display: flex; width: 100%; height: calc(var(--u) * 13); margin-top: calc(var(--u) * 1); align-items: center; justify-content: center }
+.lbl-name > span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; font-weight: 800; overflow-wrap: anywhere; text-wrap: balance }
+.nm-1 { font-size: calc(var(--u) * 6); line-height: 1.08 }
+.nm-2 { font-size: calc(var(--u) * 4.8); line-height: 1.1 }
+.nm-3 { font-size: calc(var(--u) * 3.9); line-height: 1.12 }
+.nm-4 { font-size: calc(var(--u) * 3.1); line-height: 1.15 }
+.lbl-qr { width: calc(var(--u) * 54); height: calc(var(--u) * 54); margin-top: calc(var(--u) * 2); flex-shrink: 0 }
+.lbl-qr svg { display: block; width: 100%; height: 100% }
+.lbl-code { margin-top: calc(var(--u) * 1.5); font-family: var(--font-geist-mono), ui-monospace, monospace; font-size: calc(var(--u) * 3.4); font-weight: 600; letter-spacing: 0.12em; line-height: 1.2; color: #1e293b }
+.lbl-foot { margin-top: auto; font-size: calc(var(--u) * 2.2); font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: #64748b }
+
+/* Başlat / bitir etiketi: koyu üst bant */
+.tour .lbl-in { padding-top: 0; padding-bottom: calc(var(--u) * 3.5) }
+.lbl-band { width: calc(100% + var(--u) * 10); margin: 0 calc(var(--u) * -5); padding: calc(var(--u) * 4.5) calc(var(--u) * 5) calc(var(--u) * 2.5); background: #0a2a63; color: #fff; border-bottom: calc(var(--u) * 1) solid #1f6fe5; text-align: left }
+.lbl-band-k { margin-top: calc(var(--u) * 1.5); font-size: calc(var(--u) * 3.4); font-weight: 700; letter-spacing: 0.2em; line-height: 1.1; opacity: 0.85 }
+.lbl-band-t { font-size: calc(var(--u) * 5.8); font-weight: 800; letter-spacing: 0.02em; line-height: 1.1; white-space: nowrap }
+.tour .lbl-proj { margin-top: calc(var(--u) * 1.8) }
+.lbl-hint { margin-top: calc(var(--u) * 0.8); font-size: calc(var(--u) * 3); font-weight: 600; line-height: 1.2; color: #0f172a; text-wrap: balance }
+.tour .lbl-qr { margin-top: calc(var(--u) * 1.5) }
+
 @media print {
   html, body { background: #fff !important }
   aside, header, nav, .no-print { display: none !important }
   .min-h-screen { display: block !important; min-height: 0 !important }
   main { padding: 0 !important }
   main > div { max-width: none !important; margin: 0 !important }
-  .sheets { gap: 0 !important }
-  .sheet { width: 210mm !important; height: 297mm !important; aspect-ratio: auto !important; max-width: none !important; margin: 0 !important; box-shadow: none !important; border-radius: 0 !important; overflow: hidden; break-inside: avoid }
-  .sheet + .sheet { break-before: page }
+  .sheets { display: block !important; gap: 0 !important }
+  /* 209,9 mm: yuvarlama farkı yüzünden sona boş sayfa eklenmesin (alt 0,1 mm kâğıt kenarı) */
+  .sheet { width: 297mm !important; height: 209.9mm !important; max-width: none !important; aspect-ratio: auto !important; margin: 0 !important; box-shadow: none !important; border-radius: 0 !important; break-inside: avoid; page-break-inside: avoid }
+  .sheet + .sheet { break-before: page; page-break-before: always }
+  .lbl { width: 74mm; height: 105mm; aspect-ratio: auto }
 }
-.sheet { print-color-adjust: exact; -webkit-print-color-adjust: exact }
 /* Logo halkası gradyanı (#lm-ring) kenar çubuğunda tanımlı; yazdırmada o gizlenince çözülemiyor → düz lacivert */
 .sheet svg circle[stroke^="url("] { stroke: #0a2a63 }
 `;
 
-/** QR etiketleri: her devriye noktası için tam sayfa (A4) etiket; sahada duvara/direğe asılır. QR, sitedeki /d/<kod> sayfasını açar. */
+type Row = { id: string; name: string; code: string; kind: "nokta" | "tur"; is_active: boolean; projects: { name: string } | null };
+type Label = Row & { no: number | null; svg: string };
+
+/** Etiket başı: logo (koyu bantta açık renkli kelime). Logo satır içi SVG'dir; her yazıcıda keskin çıkar. */
+function LabelLogo() {
+  return (
+    <div className="logo">
+      <span className="logo-mark"><LogoMark /></span>
+      <span aria-hidden className="logo-word">{BRAND_WORD}</span>
+      <span className="sr-only">{BRAND}</span>
+    </div>
+  );
+}
+
+function QrBox({ l }: { l: Label }) {
+  // kütüphanenin ürettiği SVG; içerik yalnızca sistemin ürettiği kod
+  return <div className="lbl-qr" dangerouslySetInnerHTML={{ __html: l.svg }} aria-label={`${l.name} QR kodu`} role="img" />;
+}
+
+function LabelCard({ l, index }: { l: Label; index: number }) {
+  const col = index % COLS;
+  const row = Math.floor((index % PER_SHEET) / COLS);
+  const cut = cn(col < COLS - 1 && "cut-r", row === 0 && "cut-b");
+  if (l.kind === "tur") {
+    return (
+      <article className={cn("lbl tour", cut)} aria-label="Devriye başlat / bitir etiketi">
+        <div className="lbl-in">
+          <div className="lbl-band dark">
+            <LabelLogo />
+            <p className="lbl-band-k">DEVRİYE</p>
+            <p className="lbl-band-t">BAŞLAT / BİTİR</p>
+          </div>
+          <p className="lbl-proj">{l.projects?.name}</p>
+          <p className="lbl-hint">Devriyeye başlarken ve bitirirken bu kodu okutun</p>
+          <QrBox l={l} />
+          <p className="lbl-code">{l.code}</p>
+        </div>
+      </article>
+    );
+  }
+  return (
+    <article className={cn("lbl", cut)} aria-label={`${l.name} etiketi`}>
+      <div className="lbl-in">
+        <div className="lbl-top">
+          <LabelLogo />
+          {l.no != null && <span className="lbl-no" title="Nokta sırası">{l.no}</span>}
+        </div>
+        <p className="lbl-proj">{l.projects?.name}</p>
+        <h2 className="lbl-name"><span className={nameSize(l.name)}>{l.name}</span></h2>
+        <QrBox l={l} />
+        <p className="lbl-code">{l.code}</p>
+        <p className="lbl-foot">Devriye kontrol noktası</p>
+      </div>
+    </article>
+  );
+}
+
+/**
+ * QR etiketleri (A7, A4 yatay sayfada 8 tane). Tüm etiketler: önce projenin "Devriye başlat / bitir" etiketi, sonra
+ * aktif noktalar sırayla. `?nokta=<id>` ile tek etiket sayfanın sol üstüne basılır. QR, sitedeki /d/<kod> sayfasını açar.
+ */
 export default async function PatrolLabelsPage({ searchParams }: PageProps<"/devriye/noktalar/yazdir">) {
   await requireStaff("patrol.manage");
   await requireModule("devriye");
@@ -66,24 +170,50 @@ export default async function PatrolLabelsPage({ searchParams }: PageProps<"/dev
   if (!isUuid(projectId)) notFound();
 
   const supabase = await createClient();
-  let q = supabase.from("patrol_points").select("id, name, code, projects(name, organizations(name))").eq("project_id", projectId).eq("is_active", true).order("sort_order").order("name");
-  if (isUuid(pointId)) q = q.eq("id", pointId);
-  const { data } = await q;
-  const points = (data ?? []) as unknown as { id: string; name: string; code: string; projects: { name: string; organizations: { name: string } | null } | null }[];
+  const { data } = await supabase
+    .from("patrol_points")
+    .select("id, name, code, kind, is_active, projects(name)")
+    .eq("project_id", projectId)
+    .order("sort_order")
+    .order("name")
+    .order("id");
+  const rows = (data ?? []) as unknown as Row[];
+  // etiketteki sıra numarası, yönetim ekranındaki "Sıra" ile aynı (pasif noktalar da sayılır)
+  const noOf = new Map(rows.filter((r) => r.kind === "nokta").map((r, i) => [r.id, i + 1]));
+  const tour = rows.filter((r) => r.kind === "tur" && r.is_active);
+  const checkpoints = rows.filter((r) => r.kind === "nokta" && r.is_active);
+  let points = [...tour, ...checkpoints];
+  if (isUuid(pointId)) points = points.filter((p) => p.id === pointId);
   if (points.length === 0) notFound();
 
   const origin = await siteOrigin();
   const local = /\/\/(localhost|127\.|0\.0\.0\.0|192\.168\.|10\.)/.test(origin);
-  const host = origin.replace(/^https?:\/\//, "").replace(/\/$/, "");
-  // margin: 3 → QR'ın etrafında 3 modüllük sessiz bölge (quiet zone) + çerçeve içi boşluk; okunabilirlik için şart
-  const labels = await Promise.all(points.map(async (p) => ({ ...p, svg: await QRCode.toString(patrolScanUrl(origin, p.code), { type: "svg", margin: 3, errorCorrectionLevel: "M" }) })));
+  // QR kutusu 54 mm: içinde 3 modüllük sessiz bölge (quiet zone), çevresindeki beyaz etiket alanıyla en az 4 modül.
+  // Q düzeyi (%25 onarım): kirlenen/çizilen etikette de okunur
+  const labels: Label[] = await Promise.all(
+    points.map(async (p) => ({
+      ...p,
+      no: noOf.get(p.id) ?? null,
+      svg: await QRCode.toString(patrolScanUrl(origin, p.code), { type: "svg", margin: 3, errorCorrectionLevel: "Q" }),
+    })),
+  );
+  const sheets: Label[][] = [];
+  for (let i = 0; i < labels.length; i += PER_SHEET) sheets.push(labels.slice(i, i + PER_SHEET));
+
+  const summary =
+    labels.length === 1
+      ? "1 etiket · A7 (74 × 105 mm) · sayfanın sol üstüne basılır"
+      : `${labels.length} etiket · A7 (74 × 105 mm) · A4 yatay sayfada 8 etiket · ${sheets.length} sayfa`;
 
   return (
     <>
       <style>{PRINT_CSS}</style>
       <div className="no-print mb-5 flex flex-wrap items-center justify-between gap-3">
         <Link href={`/devriye/noktalar/${projectId}`} className="inline-flex items-center gap-1 text-sm text-muted hover:text-fg"><ChevronLeft className="size-4" aria-hidden /> Projenin noktaları</Link>
-        <p className="text-sm text-muted">{labels.length === 1 ? "1 etiket · tek sayfa (A4 dikey)" : `${labels.length} etiket · her biri ayrı sayfa (A4 dikey)`} · ekranda küçültülmüş önizleme</p>
+        <div className="text-sm text-muted">
+          <p>{summary}</p>
+          <p>Yazdırırken ölçek %100 ve kenar boşluğu “Yok” seçin; kesik çizgilerden kesin.</p>
+        </div>
         <PrintButton />
       </div>
       {local && (
@@ -94,40 +224,12 @@ export default async function PatrolLabelsPage({ searchParams }: PageProps<"/dev
       )}
 
       <div className="sheets flex flex-col items-center gap-8">
-        {labels.map((l) => (
-          <article key={l.id} className="sheet @container flex w-full max-w-[min(130mm,calc((100vh_-_14rem)*0.707))] flex-col overflow-hidden rounded-xl bg-white text-slate-900 shadow-card ring-1 ring-border aspect-[210/297]" aria-label={`${l.name} etiketi`}>
-            {/* Üst şerit: marka + etiket türü */}
-            <div className="flex h-[11cqw] shrink-0 items-center justify-between bg-navy px-[6cqw] text-white">
-              <div className="flex items-center font-extrabold tracking-tight">
-                <span className="grid size-[7cqw] place-items-center rounded-full bg-white"><LogoMark className="size-[7cqw]" /></span>
-                <span aria-hidden className="ml-[0.5cqw] text-[4.6cqw]">{BRAND_WORD}</span>
-                <span className="sr-only">{BRAND}</span>
-              </div>
-              <p className="text-[2.3cqw] font-semibold uppercase tracking-[0.22em] text-white/85">Devriye Kontrol Noktası</p>
-            </div>
-            <div className="h-[0.9cqw] shrink-0 bg-brand" aria-hidden />
-
-            {/* Gövde */}
-            <div className="flex min-h-0 flex-1 flex-col items-center px-[8cqw] pt-[5cqw] text-center">
-              <p className="text-[2.4cqw] font-semibold uppercase tracking-[0.16em] text-slate-500">{l.projects?.organizations?.name ?? " "}</p>
-              <p className="mt-[1cqw] text-[3.3cqw] font-semibold text-slate-700 text-balance">{l.projects?.name}</p>
-              <h2 className={cn("mt-[3.5cqw] w-full font-extrabold text-slate-900 text-balance [overflow-wrap:anywhere]", nameSize(l.name))}>{l.name}</h2>
-
-              {/* QR + kod: kalan alanda dikey ortalı. QR beyaz zemin üstünde siyah; kütüphanenin ürettiği SVG, içerik yalnızca sistemin ürettiği kod */}
-              <div className="flex min-h-0 flex-1 flex-col items-center justify-center pb-[3cqw]">
-                <div className="w-[76cqw] rounded-[2cqw] border-[0.4cqw] border-slate-300 bg-white p-[2cqw]">
-                  <div className="aspect-square w-full [&>svg]:size-full" dangerouslySetInnerHTML={{ __html: l.svg }} aria-label={`${l.name} QR kodu`} role="img" />
-                </div>
-                <p className="mt-[3cqw] font-mono text-[4cqw] font-semibold tracking-widest text-slate-800">{l.code}</p>
-              </div>
-            </div>
-
-            {/* Alt bilgi */}
-            <div className="flex h-[6.5cqw] shrink-0 items-center justify-between border-t border-slate-200 bg-slate-50 px-[6cqw] text-[2.1cqw] text-slate-500">
-              <span className="font-mono tracking-wide">{host}</span>
-              <span className="flex items-center gap-[1cqw]"><LogoMark className="size-[3.4cqw]" /><span><span className="font-bold text-navy">{BRAND}</span> · {BRAND_TAGLINE}</span></span>
-            </div>
-          </article>
+        {sheets.map((sheet, s) => (
+          <div key={s} className="sheet rounded-lg shadow-card ring-1 ring-border" aria-label={`Sayfa ${s + 1}`}>
+            {sheet.map((l, i) => (
+              <LabelCard key={l.id} l={l} index={i} />
+            ))}
+          </div>
         ))}
       </div>
     </>

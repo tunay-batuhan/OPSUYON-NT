@@ -115,3 +115,95 @@ export function newPatrolPin(): string {
 }
 
 export const normalizeCode = (raw: string) => raw.trim().toUpperCase().replace(/\s+/g, "");
+
+/* ---------- devriye turu (rapor) ---------- */
+
+export type TourEndKind = "bitti" | "zaman_asimi" | "yeni_tur";
+/** patrol_tours satırı (token_hash hariç). Açık turda `missed` boştur; atlananlar canlı hesaplanır. */
+export type PatrolTour = {
+  id: string;
+  project_id: string;
+  personnel_id: string | null;
+  person_name: string;
+  started_at: string;
+  last_scan_at: string;
+  ended_at: string | null;
+  end_kind: TourEndKind | null;
+  points_total: number;
+  points_done: number;
+  missed: string[];
+};
+export const TOUR_COLUMNS = "id, project_id, personnel_id, person_name, started_at, last_scan_at, ended_at, end_kind, points_total, points_done, missed";
+
+export type TourStatus = "tamam" | "eksik" | "zaman_asimi" | "yeni_tur" | "devam";
+export const TOUR_STATUS: Record<TourStatus, { label: string; tone: "success" | "warning" | "danger" | "neutral" | "brand" }> = {
+  tamam: { label: "Tamamlandı", tone: "success" },
+  eksik: { label: "Eksik", tone: "warning" },
+  zaman_asimi: { label: "Zaman aşımı", tone: "danger" },
+  yeni_tur: { label: "Yeni turla kapandı", tone: "neutral" },
+  devam: { label: "Devam ediyor", tone: "brand" },
+};
+export const isTourStatus = (v: unknown): v is TourStatus => typeof v === "string" && Object.hasOwn(TOUR_STATUS, v);
+
+/** Turun durumu: açık → devam; görevli bitirdiyse atlanan yoksa tamam, varsa eksik; diğerleri kapanış türü. */
+export function tourStatus(t: Pick<PatrolTour, "end_kind" | "missed">): TourStatus {
+  if (!t.end_kind) return "devam";
+  if (t.end_kind === "bitti") return (t.missed?.length ?? 0) > 0 ? "eksik" : "tamam";
+  return t.end_kind;
+}
+
+/**
+ * Sürenin bittiği an: görevli bitirdiyse bitiş; zaman aşımı / yeni turla kapananda son okutma
+ * (kapanış anı son okutmadan 1 saat sonradır, süreyi şişirmesin); açık turda şimdi.
+ */
+export const tourEndAt = (t: Pick<PatrolTour, "end_kind" | "ended_at" | "last_scan_at">, now: Date = new Date()): string =>
+  t.end_kind === "bitti" && t.ended_at ? t.ended_at : t.end_kind ? t.last_scan_at : now.toISOString();
+
+/** "42 dk", "1 sa 05 dk", "1 dk'dan az" */
+export function fmtDuration(ms: number): string {
+  const min = Math.floor(Math.max(0, ms) / 60000);
+  if (min < 1) return "1 dk'dan az";
+  if (min < 60) return `${min} dk`;
+  return `${Math.floor(min / 60)} sa ${String(min % 60).padStart(2, "0")} dk`;
+}
+export const tourDuration = (t: Pick<PatrolTour, "started_at" | "end_kind" | "ended_at" | "last_scan_at">, now: Date = new Date()) =>
+  fmtDuration(Date.parse(tourEndAt(t, now)) - Date.parse(t.started_at));
+
+/** Tur raporu (PDF): her tur okutmalarıyla; tura bağlı olmayan eski okutmalar ayrıca. */
+export type TourReportTour = PatrolTour & {
+  status: TourStatus;
+  /** okutulan / toplam nokta ve atlananlar (açık turda canlı) */
+  done: number;
+  total: number;
+  missing: string[];
+  scans: (PatrolScanRow & { mark?: "start" | "end" })[];
+};
+export type TourReport = {
+  project: { id: string; name: string; organization: string | null };
+  start: string; // YYYY-MM-DD
+  end: string; // YYYY-MM-DD (dahil)
+  filters: { status: TourStatus | null; person: string | null };
+  /** aktif kontrol noktaları (başlat/bitir etiketi hariç) */
+  points: PatrolPoint[];
+  tours: TourReportTour[];
+  /** tura bağlı olmayan (eski sistem) okutmalar */
+  legacy: PatrolScanRow[];
+  /** nokta id → ad (başlat/bitir etiketi ve pasif noktalar dahil) */
+  pointNames: Record<string, string>;
+};
+
+/**
+ * Nokta bazında tur özeti: her kontrol noktası kaç turda okutuldu, kaç turda atlandı.
+ * Atlanma, kapanmış turun dondurulmuş atlanan listesinden (ada göre) sayılır; açık turlar henüz atlamış sayılmaz.
+ */
+export function checkpointStats(
+  points: { id: string; name: string }[],
+  tours: { closed: boolean; missed: string[]; scanned: Set<string> }[],
+): { id: string; name: string; scanned: number; missed: number }[] {
+  return points.map((p) => ({
+    id: p.id,
+    name: p.name,
+    scanned: tours.filter((t) => t.scanned.has(p.id)).length,
+    missed: tours.filter((t) => t.closed && !t.scanned.has(p.id) && t.missed.includes(p.name)).length,
+  }));
+}

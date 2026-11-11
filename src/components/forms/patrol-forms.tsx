@@ -16,7 +16,7 @@ export function PatrolPointsAddForm({ projectId }: { projectId: string }) {
         label="Nokta adları"
         rows={4}
         placeholder={"A Blok Girişi\nOtopark -1\nYangın Merdiveni"}
-        hint="Her satıra bir nokta adı yazın; birden çok satır yazarak hepsini birlikte ekleyebilirsiniz."
+        hint="Her satıra bir nokta adı yazın; birden çok satır yazarak hepsini birlikte ekleyebilirsiniz. “Devriye başlat / bitir” etiketi kendiliğinden oluşur, onu eklemeyin."
       />
       <SubmitButton>
         <Plus className="size-4" aria-hidden /> Noktaları ekle

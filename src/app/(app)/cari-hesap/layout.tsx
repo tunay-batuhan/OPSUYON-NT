@@ -4,7 +4,10 @@ import { getCurrentUser } from "@/lib/auth";
 import { getEnabledModules } from "@/lib/modules";
 import { sectionPages } from "@/lib/menu";
 
-/** Cari Hesap: sabit başlık + sekmeler (Cari Ekstre / Faturalar); sekme değişince yalnızca içerik yüklenir. */
+/**
+ * Cari Hesap: sabit başlık + sekmeler; sekme değişince yalnızca içerik yüklenir.
+ * Merkez: Cari Hesap / Fatura girişi / Tahsilat girişi · Müşteri: Cari Hesap / Faturalar.
+ */
 export default async function LedgerLayout({ children }: { children: ReactNode }) {
   const [user, on] = await Promise.all([getCurrentUser(), getEnabledModules()]);
   return (
@@ -13,7 +16,9 @@ export default async function LedgerLayout({ children }: { children: ReactNode }
         title="Cari Hesap"
         tabs={user ? sectionPages("cari", user, on) : []}
         descriptions={{
-          "/cari-hesap": "Son yüklenen cari ekstre ve güncel bakiye. Ekstreyi PDF olarak indirebilirsiniz.",
+          "/cari-hesap": "Firma bazında faturalar, tahsilatlar ve bakiye (tüm faturalar − tüm tahsilatlar).",
+          "/cari-hesap/fatura-ekle": "Firmaya fatura girin: tarih, saat, açıklama ve genel toplam.",
+          "/cari-hesap/tahsilat-ekle": "Firmadan yapılan tahsilatı girin: tarih, saat, açıklama ve tahsilat tutarı.",
           "/cari-hesap/faturalar": "Ay ve yıl seçin; o döneme ait faturayı PDF olarak indirin.",
         }}
       />

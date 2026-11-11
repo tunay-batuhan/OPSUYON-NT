@@ -30,6 +30,7 @@ const tableNames: Record<string, string> = {
   documents: "Belge",
   leave_records: "İzin kaydı",
   ledger_statements: "Cari hesap ekstresi",
+  firm_ledger_entries: "Cari hareket (fatura / tahsilat)",
   invoices: "Fatura",
   payments: "Ödeme",
   app_modules: "Müşteri modülü",

@@ -242,3 +242,30 @@ Not: "4TB – 12.000 ₺ + KDV" satırı teklif notu olarak okundu, sisteme yans
 
 Kalan: proje içi sekmelerde (Personel, Belgeler, İzinler, Puantaj) ekleme formu ile liste hâlâ aynı sayfada.
 
+
+## 11. 11 Kasım: cari hesap, bildirim, izin günü hesabı
+| İstek | Uygulama |
+|---|---|
+| Formlar form ekranında silinebilsin | Listede her satırda onaylı **Sil** düğmesi (silme vardı ama silik bir ikondu) |
+| Danışma projeleri de devriye kullanabilsin | Kod zaten izin veriyor (Güvenlik, Danışma, Tesis Yönetimi). Mevcut Danışma projelerinin hepsi 9 Kasım'da Pasif yapılmış; Pasif proje devriye listesinde görünmez. Aktif bir Danışma projesi listede çıkar |
+| Görevden alma çalışmıyor, başka projeye atanamıyor | Görevden almalar veritabanına işlenmişti; engel "personel yalnızca kendi firmasının projesine atanır" kuralıydı ve ekran söylemiyordu → atama kartına not. Ayrıca sessiz hata yolu kapatıldı: Türkiye saatiyle tarih, ileri tarihli atama iptal edilir, onay penceresi + sonuç/hata mesajı, personel kartından da görevden alma |
+| Cari Hesap: fatura ve tahsilat girişi firma bazlı; bakiye = faturalar − tahsilatlar | `firm_ledger_entries` (firma, tür, tarih, saat, açıklama, tutar) + `firm_ledger_balances` / `firm_ledger_movements` görünümleri. Sekmeler: Cari Hesap · Fatura girişi · Tahsilat girişi. Müşteri kendi firmasını görür. Eski Excel ekstre ekranı kaldırıldı (tablolar duruyor) |
+| Raporlar ekranı gereksiz | Ekran, menü, Excel servisi ve modül satırı kaldırıldı |
+| Bildirim animasyonu; müşteri → merkez bildirimi çalışmıyor | Veri doğruydu; zil sayısı ortak düzende bir kez çiziliyor ve sayfa değişse de yenilenmiyordu. Zil artık 25 sn'de bir ve sekmeye dönünce kendini günceller (`/api/notifications/count`), artışta sallanır |
+| İzin: resmi tatil, hafta sonu, yarım gün | Karma çözüm: sistem önerir, yönetici düzeltir. `src/lib/leave-days.ts` (hafta tatili + resmi tatiller sayılmaz, yarım gün tatil 0,5), formda Hafta tatili seçimi ve döküm kutusu; `public_holidays` tablosu + **Resmi tatiller** sekmesi; izin gününü ve kalan bakiyeyi elle düzeltme (`leave-edit.tsx`) |
+
+Açık kararlar: (1) Danışma projeleri Aktif yapılsın mı? (2) ✅ Firmalar arası geçiş: aktif görev yokken Süper Yönetici personel kartından firmayı değiştirir (geçmiş görevi olan personelde yalnızca Süper Yönetici; hiç ataması yoksa personel yöneticisi de). (3) Merkez ana sayfasında "Okunmamış Mesaj" kutusu gösterilsin mi? (4) 2028+ dini bayram tarihleri açıklanınca Resmi tatiller'e eklenmeli.
+
+## 12. Devriye TURU (11 Kasım — yapı değişti)
+Devriye, manyetik kalem/anahtar sisteminin QR karşılığıdır: **başlatılır, noktalar okutulur, bitirilir.**
+| Konu | Karar / uygulama |
+|---|---|
+| Başlatma | Projenin tek **“Devriye başlat / bitir”** etiketi (`patrol_points.kind = 'tur'`, ilk nokta eklenince kendiliğinden oluşur). Okutulunca PIN + ad sorulur, tur açılır (`patrol_tours`), telefon çerezle tura bağlanır (veritabanında yalnızca özet) |
+| Noktalar | PIN/ad sorulmaz; sayfa açılınca okutma tura yazılır. Sıra serbest. Tur başlatılmadan okutulan nokta **kaydedilmez** |
+| Bitirme | Aynı etiket tekrar okutulur → durum + okutulmayan noktalar + **Devriyeyi bitir** düğmesi. Kendiliğinden bitmez (çift okutma korkusu). Eksikle bitirirken onay sorar |
+| Bitirilmeyen tur | Son okutmadan **1 saat** sonra "Zaman aşımı" ile kapanır |
+| Telefon turu tanımazsa | "Devriyeyi başlattım ama telefon tanımadı" → PIN + ad ile açık tura yeniden bağlanır |
+| Rapor | Devriye Kayıtları tur bazlı: Tamamlandı / Eksik / Zaman aşımı / Devam ediyor / Yeni turla kapandı; atlanan noktalar; Nokta durumu (kaç turda atlandı); PDF de tur bazlı. Eski (tursuz) okutmalar ayrı kartta |
+| Etiket | **A7** (74×105 mm), A4 yatayda 8 adet, başlıkta logo; başlat/bitir etiketi lacivert başlıklı |
+Kod: migration `20261111000600_patrol_tours.sql` (kurallar veritabanında: `patrol_tour_scan/start/end/resume`), `src/app/actions/patrol-tour.ts`, `src/components/patrol-scan.tsx`, `src/lib/patrol-report.ts`.
+Sonraya: planlı tur saatleri ve "tur atılmadı" uyarısı, devriye fotoğrafı, raporun telefonlara gönderilmesi.

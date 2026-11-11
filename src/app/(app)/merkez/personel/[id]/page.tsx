@@ -18,15 +18,19 @@ export default async function PersonnelCardPage({ params }: PageProps<"/merkez/p
 
   const sensitive = hasPermission(user, "personnel.sensitive.read");
   const manage = hasPermission(user, "personnel.manage");
-  const [lines, { data: person }, priv, { data: orgRows }] = await Promise.all([
+  const [lines, { data: person }, priv, { data: orgRows }, { data: asg }] = await Promise.all([
     getServiceLines(),
     supabase.from("personnel").select("*").eq("id", id).maybeSingle(),
     sensitive ? supabase.from("personnel_private").select("national_id, iban").eq("personnel_id", id).maybeSingle() : null,
     supabase.from("organizations").select("id, name").order("name"),
+    supabase.from("personnel_assignments").select("end_date").eq("personnel_id", id),
   ]);
   if (!person) notFound();
   const p = person as Personnel;
   const orgs = (orgRows ?? []) as { id: string; name: string }[];
+  // Firmalar arası geçiş: aktif görev varken olmaz; geçmiş görevi olan personeli yalnızca Süper Yönetici geçirir
+  const assignments = (asg ?? []) as { end_date: string | null }[];
+  const orgChange = assignments.some((a) => !a.end_date) ? "active" : assignments.length === 0 ? "free" : user.roleCode === "super_admin" ? "super" : "locked";
 
   const sizes = [
     p.pants_size && `Pantolon ${p.pants_size}`,
@@ -71,6 +75,7 @@ export default async function PersonnelCardPage({ params }: PageProps<"/merkez/p
           lines={lines.map((l) => ({ value: l.code, label: l.name }))}
           orgs={orgs.map((o) => ({ value: o.id, label: o.name }))}
           canSensitive={sensitive}
+          orgChange={orgChange}
         />
       </Card>
       <Card>

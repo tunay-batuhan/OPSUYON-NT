@@ -57,6 +57,9 @@ export default async function LedgerPage({ params }: PageProps<"/projeler/[id]/f
             <p className="mt-1 text-xl font-semibold tabular-nums">{formatMoney(totalCredit)}</p>
           </div>
         </div>
+        <p className="border-t border-border px-5 py-3 text-xs text-muted">
+          Bu bakiye proje için yüklenen Excel ekstresine aittir. Firmanın güncel cari bakiyesi (faturalar − tahsilatlar) <Link href="/cari-hesap" className="font-medium text-brand hover:underline">Cari Hesap</Link> ekranındadır.
+        </p>
       </Card>
 
       <Card>

@@ -6,6 +6,7 @@ import { NavForm } from "@/components/nav-progress";
 import { FilterBar, yearOptions } from "@/components/filter-bar";
 import { Pagination } from "@/components/pagination";
 import { LeaveDocCell } from "@/components/forms/leave-forms";
+import { LeaveBalanceEdit, LeaveDaysEdit } from "@/components/leave-edit";
 import { redirect } from "next/navigation";
 import { hasPermission, requireUser } from "@/lib/auth";
 import { getEnabledModules } from "@/lib/modules";
@@ -155,7 +156,10 @@ export default async function LeavesAllPage({ searchParams }: PageProps<"/izinle
                       <td className={td}>{formatDate(r.start_date)}</td>
                       <td className={td}>{formatDate(r.end_date)}</td>
                       <td className={td}>{formatDate(r.return_date)}</td>
-                      <td className={cn(tdNum, "font-medium")}>{formatNumber(r.days)} gün</td>
+                      <td className={cn(tdNum, "whitespace-nowrap font-medium")}>
+                        {formatNumber(r.days)} gün
+                        {manage && <span className="ml-1 align-middle"><LeaveDaysEdit id={r.id} days={Number(r.days)} name={r.personnel?.full_name ?? "Personel"} /></span>}
+                      </td>
                       <td className={cn(tdNum, "font-semibold", left !== null && left < 0 && "text-danger")}>{left === null ? "—" : `${formatNumber(left)} gün`}</td>
                       <td className={td}><LeaveDocCell recordId={r.id} projectId={r.project_id} documentId={r.document_id} canManage={manage} /></td>
                       {manage && (
@@ -178,7 +182,7 @@ export default async function LeavesAllPage({ searchParams }: PageProps<"/izinle
         <Card id="bakiyeler" className="scroll-mt-4">
           <CardHeader
             title={`${year} yıllık izin bakiyeleri`}
-            description={`${bTotal} personel · hak edilen, devreden ve kullanılan; kalan = hak + devreden − kullanılan. Yıllık izin kaydedilince bakiye yoksa yasal hakla açılır.`}
+            description={`${bTotal} personel · kalan = hak edilen + devreden − kullanılan. Yıllık izin kaydedilince bakiye yoksa yasal hakla açılır${manage ? "; her satırdaki “Düzelt” ile kalan izni elle değiştirebilirsiniz" : ""}.`}
             action={manage && isUuid(projectId) ? <Link href={`/projeler/${projectId}/izinler`} className="text-sm font-medium text-brand">Bakiye gir</Link> : undefined}
           />
           <NavForm action="/izinler#bakiyeler" className="flex flex-wrap items-center gap-2 border-b border-border px-5 py-3">
@@ -208,7 +212,7 @@ export default async function LeavesAllPage({ searchParams }: PageProps<"/izinle
             <EmptyState title={bSearch || name || isUuid(projectId) ? "Aramaya uyan personel bakiyesi yok" : "Bu yıl için izin bakiyesi yok"} />
           ) : (
             <>
-              <Table numeric={[2, 3, 4, 5]} head={["Personel", "Proje", "Hak edilen", "Devreden", "Kullanılan", "Kalan (kayıtlar dahil)"]}>
+              <Table numeric={[2, 3, 4, 5]} head={["Personel", "Proje", "Hak edilen", "Devreden", "Kullanılan", "Kalan (kayıtlar dahil)", manage ? "" : null].filter((h) => h !== null)}>
                 {balances.map((b) => {
                   const left = remainingFor(b.personnel_id) ?? Number(b.remaining_days);
                   return (
@@ -219,6 +223,19 @@ export default async function LeavesAllPage({ searchParams }: PageProps<"/izinle
                       <td className={tdNum}>{formatNumber(b.carried_days)}</td>
                       <td className={tdNum}>{formatNumber(Number(b.used_days) + (usedByRecords.get(b.personnel_id) ?? 0))}</td>
                       <td className={cn(tdNum, "font-semibold", left < 0 && "text-danger")}>{formatNumber(left)}</td>
+                      {manage && (
+                        <td className={cn(td, "text-right")}>
+                          <LeaveBalanceEdit
+                            id={b.id}
+                            name={b.personnel?.full_name ?? "Personel"}
+                            year={year}
+                            entitled={Number(b.entitled_days)}
+                            carried={Number(b.carried_days)}
+                            used={Number(b.used_days)}
+                            recorded={usedByRecords.get(b.personnel_id) ?? 0}
+                          />
+                        </td>
+                      )}
                     </tr>
                   );
                 })}

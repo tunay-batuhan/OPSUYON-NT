@@ -1,9 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Download, FileText, Search, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, FileText, Search } from "lucide-react";
 import { Card, CardHeader, EmptyState, cn, inputCls } from "@/components/ui";
 import { deleteFormTemplate } from "@/app/actions/forms";
+import { DeleteDocButton } from "@/components/delete-doc-button";
 import { ViewButton } from "@/components/doc-viewer";
 import { formatBytes } from "@/lib/format";
 import { PAGE_SIZE, pageCount } from "@/lib/paging";
@@ -84,12 +85,13 @@ export function FormsLibrary({ items, manage }: { items: FormItem[]; manage: boo
                 </a>
                 <ViewButton src={`/api/forms/${f.id}/view`} title={f.title} downloadHref={`/api/forms/${f.id}`} />
                 {manage && (
-                  <form action={deleteFormTemplate}>
-                    <input type="hidden" name="id" value={f.id} />
-                    <button className="rounded-lg p-1.5 text-muted hover:bg-danger-soft hover:text-danger" aria-label={`${f.title} formunu sil`}>
-                      <Trash2 className="size-4" aria-hidden />
-                    </button>
-                  </form>
+                  <DeleteDocButton
+                    id={f.id}
+                    title={f.title}
+                    back="/formlar"
+                    action={deleteFormTemplate}
+                    confirm={{ description: "Form şablonu ve dosyası kalıcı olarak silinir; müşteriler artık göremez. Bu işlem geri alınamaz." }}
+                  />
                 )}
               </div>
             </li>

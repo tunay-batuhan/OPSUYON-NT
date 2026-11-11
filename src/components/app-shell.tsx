@@ -8,6 +8,7 @@ import { Assistant } from "@/components/assistant";
 import { DocViewerHost, DocViewerProvider } from "@/components/doc-viewer";
 import { Logo } from "@/components/logo";
 import { NavForm } from "@/components/nav-progress";
+import { NotifAnnouncer, NotifBadge, RingingBell, useLiveNotifications } from "@/components/notification-bell";
 import { Nav, type NavItem } from "@/components/nav";
 import { logoutAction } from "@/app/actions/auth";
 import { cn } from "@/components/ui";
@@ -41,15 +42,6 @@ function SidebarBody({ items, home, onNavigate, onClose }: { items: NavItem[]; h
   );
 }
 
-function Badge({ n }: { n: number }) {
-  if (!n) return null;
-  return (
-    <span className="absolute -right-1 -top-1 grid min-w-5 place-items-center rounded-full bg-[var(--tone-amber)] px-1 text-[11px] font-bold leading-5 text-white ring-2 ring-white">
-      {n > 99 ? "99+" : n}
-    </span>
-  );
-}
-
 /**
  * Desktop: navy sidebar + top bar (greeting, search, bell, avatar).
  * Mobile/tablet: navy top bar with hamburger + drawer, and a bottom tab bar (Mesajlar, Bildirimler, Profil).
@@ -59,6 +51,8 @@ export function AppShell({
 }: { items: NavItem[]; user: ShellUser; home: string; kind: "staff" | "customer"; notifications: number; unreadMessages: number; assistant?: boolean; children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
+  // Zil sayısı canlı: layout gezinmede yeniden çizilmez, sayılar yoklanarak tazelenir (notification-bell.tsx)
+  const live = useLiveNotifications(notifications, unreadMessages, pathname);
 
   useEffect(() => {
     if (!open) return;
@@ -74,10 +68,10 @@ export function AppShell({
   // Müşteride Mesajlar menüsü kapalı (ana sayfada görünür): alt çubuk Ana Sayfa · Bildirimler · Profil
   const tabs = [
     kind === "staff"
-      ? { href: "/mesajlar", label: "Mesajlar", Icon: MessageSquare, badge: unreadMessages }
-      : { href: home, label: "Ana Sayfa", Icon: Home, badge: unreadMessages },
-    { href: "/bildirimler", label: "Bildirimler", Icon: Bell, badge: notifications },
-    { href: "/profil", label: "Profil", Icon: UserRound, badge: 0 },
+      ? { href: "/mesajlar", label: "Mesajlar", Icon: MessageSquare, badge: live.unread, pop: live.ringUnread, ring: 0 }
+      : { href: home, label: "Ana Sayfa", Icon: Home, badge: live.unread, pop: live.ringUnread, ring: 0 },
+    { href: "/bildirimler", label: "Bildirimler", Icon: Bell, badge: live.total, pop: live.ringTotal, ring: live.ringTotal },
+    { href: "/profil", label: "Profil", Icon: UserRound, badge: 0, pop: 0, ring: 0 },
   ];
 
   return (
@@ -142,9 +136,9 @@ export function AppShell({
                 className="h-10 w-72 rounded-full border border-border bg-surface pl-9 pr-4 text-sm placeholder:text-muted/70 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
               />
             </NavForm>
-            <Link href="/bildirimler" className="relative grid size-10 place-items-center rounded-full border border-border bg-surface text-muted hover:text-fg" aria-label={`Bildirimler${notifications ? ` (${notifications})` : ""}`}>
-              <Bell className="size-5" aria-hidden />
-              <Badge n={notifications} />
+            <Link href="/bildirimler" className="relative grid size-10 place-items-center rounded-full border border-border bg-surface text-muted hover:text-fg" aria-label={`Bildirimler${live.total ? ` (${live.total})` : ""}`}>
+              <RingingBell ring={live.ringTotal} className="size-5" />
+              <NotifBadge n={live.total} pop={live.ringTotal} />
             </Link>
             <Link href="/profil" className="flex items-center gap-2.5 rounded-full border border-border bg-surface py-1 pl-1 pr-4 hover:border-brand" aria-label="Profil">
               <span className="grid size-8 place-items-center rounded-full bg-[var(--navy)] text-xs font-bold text-white" aria-hidden>{user.initials}</span>
@@ -168,13 +162,13 @@ export function AppShell({
 
       {/* mobile bottom tab bar */}
       <nav aria-label="Hızlı erişim" className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-3 border-t border-border bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
-        {tabs.map(({ href, label, Icon, badge }) => {
+        {tabs.map(({ href, label, Icon, badge, pop, ring }) => {
           const active = pathname === href || pathname.startsWith(href + "/");
           return (
-            <Link key={href} href={href} aria-current={active ? "page" : undefined} className={cn("relative flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium", active ? "text-brand" : "text-muted")}>
+            <Link key={href} href={href} aria-label={badge ? `${label} (${badge})` : undefined} aria-current={active ? "page" : undefined} className={cn("relative flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium", active ? "text-brand" : "text-muted")}>
               <span className="relative">
-                <Icon className="size-5" aria-hidden />
-                <Badge n={badge} />
+                {Icon === Bell ? <RingingBell ring={ring} className="size-5" /> : <Icon className="size-5" aria-hidden />}
+                <NotifBadge n={badge} pop={pop} />
               </span>
               {label}
             </Link>
@@ -182,6 +176,7 @@ export function AppShell({
         })}
       </nav>
 
+      <NotifAnnouncer text={live.announce} />
       {assistant && <Assistant kind={kind} />}
     </div>
   );

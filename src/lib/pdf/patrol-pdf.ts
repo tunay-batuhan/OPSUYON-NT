@@ -1,7 +1,10 @@
 import { PDFDocument, rgb, type PDFFont, type PDFPage, type RGB } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 import { ROBOTO_MEDIUM_B64, ROBOTO_REGULAR_B64 } from "@/lib/pdf/roboto";
-import { fmtClock, fmtDateTime, fmtDay, fmtDayLong, locationLabel, type DailyReport, type PatrolPoint, type PatrolScanRow, type RangeReport } from "@/lib/patrol";
+import {
+  TOUR_STATUS, checkpointStats, fmtClock, fmtDateTime, fmtDay, fmtDayLong, istanbulDay, locationLabel, tourDuration,
+  type PatrolScanRow, type TourReport, type TourReportTour, type TourStatus,
+} from "@/lib/patrol";
 
 const W = 595.28;
 const H = 841.89;
@@ -19,8 +22,8 @@ const BAD = rgb(0.8, 0.15, 0.15);
 type Col = { label: string; width: number; align?: "left" | "right" | "center" };
 type Box = [label: string, value: string, color: RGB];
 
-/** Günlük ve aralık raporlarının ortak iskeleti: başlık bandı, künye, özet kutuları, sayfa kıran tablo, alt bilgi. */
-async function createReportDoc(title: string, project: DailyReport["project"]) {
+/** Raporun ortak iskeleti: başlık bandı, künye, özet kutuları, sayfa kıran tablo, tur başlığı, alt bilgi. */
+async function createReportDoc(title: string, project: TourReport["project"]) {
   const doc = await PDFDocument.create();
   doc.registerFontkit(fontkit);
   doc.setTitle(title);
@@ -36,6 +39,20 @@ async function createReportDoc(title: string, project: DailyReport["project"]) {
     let t = text;
     while (t.length > 1 && font.widthOfTextAtSize(t + "…", size) > max) t = t.slice(0, -1);
     return t + "…";
+  };
+  /** Metni verilen genişliğe sığacak satırlara böler (kelime kelime). */
+  const wrap = (text: string, max: number, size: number, font: PDFFont) => {
+    const lines: string[] = [];
+    let cur = "";
+    for (const w of text.split(/\s+/)) {
+      const next = cur ? `${cur} ${w}` : w;
+      if (cur && font.widthOfTextAtSize(next, size) > max) {
+        lines.push(cur);
+        cur = w;
+      } else cur = next;
+    }
+    if (cur) lines.push(cur);
+    return lines.map((l) => fit(l, max, size, font));
   };
   const text = (s: string, x: number, yy: number, size = 9, font = regular, color = INK) => page.drawText(s, { x, y: yy, size, font, color });
   const newPage = () => {
@@ -70,15 +87,35 @@ async function createReportDoc(title: string, project: DailyReport["project"]) {
       const x = M + i * (bw + gap);
       page.drawRectangle({ x, y: y - 46, width: bw, height: 46, color: SOFT, borderColor: LINE, borderWidth: 0.7 });
       text(value, x + 10, y - 24, 18, bold, color);
-      text(label, x + 10, y - 39, 8, regular, MUTED);
+      text(fit(label, bw - 16, 8, regular), x + 10, y - 39, 8, regular, MUTED);
     });
     y -= 46 + 22;
   };
 
-  const table = (title: string, cols: Col[], rows: string[][], rowColors?: (RGB | undefined)[][]) => {
-    ensure(40);
+  /** Bölüm başlığı (lacivert). */
+  const heading = (title: string) => {
+    ensure(60);
     text(title, M, y, 11.5, bold, NAVY);
-    y -= 10;
+    y -= 18;
+  };
+
+  /** Sarılan paragraf. */
+  const paragraph = (s: string, color = MUTED, size = 9) => {
+    for (const line of wrap(s, W - 2 * M - 12, size, regular)) {
+      ensure(14);
+      text(line, M + 6, y, size, regular, color);
+      y -= size + 4;
+    }
+    y -= 4;
+  };
+
+  /** Tablo; `title` boşsa başlık yazılmaz (tur bloğunun altındaki okutmalar). */
+  const table = (title: string | null, cols: Col[], rows: string[][], rowColors?: (RGB | undefined)[][], empty = "Kayıt yok") => {
+    ensure(title ? 60 : 44);
+    if (title) {
+      text(title, M, y, 11.5, bold, NAVY);
+      y -= 10;
+    }
     const drawHead = () => {
       page.drawRectangle({ x: M, y: y - 20, width: W - 2 * M, height: 20, color: SOFT });
       let cx = M;
@@ -93,7 +130,7 @@ async function createReportDoc(title: string, project: DailyReport["project"]) {
     };
     drawHead();
     if (rows.length === 0) {
-      text("Kayıt yok", M + 6, y - 14, 9, regular, MUTED);
+      text(empty, M + 6, y - 14, 9, regular, MUTED);
       y -= 26;
       return;
     }
@@ -118,175 +155,175 @@ async function createReportDoc(title: string, project: DailyReport["project"]) {
     y -= 18;
   };
 
+  /** Tur bloğunun başlık şeridi: solda başlık, sağda renkli durum; altında ayrıntı satırı. */
+  const tourHeader = (title: string, status: string, statusColor: RGB, detail: string) => {
+    ensure(22 + 16 + 20 + 3 * 18); // başlık + ayrıntı + tablo başı + birkaç satır aynı sayfada kalsın
+    page.drawRectangle({ x: M, y: y - 22, width: W - 2 * M, height: 22, color: SOFT, borderColor: LINE, borderWidth: 0.7 });
+    const sw = bold.widthOfTextAtSize(status, 9.5);
+    text(fit(title, W - 2 * M - sw - 30, 10.5, bold), M + 8, y - 15, 10.5, bold, INK);
+    text(status, W - M - 8 - sw, y - 15, 9.5, bold, statusColor);
+    y -= 22 + 13;
+    text(fit(detail, W - 2 * M - 12, 9, regular), M + 6, y, 9, regular, INK);
+    y -= 12;
+  };
+
+  const gap = (h: number) => {
+    y -= h;
+  };
+
   const finish = async () => {
     const pages = doc.getPages();
     pages.forEach((pg, i) => {
       pg.drawLine({ start: { x: M, y: M + 6 }, end: { x: W - M, y: M + 6 }, thickness: 0.5, color: LINE });
-      pg.drawText("Bu rapor OPSÜYON tarafından devriye okutma kayıtlarından otomatik oluşturulmuştur.", { x: M, y: M - 6, size: 7.5, font: regular, color: MUTED });
+      pg.drawText("Bu rapor OPSÜYON tarafından devriye tur ve okutma kayıtlarından otomatik oluşturulmuştur.", { x: M, y: M - 6, size: 7.5, font: regular, color: MUTED });
       const label = `Sayfa ${i + 1} / ${pages.length}`;
       pg.drawText(label, { x: W - M - regular.widthOfTextAtSize(label, 7.5), y: M - 6, size: 7.5, font: regular, color: MUTED });
     });
     return doc.save();
   };
 
-  return { info, boxes, table, finish };
+  return { info, boxes, heading, paragraph, table, tourHeader, gap, finish };
 }
 
-const SCAN_COLS: Col[] = [
-  { label: "#", width: 30, align: "right" },
-  { label: "Saat", width: 65, align: "center" },
-  { label: "Nokta", width: 175 },
-  { label: "Okutan", width: 150 },
-  { label: "Konum", width: 95, align: "center" },
-];
+const STATUS_COLOR: Record<TourStatus, RGB> = { tamam: OK, eksik: WARN, zaman_asimi: BAD, yeni_tur: MUTED, devam: BRAND };
 
-const scanRows = (scans: PatrolScanRow[], pointName: Map<string, string>) => ({
-  rows: scans.map((s, i) => [String(i + 1), fmtClock(s.scanned_at), pointName.get(s.point_id) ?? "—", s.by, locationLabel(s).text]),
-  colors: scans.map((s) => [undefined, undefined, undefined, undefined, locationLabel(s).far ? BAD : undefined]),
-});
+/** Aralık tek günse yalnızca saat, değilse "GG.AA SS:DD". */
+const when = (ts: string, oneDay: boolean, seconds = false) => (oneDay ? fmtClock(ts, seconds) : `${fmtDay(istanbulDay(ts)).slice(0, 5)} ${fmtClock(ts, seconds)}`);
 
-const groupByPoint = (scans: PatrolScanRow[]) => {
-  const byPoint = new Map<string, PatrolScanRow[]>();
-  for (const s of scans) byPoint.set(s.point_id, [...(byPoint.get(s.point_id) ?? []), s]);
-  return byPoint;
+/** Bitiş hücresi: görevli bitirdiyse / yeni turla kapandıysa saat, zaman aşımında son okutma, açıkta "—". */
+const endText = (t: TourReportTour) => {
+  if (t.status === "devam") return "—";
+  if (t.status === "zaman_asimi") return `son okutma ${fmtClock(t.last_scan_at, false)}`;
+  // gece yarısını geçen turda bitişin günü de yazılır
+  return istanbulDay(t.ended_at!) === istanbulDay(t.started_at) ? fmtClock(t.ended_at!, false) : when(t.ended_at!, false);
 };
 
-/** Günlük devriye raporunu (Türkçe karakter destekli) PDF olarak üretir. */
-export async function buildPatrolReportPdf(r: DailyReport): Promise<Uint8Array> {
-  const d = await createReportDoc(`Devriye Raporu - ${r.project.name} - ${r.date}`, r.project);
-
-  d.info([
-    ["Firma", r.project.organization ?? "—"],
-    ["Proje", r.project.name],
-    ["Tarih", fmtDayLong(r.date)],
-    ["Rapor oluşturma", fmtDateTime(new Date())],
-  ]);
-
-  const scannedIds = new Set(r.scans.map((s) => s.point_id));
-  const total = r.points.length;
-  const done = r.points.filter((p) => scannedIds.has(p.id)).length;
-  d.boxes([
-    ["Toplam nokta", String(total), INK],
-    ["Okutulan nokta", String(done), OK],
-    ["Okutulmayan nokta", String(total - done), total - done > 0 ? BAD : INK],
-    ["Toplam okutma", String(r.scans.length), BRAND],
-  ]);
-
-  const byPoint = groupByPoint(r.scans);
-  d.table(
-    "Nokta özeti",
-    [
-      { label: "Nokta", width: 215 },
-      { label: "Okutma", width: 55, align: "right" },
-      { label: "İlk okutma", width: 75, align: "center" },
-      { label: "Son okutma", width: 75, align: "center" },
-      { label: "Durum", width: 95, align: "center" },
-    ],
-    r.points.map((p) => {
-      const list = byPoint.get(p.id) ?? [];
-      return [p.name, String(list.length), list.length ? fmtClock(list[0].scanned_at, false) : "—", list.length ? fmtClock(list[list.length - 1].scanned_at, false) : "—", list.length ? "Okutuldu" : "Okutulmadı"];
-    }),
-    r.points.map((p) => [undefined, undefined, undefined, undefined, (byPoint.get(p.id) ?? []).length ? OK : BAD]),
-  );
-
-  const pointName = new Map(r.points.map((p) => [p.id, p.name]));
-  const sr = scanRows(r.scans, pointName);
-  d.table("Okutma kayıtları", SCAN_COLS, sr.rows, sr.colors);
-
-  return d.finish();
-}
-
 /**
- * Tarih aralığı (haftalık / aylık) raporu: günlük özet tablosu, nokta bazında kaç günde okutulduğu
- * ve gün gün okutma kayıtları. Müşteri bu PDF'i saklayarak 1 aylık saklama süresinden sonra da geçmişe bakabilir.
+ * Tur tabanlı devriye raporu (günlük ya da tarih aralığı): üstte özet ve nokta bazında atlanma tablosu,
+ * ardından turların listesi ve her turun okutmaları; tura bağlı olmayan eski okutmalar en sonda.
+ * Müşteri bu PDF'i saklayarak 1 aylık saklama süresinden sonra da geçmişe bakabilir.
  */
-export async function buildPatrolRangePdf(r: RangeReport): Promise<Uint8Array> {
-  const d = await createReportDoc(`Devriye Raporu - ${r.project.name} - ${r.start} - ${r.end}`, r.project);
-  const pointName = new Map(r.points.map((p) => [p.id, p.name]));
-  const total = r.points.length;
+export async function buildPatrolTourPdf(r: TourReport): Promise<Uint8Array> {
+  const oneDay = r.start === r.end;
+  const d = await createReportDoc(`Devriye Raporu - ${r.project.name} - ${oneDay ? r.start : `${r.start} - ${r.end}`}`, r.project);
+  const dayCount = Math.round((Date.parse(r.end) - Date.parse(r.start)) / 86400000) + 1;
+  const filterText = [r.filters.status && `Durum: ${TOUR_STATUS[r.filters.status].label}`, r.filters.person && `Personel: “${r.filters.person}”`].filter(Boolean).join(" · ");
 
   d.info([
     ["Firma", r.project.organization ?? "—"],
     ["Proje", r.project.name],
-    ["Tarih aralığı", `${fmtDay(r.start)} – ${fmtDay(r.end)} (${r.days.length} gün)`],
+    oneDay ? ["Tarih", fmtDayLong(r.start)] : ["Tarih aralığı", `${fmtDay(r.start)} – ${fmtDay(r.end)} (${dayCount} gün)`],
+    ...(filterText ? [["Filtre", filterText] as [string, string]] : []),
     ["Rapor oluşturma", fmtDateTime(new Date())],
   ]);
 
-  const dayStats = r.days.map((day) => {
-    const ids = new Set(day.scans.map((s) => s.point_id));
-    const done = r.points.filter((p) => ids.has(p.id)).length;
-    return { ...day, done, state: day.scans.length === 0 ? "none" : done < total ? "partial" : "full" } as const;
-  });
-  const withPatrol = dayStats.filter((x) => x.scans.length > 0).length;
-  const fullDays = dayStats.filter((x) => x.state === "full").length;
-  const allScans = r.days.flatMap((x) => x.scans);
-  const coverage = total && r.days.length ? Math.round((dayStats.reduce((a, x) => a + x.done, 0) / (total * r.days.length)) * 100) : 0;
+  /* ---- özet ---- */
+  const count = (s: TourStatus) => r.tours.filter((t) => t.status === s).length;
+  const missedTotal = r.tours.filter((t) => t.status !== "devam").reduce((a, t) => a + t.missing.length, 0);
+  const late = count("zaman_asimi");
+  const partial = count("eksik");
   d.boxes([
-    ["Gün sayısı", String(r.days.length), INK],
-    ["Devriye yapılan gün", String(withPatrol), withPatrol < r.days.length ? WARN : OK],
-    ["Tüm noktalar okutulan gün", String(fullDays), fullDays < r.days.length ? WARN : OK],
-    ["Toplam okutma", String(allScans.length), BRAND],
-    ["Nokta kapsaması", `%${coverage}`, coverage >= 100 ? OK : coverage >= 70 ? WARN : BAD],
+    ["Tur sayısı", String(r.tours.length), BRAND],
+    ["Tamamlanan", String(count("tamam")), OK],
+    ["Eksik", String(partial), partial ? WARN : INK],
+    ["Zaman aşımı", String(late), late ? BAD : INK],
+    ["Atlanan nokta", String(missedTotal), missedTotal ? BAD : INK],
   ]);
 
-  /* ---- günlük özet ---- */
-  const stateLabel = { none: "Devriye yok", partial: "Eksik", full: "Tam" } as const;
-  const stateColor = { none: BAD, partial: WARN, full: OK } as const;
-  d.table(
-    "Günlük özet",
-    [
-      { label: "Tarih", width: 150 },
-      { label: "Okutulan nokta", width: 95, align: "center" },
-      { label: "Okutma", width: 60, align: "right" },
-      { label: "İlk", width: 65, align: "center" },
-      { label: "Son", width: 65, align: "center" },
-      { label: "Durum", width: 80, align: "center" },
-    ],
-    dayStats.map((x) => [
-      fmtDayLong(x.date),
-      `${x.done} / ${total}`,
-      String(x.scans.length),
-      x.scans.length ? fmtClock(x.scans[0].scanned_at, false) : "—",
-      x.scans.length ? fmtClock(x.scans[x.scans.length - 1].scanned_at, false) : "—",
-      stateLabel[x.state],
-    ]),
-    dayStats.map((x) => [undefined, undefined, undefined, undefined, undefined, stateColor[x.state]]),
-  );
-
-  /* ---- nokta özeti (aralık boyunca) ---- */
-  const daysOf = new Map<string, Set<string>>();
-  const countOf = new Map<string, number>();
-  for (const day of r.days) {
-    for (const s of day.scans) {
-      countOf.set(s.point_id, (countOf.get(s.point_id) ?? 0) + 1);
-      daysOf.set(s.point_id, (daysOf.get(s.point_id) ?? new Set()).add(day.date));
-    }
+  /* ---- nokta durumu: hangi nokta kaç turda atlandı ---- */
+  if (r.points.length > 0) {
+    const stats = checkpointStats(
+      r.points.filter((p) => p.is_active),
+      r.tours.map((t) => ({ closed: t.status !== "devam", missed: t.missing, scanned: new Set(t.scans.map((s) => s.point_id)) })),
+    );
+    d.table(
+      "Nokta durumu",
+      [
+        { label: "Nokta", width: 255 },
+        { label: "Okutulan tur", width: 90, align: "right" },
+        { label: "Atlanan tur", width: 80, align: "right" },
+        { label: "Atlanma", width: 90, align: "center" },
+      ],
+      stats.map((p) => {
+        const base = p.scanned + p.missed;
+        return [p.name, String(p.scanned), String(p.missed), base ? `%${Math.round((p.missed / base) * 100)}` : "—"];
+      }),
+      stats.map((p) => [undefined, undefined, p.missed ? BAD : undefined, p.missed ? BAD : p.scanned ? OK : MUTED]),
+    );
   }
-  const pointRow = (p: PatrolPoint) => {
-    const days = daysOf.get(p.id)?.size ?? 0;
-    const missed = r.days.length - days;
-    return { days, missed, count: countOf.get(p.id) ?? 0 };
-  };
+
+  /* ---- tur listesi ---- */
   d.table(
-    "Nokta özeti",
+    "Turlar",
     [
-      { label: "Nokta", width: 235 },
-      { label: "Toplam okutma", width: 90, align: "right" },
-      { label: "Okutulan gün", width: 95, align: "center" },
-      { label: "Atlanan gün", width: 95, align: "center" },
+      { label: "#", width: 25, align: "right" },
+      { label: "Personel", width: 125 },
+      { label: "Başlangıç", width: oneDay ? 60 : 80, align: "center" },
+      { label: "Bitiş", width: oneDay ? 105 : 85, align: "center" },
+      { label: "Süre", width: 60, align: "center" },
+      { label: "Nokta", width: 50, align: "center" },
+      { label: "Durum", width: 90, align: "center" },
     ],
-    r.points.map((p) => {
-      const x = pointRow(p);
-      return [p.name, String(x.count), `${x.days} / ${r.days.length}`, String(x.missed)];
-    }),
-    r.points.map((p) => [undefined, undefined, undefined, pointRow(p).missed > 0 ? BAD : OK]),
+    r.tours.map((t, i) => [
+      String(i + 1),
+      t.person_name,
+      when(t.started_at, oneDay),
+      endText(t),
+      tourDuration(t),
+      `${t.done} / ${t.total}`,
+      TOUR_STATUS[t.status].label,
+    ]),
+    r.tours.map((t) => [undefined, undefined, undefined, t.status === "zaman_asimi" ? BAD : undefined, undefined, t.missing.length && t.status !== "devam" ? WARN : undefined, STATUS_COLOR[t.status]]),
+    "Bu aralıkta devriye turu yok. Devriye, “Devriye başlat / bitir” QR'ı okutulunca başlar.",
   );
 
-  /* ---- gün gün okutma kayıtları ---- */
-  for (const day of r.days) {
-    if (day.scans.length === 0) continue;
-    const sr = scanRows(day.scans, pointName);
-    d.table(`Okutma kayıtları — ${fmtDayLong(day.date)}`, SCAN_COLS, sr.rows, sr.colors);
+  /* ---- her tur ayrıntısıyla ---- */
+  if (r.tours.length > 0) d.heading("Tur ayrıntıları");
+  const name = (id: string) => r.pointNames[id] ?? "—";
+  r.tours.forEach((t, i) => {
+    const detail = [
+      `Başlangıç ${when(t.started_at, oneDay, true)}`,
+      t.status === "zaman_asimi" ? `Bitirilmedi (son okutma ${fmtClock(t.last_scan_at)})` : t.status === "devam" ? "Devam ediyor" : `Bitiş ${fmtClock(t.ended_at!)}`,
+      `Süre ${tourDuration(t)}`,
+      `Okutulan ${t.done} / ${t.total} nokta`,
+    ].join("  ·  ");
+    d.tourHeader(`${i + 1}. tur · ${t.person_name}`, TOUR_STATUS[t.status].label, STATUS_COLOR[t.status], detail);
+    if (t.missing.length > 0) d.paragraph(`${t.status === "devam" ? "Henüz okutulmayan" : "Atlanan"}: ${t.missing.join(", ")}`, t.status === "devam" ? MUTED : BAD);
+    else d.gap(2);
+    d.table(
+      null,
+      [
+        { label: "#", width: 30, align: "right" },
+        { label: "Saat", width: 70, align: "center" },
+        { label: "Nokta", width: 265 },
+        { label: "Konum", width: 150, align: "center" },
+      ],
+      t.scans.map((s, j) => [
+        String(j + 1),
+        fmtClock(s.scanned_at),
+        s.mark === "start" ? "Başlangıç (devriye başlatıldı)" : s.mark === "end" ? "Bitiş (devriye bitirildi)" : name(s.point_id),
+        locationLabel(s).text,
+      ]),
+      t.scans.map((s) => [undefined, undefined, s.mark ? MUTED : undefined, locationLabel(s).far ? BAD : undefined]),
+      "Okutma yok",
+    );
+  });
+
+  /* ---- tura bağlı olmayan eski okutmalar ---- */
+  if (r.legacy.length > 0) {
+    const rows = (scans: PatrolScanRow[]) => scans.map((s, i) => [String(i + 1), when(s.scanned_at, oneDay, true), name(s.point_id), s.by, locationLabel(s).text]);
+    d.table(
+      "Tur dışı okutmalar (eski sistem)",
+      [
+        { label: "#", width: 30, align: "right" },
+        { label: oneDay ? "Saat" : "Tarih ve saat", width: oneDay ? 70 : 100, align: "center" },
+        { label: "Nokta", width: oneDay ? 175 : 160 },
+        { label: "Okutan", width: oneDay ? 145 : 130 },
+        { label: "Konum", width: 95, align: "center" },
+      ],
+      rows(r.legacy),
+      r.legacy.map((s) => [undefined, undefined, undefined, undefined, locationLabel(s).far ? BAD : undefined]),
+    );
   }
 
   return d.finish();

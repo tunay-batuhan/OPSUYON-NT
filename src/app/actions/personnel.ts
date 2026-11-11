@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { assertStaff } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { guard, nul, pgMessage, str, validate } from "@/lib/form";
+import { guard, nul, pgMessage, validate } from "@/lib/form";
+import { formatDate, isoDayInTurkey } from "@/lib/format";
 import { normalizeIban, toNumber } from "@/lib/parse";
 import { legalAnnualLeaveDays } from "@/lib/leave-law";
 import {
@@ -95,22 +96,74 @@ export async function assignPersonnel(values: AssignValues): Promise<ActionState
       project_id: d.project_id,
       personnel_id: d.personnel_id,
       position: nul(d.position),
-      start_date: nul(d.start_date) ?? new Date().toISOString().slice(0, 10),
+      // "Boşsa bugün": Türkiye günü (sunucu UTC; gece 00:00–03:00 arası bir önceki gün yazılıyordu)
+      start_date: nul(d.start_date) ?? isoDayInTurkey(),
     });
     if (error) return { error: pgMessage(error) };
-    revalidatePath(`/projeler/${d.project_id}`, "layout");
+    revalidateAssignmentViews();
     return { ok: true, message: "Personel projeye atandı." };
   });
 }
 
-export async function endAssignment(fd: FormData): Promise<void> {
-  await assertStaff("personnel.manage");
-  const id = str(fd, "id");
-  const project_id = str(fd, "project_id");
-  if (!id) return;
-  const supabase = await createClient();
-  await supabase.from("personnel_assignments").update({ end_date: new Date().toISOString().slice(0, 10) }).eq("id", id);
-  if (project_id) revalidatePath(`/projeler/${project_id}`, "layout");
+/**
+ * Atama durumu (aktif/ayrıldı) gösteren tüm ekranlar: her projenin Personel sekmesi (aday listesi ve "başka projede
+ * görevli" listesi diğer projelere de bağlı), merkez personel listesi/detayı (Proje görevlendirmeleri), Personel modülü,
+ * izinler, vardiya ve paneller.
+ */
+function revalidateAssignmentViews() {
+  revalidatePath("/projeler/[id]", "layout");
+  revalidatePath("/merkez/personel", "layout");
+  revalidatePath("/personel", "layout");
+  revalidatePath("/izinler", "layout");
+  revalidatePath("/vardiya", "layout");
+  revalidatePath("/merkez");
+  revalidatePath("/panel");
+}
+
+/**
+ * "Görevden al": aktif atamayı sonlandırır. Bitiş tarihi Türkiye saatine göre bugündür. Görev henüz başlamamışsa
+ * (başlangıç ileri bir tarih) bitiş başlangıçtan önce olamayacağı için atama kaydı silinir (iptal). Hata ya da
+ * etkilenen satır olmaması kullanıcıya bildirilir; sessiz kalmaz.
+ */
+export async function endAssignment(input: { id: string }): Promise<ActionState> {
+  return guard(async () => {
+    await assertStaff("personnel.manage");
+    const id = input?.id;
+    if (!id || !/^[0-9a-f-]{36}$/i.test(id)) return { error: "Geçersiz atama." };
+    const supabase = await createClient();
+
+    const { data: a, error: readErr } = await supabase
+      .from("personnel_assignments")
+      .select("id, start_date, end_date, personnel(full_name)")
+      .eq("id", id)
+      .maybeSingle();
+    if (readErr) return { error: pgMessage(readErr) };
+    if (!a) return { error: "Atama bulunamadı ya da bu atamayı görme yetkiniz yok. Sayfayı yenileyip tekrar deneyin." };
+    const name = (a.personnel as unknown as { full_name: string } | null)?.full_name ?? "Personel";
+
+    if (a.end_date) {
+      revalidateAssignmentViews();
+      return { error: `${name} bu projeden zaten ${formatDate(a.end_date)} tarihinde görevden alınmış. Liste yenilendi.` };
+    }
+
+    const today = isoDayInTurkey();
+    const notStarted = a.start_date > today;
+    const { data: rows, error } = notStarted
+      ? await supabase.from("personnel_assignments").delete().eq("id", id).is("end_date", null).select("id")
+      : await supabase.from("personnel_assignments").update({ end_date: today }).eq("id", id).is("end_date", null).select("id");
+    if (error) return { error: `Görevden alınamadı: ${pgMessage(error)}` };
+    if (!rows || rows.length === 0) {
+      return { error: "Görevden alınamadı: kayıt değiştirilemedi (yetkiniz olmayabilir ya da kayıt başka biri tarafından değiştirilmiş olabilir). Sayfayı yenileyip tekrar deneyin." };
+    }
+
+    revalidateAssignmentViews();
+    return {
+      ok: true,
+      message: notStarted
+        ? `${name} için ${formatDate(a.start_date)} tarihinde başlayacak görev iptal edildi. Kendi firmasının başka bir projesine atanabilir.`
+        : `${name} ${formatDate(today)} itibarıyla görevden alındı. Kendi firmasının başka bir projesine atanabilir.`,
+    };
+  });
 }
 
 export async function upsertTimesheet(values: TimesheetValues): Promise<ActionState> {
@@ -174,13 +227,23 @@ export async function updatePersonnel(values: PersonnelEditValues): Promise<Acti
     const canSensitive = actor.roleCode === "super_admin" || actor.permissions.includes("personnel.sensitive.read");
 
     const supabase = await createClient();
-    // Atamaları olan personelin firması değiştirilemez (kadro bütünlüğü)
+    // Firma değişikliği (personelin başka firmaya geçmesi):
+    //  - aktif görevi varsa olmaz: önce görevden alınır
+    //  - daha önce projede çalışmışsa yalnızca Süper Yönetici değiştirir (kadro bütünlüğü; geçmiş kayıtlar eski firmada kalır)
+    //  - hiç ataması yoksa personel yöneticisi değiştirebilir
     const newOrg = nul(d.organization_id);
     const { data: cur } = await supabase.from("personnel").select("organization_id, termination_date").eq("id", d.id).maybeSingle();
     if (cur && (cur.organization_id ?? null) !== newOrg) {
-      const { count } = await supabase.from("personnel_assignments").select("id", { count: "exact", head: true }).eq("personnel_id", d.id);
-      if ((count ?? 0) > 0) {
-        return { error: "Projeye atanmış personelin firması değiştirilemez.", fieldErrors: { organization_id: "Atamaları olan personelin firması değişmez" } };
+      const { data: asg } = await supabase.from("personnel_assignments").select("end_date").eq("personnel_id", d.id);
+      const rows = asg ?? [];
+      if (rows.some((a) => !a.end_date)) {
+        return { error: "Personelin aktif bir görevi var. Firmayı değiştirmek için önce görevden alın.", fieldErrors: { organization_id: "Önce aktif görevden alın" } };
+      }
+      if (rows.length > 0 && actor.roleCode !== "super_admin") {
+        return {
+          error: "Daha önce projede çalışmış personelin firmasını yalnızca Süper Yönetici değiştirebilir.",
+          fieldErrors: { organization_id: "Yalnızca Süper Yönetici değiştirebilir" },
+        };
       }
     }
     // Sicil no (employee_no) arayüzden kalktı: mevcut değer korunur, güncellenmez.
@@ -191,7 +254,7 @@ export async function updatePersonnel(values: PersonnelEditValues): Promise<Acti
         organization_id: newOrg,
         status: d.status,
         // Ayrılış tarihi yalnızca durum ilk kez "Ayrıldı" yapıldığında yazılır; sonraki kayıtlarda korunur
-        termination_date: d.status === "terminated" ? (cur?.termination_date ?? new Date().toISOString().slice(0, 10)) : null,
+        termination_date: d.status === "terminated" ? (cur?.termination_date ?? isoDayInTurkey()) : null,
       })
       .eq("id", d.id);
     if (error) return { error: pgMessage(error) };

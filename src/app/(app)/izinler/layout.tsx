@@ -11,7 +11,8 @@ export default async function LeavesLayout({ children }: { children: ReactNode }
       <SectionHeader
         title="İzin Yönetimi"
         description="Personelin izin kayıtları, kalan yıllık izin süresi ve izin evrakları."
-        tabs={manage ? [{ href: "/izinler", label: "İzin kayıtları", exact: true }, { href: "/izinler/ekle", label: "İzin evrakı ekle" }] : []}
+        descriptions={{ "/izinler/tatiller": "Yıllık izin günü hesabında sayılmayan resmi tatiller. Dini bayram tarihleri her yıl değişir; açıklanınca buradan ekleyin." }}
+        tabs={manage ? [{ href: "/izinler", label: "İzin kayıtları", exact: true }, { href: "/izinler/ekle", label: "İzin evrakı ekle" }, { href: "/izinler/tatiller", label: "Resmi tatiller" }] : []}
       />
       {children}
     </>

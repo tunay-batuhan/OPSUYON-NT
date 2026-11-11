@@ -4,12 +4,12 @@ import { Badge, Card, CardHeader, EmptyState, Table, cn, td } from "@/components
 import { AssignForm } from "@/components/forms/admin-forms";
 import { FilterBar } from "@/components/filter-bar";
 import { Pagination } from "@/components/pagination";
-import { formatDate } from "@/lib/format";
+import { EndAssignmentButton } from "@/components/end-assignment-button";
+import { formatDate, isoDayInTurkey } from "@/lib/format";
 import { str1 } from "@/lib/lookups";
 import { pagingFrom } from "@/lib/paging";
 import { can, getProjectContext } from "@/lib/project";
 import { createClient } from "@/lib/supabase/server";
-import { endAssignment } from "@/app/actions/personnel";
 
 type Row = {
   id: string;
@@ -69,6 +69,8 @@ export default async function ProjectPersonnel({ params, searchParams }: PagePro
     }
   }
   const candidates = firmPeople.filter((p) => !busy.has(p.id));
+  const today = isoDayInTurkey();
+  const firmName = ctx.project.organizations?.name;
   const elsewhere = firmPeople.filter((p) => busy.get(p.id) && !busy.get(p.id)!.here);
 
   const filterHref = (key: string) => {
@@ -83,12 +85,17 @@ export default async function ProjectPersonnel({ params, searchParams }: PagePro
         <Card>
           <CardHeader title="Personel ata" description="Bu projenin firmasının kadrosundaki (veya henüz bir firmaya bağlanmamış) personeli görevlendirin." />
           <AssignForm projectId={id} candidates={candidates.map((p) => ({ value: p.id, label: p.title ? `${p.full_name} — ${p.title}` : p.full_name }))} />
+          <p className="-mt-2 px-5 pb-4 text-xs text-muted">
+            Listede yalnızca {firmName ? <>bu projenin firmasının (<span className="font-medium">{firmName}</span>)</> : "bu projenin firmasının"} kadrosundaki
+            ve henüz bir firmaya bağlanmamış personel çıkar. Başka bir firmanın personeli doğrudan atanamaz: önce eski görevinden alınır, sonra Süper Yönetici personel kartından
+            “Çalıştığı firma”yı bu firma yapar. Firmasız personel ilk atamada bu firmanın kadrosuna geçer.
+          </p>
           <div className="border-t border-border px-5 py-4 text-sm">
             <p className="font-medium">Bir personel aynı anda yalnızca 1 projede görevli olabilir.</p>
             <p className="mt-0.5 text-muted">
               {elsewhere.length === 0
-                ? "Başka bir projede görevli personel yok; tüm boştaki personel yukarıdaki listede."
-                : "Aşağıdakiler başka bir projede görevli olduğu için listede yok. Bu projeye almak için önce o projeden çıkarın (o projenin Personel sekmesinde \"Görevden al\")."}
+                ? "Bu firmanın kadrosunda başka bir projede görevli personel yok; boştaki kadronun tamamı yukarıdaki listede."
+                : "Aşağıdakiler başka bir projede görevli olduğu için listede yok. Bu projeye almak için önce o projeden çıkarın (o projenin Personel sekmesinde ya da personel kartının Proje görevlendirmeleri sekmesinde \"Görevden al\")."}
             </p>
             {elsewhere.length > 0 && (
               <ul className="mt-2 list-disc space-y-0.5 pl-5">
@@ -154,13 +161,13 @@ export default async function ProjectPersonnel({ params, searchParams }: PagePro
                   </td>
                   {manage && (
                     <td className={td}>
-                      {!r.end_date && (
-                        <form action={endAssignment}>
-                          <input type="hidden" name="id" value={r.id} />
-                          <input type="hidden" name="project_id" value={id} />
-                          <button className="text-sm text-danger hover:underline">Görevden al</button>
-                        </form>
-                      )}
+                      <EndAssignmentButton
+                        id={r.id}
+                        name={r.personnel?.full_name ?? "Bu personel"}
+                        ended={Boolean(r.end_date)}
+                        upcoming={r.start_date > today}
+                        startLabel={formatDate(r.start_date)}
+                      />
                     </td>
                   )}
                 </tr>

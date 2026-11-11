@@ -2,6 +2,7 @@ import { Filter } from "lucide-react";
 import { btn, cn, inputCls } from "@/components/ui";
 import { NavForm } from "@/components/nav-progress";
 import { DateRangeField } from "@/components/date-range-field";
+import { FilterCombo } from "@/components/filter-combo";
 
 export type FilterField = {
   name: string;
@@ -19,6 +20,8 @@ export type FilterField = {
   options?: { value: string; label: string }[];
   /** Label for the "everything" choice; omit to force a selection. */
   all?: string;
+  /** Açılır liste yerine yazarak aranabilir kutu (çok seçenekli listeler, ör. firma); seçilince form gönderilir. */
+  searchable?: boolean;
 };
 
 /**
@@ -39,6 +42,12 @@ export function FilterBar({ action, fields, children }: { action: string; fields
           <div key={f.name} className="text-sm">
             <span className="mb-1 block text-xs font-medium text-muted">{f.label}</span>
             <DateRangeField name={f.name} nameTo={f.nameTo ?? `${f.name}_bitis`} from={f.value ?? ""} to={f.valueTo ?? f.value ?? ""} min={f.min} max={f.max} />
+          </div>
+        ) : f.searchable && f.kind !== "text" ? (
+          // label değil: listedeki tıklamalar etiket üzerinden kutuya aktarılıp listeyi yeniden açmasın
+          <div key={f.name} className="text-sm">
+            <span className="mb-1 block text-xs font-medium text-muted">{f.label}</span>
+            <FilterCombo name={f.name} label={f.label} value={f.value ?? ""} options={f.options ?? []} all={f.all} placeholder={f.placeholder} />
           </div>
         ) : (
           <label key={f.name} className="block text-sm">

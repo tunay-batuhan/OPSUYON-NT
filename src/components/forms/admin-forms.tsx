@@ -188,7 +188,24 @@ function FormSection({ title, children }: { title: string; children: ReactNode }
 }
 
 /** Personel kartı alanları (ekle ve düzenle formlarında ortak). Sicil no arayüzden kalktı. */
-function PersonnelFields({ lines, orgs, canSensitive, edit }: { lines: Option[]; orgs: Option[]; canSensitive: boolean; edit?: boolean }) {
+/**
+ * Düzenlemede "Çalıştığı firma" alanının durumu:
+ *  free   — hiç ataması yok, değiştirilebilir
+ *  active — aktif görevi var: önce görevden alınmalı (kilitli)
+ *  super  — geçmiş ataması var, kullanıcı Süper Yönetici: değiştirebilir (firmalar arası geçiş)
+ *  locked — geçmiş ataması var, kullanıcı Süper Yönetici değil (kilitli)
+ */
+export type OrgChange = "free" | "active" | "super" | "locked";
+const ORG_HINT: Record<OrgChange, string> = {
+  free: "Henüz projeye atanmadı; firmayı değiştirebilirsiniz.",
+  active: "Aktif görevi var. Başka firmaya geçirmek için önce görevden alın.",
+  super: "Başka firmaya geçirebilirsiniz (Süper Yönetici). Eski firmadaki geçmiş görev ve evrak kayıtları yerinde kalır.",
+  locked: "Daha önce projede çalıştığı için firmasını yalnızca Süper Yönetici değiştirebilir.",
+};
+
+function PersonnelFields({
+  lines, orgs, canSensitive, edit, orgChange = "free",
+}: { lines: Option[]; orgs: Option[]; canSensitive: boolean; edit?: boolean; orgChange?: OrgChange }) {
   return (
     <>
       <FormSection title="İş bilgileri">
@@ -199,7 +216,8 @@ function PersonnelFields({ lines, orgs, canSensitive, edit }: { lines: Option[];
           <SelectField name="service_line" label="Hizmet alanı" options={lines} />
           <SelectField
             name="organization_id" label="Çalıştığı firma" options={orgs}
-            hint={edit ? "Projeye atanmış personelin firması değiştirilemez." : "Personelin kadrosunda olduğu müşteri. Boşsa ilk atandığı projenin firması yazılır."}
+            disabled={edit && (orgChange === "active" || orgChange === "locked")}
+            hint={edit ? ORG_HINT[orgChange] : "Personelin kadrosunda olduğu müşteri. Boşsa ilk atandığı projenin firması yazılır."}
           />
           <TextField name="hire_date" type="date" label="İşe giriş" />
           {edit && (
@@ -280,12 +298,13 @@ type CardKey =
   | "pants_size" | "shirt_size" | "coat_size" | "shoe_size" | "emergency_phone" | "emergency_contact_name";
 
 export function PersonnelEditForm({
-  person, lines, orgs, canSensitive,
+  person, lines, orgs, canSensitive, orgChange,
 }: {
   person: Pick<Personnel, CardKey> & { national_id: string | null; iban: string | null };
   lines: Option[];
   orgs: Option[];
   canSensitive: boolean;
+  orgChange: OrgChange;
 }) {
   const s = (v: string | number | null | undefined) => (v === null || v === undefined ? "" : String(v));
   return (
@@ -305,7 +324,7 @@ export function PersonnelEditForm({
       resetOnSuccess={false}
       className="space-y-6 p-5"
     >
-      <PersonnelFields lines={lines} orgs={orgs} canSensitive={canSensitive} edit />
+      <PersonnelFields lines={lines} orgs={orgs} canSensitive={canSensitive} edit orgChange={orgChange} />
       <SubmitButton>Kartı kaydet</SubmitButton>
     </Form>
   );

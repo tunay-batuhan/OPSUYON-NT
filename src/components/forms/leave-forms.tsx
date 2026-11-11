@@ -1,12 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
 import { CalendarCheck, Download, FileUp, Loader2, Pencil } from "lucide-react";
 import { attachLeaveDocument, createLeaveRecord } from "@/app/actions/leaves";
 import { prepareUpload } from "@/app/actions/documents";
 import { EMPTY_FILE, leaveRecordDocSchema } from "@/lib/schemas-ops";
 import { LEAVE_TYPE_INFO } from "@/lib/leave-law";
+import {
+  CALENDAR_RULES, DEFAULT_WEEKLY_REST, WEEKLY_REST_OPTIONS, countLeaveDays, endDateFor, leaveRules, returnDateFor, skippedSummary,
+  type Holiday, type LeaveRules,
+} from "@/lib/leave-days";
 import { Form, FormGrid, SelectField, SubmitButton, TextField } from "@/components/forms/form";
 import { FileArea, OwnerSelect } from "@/components/forms/ops-upload-forms";
 import { DateField, DateRangeFormField } from "@/components/forms/date-fields";
@@ -64,53 +68,78 @@ function BalanceBox({ balances }: { balances: Record<string, LeaveBalanceInfo> }
 }
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
-const addDays = (iso: string, n: number) => {
-  const d = new Date(iso + "T00:00:00Z");
-  d.setUTCDate(d.getUTCDate() + n);
-  return d.toISOString().slice(0, 10);
-};
-const span = (start: string, end: string) => Math.round((Date.parse(end) - Date.parse(start)) / 86400000) + 1;
+const num = (v: string | undefined) => Number(String(v ?? "").replace(",", "."));
+/** Form alanına yazılacak gün: 4.5 → "4,5" */
+const dayStr = (n: number) => String(n).replace(".", ",");
+
+/** Resmi tatil listesi (sunucudan gelir): gün önerisinde kullanılır. */
+const HolidayContext = createContext<Holiday[]>([]);
+
+/**
+ * İzin türüne göre gün kuralı: bakiyeden düşen (yıllık) izinde hafta tatili ve resmi tatiller izinden sayılmaz
+ * (İş K. md. 56); raporlu, babalık gibi diğer izinlerde takvim günü sayılır.
+ */
+function useRules(): { rules: LeaveRules; working: boolean } {
+  const holidays = useContext(HolidayContext);
+  const { control } = useFormContext();
+  const [type, rest] = useWatch({ control, name: ["leave_type", "weekly_rest"] }) as string[];
+  const working = LEAVE_TYPE_INFO.find((t) => t.code === type)?.deducts ?? false;
+  const rules = useMemo(() => (working ? leaveRules(rest, holidays) : CALENDAR_RULES), [working, rest, holidays]);
+  return { rules, working };
+}
 
 /**
  * Öneriler (elle girilen alan hiç ezilmez):
  *  - Gün: elle girilmediyse, son tarih elle girildiyse tarihlerden; değilse türün yasal süresinden; o da yoksa tarihlerden.
- *  - Son tarih: elle girilmediyse başlangıç + gün − 1.
- *  - İşe dönüş (izin bitince): elle girilmediyse son tarihten bir gün sonra.
+ *  - Son tarih: elle girilmediyse başlangıçtan itibaren "gün" kadar izin günü (sayılmayan günler atlanır).
+ *  - İşe dönüş (izin bitince): elle girilmediyse son günden sonraki ilk çalışma günü.
  * Formda yalnızca Gün ve Başlangıç sorulur; son tarih ve işe dönüş bunlardan hesaplanıp özet olarak gösterilir.
  */
 function Suggest() {
   const { control, setValue, getFieldState, formState } = useFormContext();
+  const { rules } = useRules();
   const [type, start, end, days, ret] = useWatch({ control, name: ["leave_type", "start_date", "end_date", "days", "return_date"] }) as string[];
 
   useEffect(() => {
     const dirty = (n: string) => getFieldState(n, formState).isDirty;
     const legal = LEAVE_TYPE_INFO.find((t) => t.code === type)?.legalDays;
     const s = ISO.test(start ?? "") ? start : "";
-    const fromDates = s && ISO.test(end ?? "") && end >= s ? span(s, end) : null;
+    const fromDates = s && ISO.test(end ?? "") ? (countLeaveDays(s, end, rules)?.days ?? null) : null;
 
-    let n = Number(String(days ?? "").replace(",", "."));
+    let n = num(days);
     if (!dirty("days")) {
       const next = dirty("end_date") && fromDates ? fromDates : (legal ?? fromDates);
-      if (next && String(next) !== days) {
-        setValue("days", String(next));
+      if (next && dayStr(next) !== days) {
+        setValue("days", dayStr(next));
         n = next;
       }
     }
     let e = end;
     if (!dirty("end_date") && s && Number.isFinite(n) && n > 0) {
-      e = addDays(s, Math.ceil(n) - 1);
+      e = endDateFor(s, n, rules) ?? end;
       if (e !== end) setValue("end_date", e);
     }
     if (!dirty("return_date") && ISO.test(e ?? "") && (!s || e >= s)) {
-      const r = addDays(e, 1);
-      if (r !== ret) setValue("return_date", r);
+      const r = returnDateFor(e, rules);
+      if (r && r !== ret) setValue("return_date", r);
     }
-  }, [type, start, end, days, ret, setValue, getFieldState, formState]);
+  }, [type, start, end, days, ret, rules, setValue, getFieldState, formState]);
   return null;
 }
 
 const trDate = (iso: string) =>
   new Intl.DateTimeFormat("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric", weekday: "long", timeZone: "UTC" }).format(new Date(iso + "T00:00:00Z"));
+
+/** Gün alanı: yıllık izinde yarım gün (0,5) yazılabilir; öneri hafta tatili ve resmi tatilleri saymaz. */
+function DaysField() {
+  const { working } = useRules();
+  return (
+    <TextField
+      name="days" label="Gün (izin süresi)" required inputMode="decimal" suffix="gün" className="sm:col-span-2"
+      hint={working ? "Bakiyeden düşecek gün. Yarım gün için 0,5 yazın" : "İzin türünün yasal süresi önerilir (takvim günü)"}
+    />
+  );
+}
 
 /**
  * Normalde başlangıç (takvim) + gün girilir; son gün ve işe dönüş hesaplanıp özet olarak görünür. "Tarihleri elle
@@ -119,6 +148,7 @@ const trDate = (iso: string) =>
  */
 function LeaveDates() {
   const { control, formState, setValue, resetField } = useFormContext();
+  const { rules } = useRules();
   const [start, end, ret] = useWatch({ control, name: ["start_date", "end_date", "return_date"] }) as string[];
   const [manual, setManual] = useState(false);
   const open = manual || Boolean(formState.errors.end_date || formState.errors.return_date);
@@ -132,11 +162,15 @@ function LeaveDates() {
           label="İzin tarihleri"
           required
           className="sm:col-span-2"
-          hint="Başlangıç ve son gün; gün sayısı buradan hesaplanır"
-          onRange={(f, t) => setValue("days", String(span(f, t)), { shouldDirty: true, shouldValidate: true })}
+          hint="Başlangıç ve son gün; gün sayısı buradan önerilir"
+          onRange={(f, t) => {
+            const c = countLeaveDays(f, t, rules);
+            // tamamı tatile denk gelen aralıkta öneri 0 olur: gün alanı boş bırakılır, yönetici yazar
+            setValue("days", c && c.days > 0 ? dayStr(c.days) : "", { shouldDirty: true, shouldValidate: true });
+          }}
         />
         <div className="sm:col-span-2">
-          <DateField name="return_date" label="İşe dönüş tarihi" required align="right" hint="Son günden sonraki gün gelir; değiştirebilirsiniz" />
+          <DateField name="return_date" label="İşe dönüş tarihi" required align="right" hint="Son günden sonraki ilk çalışma günü gelir; değiştirebilirsiniz" />
           <button
             type="button"
             onClick={() => {
@@ -183,6 +217,64 @@ function LeaveDates() {
   );
 }
 
+/**
+ * Yıllık izinde: hafta tatili seçimi + hesabın dökümü (kaç takvim günü, hangi günler sayılmadı). Sistem yalnızca
+ * önerir; Gün alanına yazılan sayı geçerlidir ve bakiyeden o düşer.
+ */
+function DayBreakdown() {
+  const { control, setValue, getFieldState, formState } = useFormContext();
+  const { rules, working } = useRules();
+  const [start, end, days] = useWatch({ control, name: ["start_date", "end_date", "days"] }) as string[];
+  if (!working) return null;
+
+  const c = ISO.test(start ?? "") && ISO.test(end ?? "") ? countLeaveDays(start, end, rules) : null;
+  const n = num(days);
+  const skipped = c ? skippedSummary(c, rules) : [];
+  // Tarihler elle seçildiyse ve Gün alanı öneriden farklıysa uyar (otomatikte son gün zaten günden hesaplanır)
+  const manualDates = getFieldState("end_date", formState).isDirty;
+  const differs = Boolean(c && manualDates && Number.isFinite(n) && n > 0 && Math.abs(c.days - n) > 0.001);
+
+  return (
+    <>
+      <SelectField
+        name="weekly_rest" label="Hafta tatili" placeholder="" options={WEEKLY_REST_OPTIONS} className="sm:col-span-2"
+        hint="Bu gün izinden sayılmaz. Vardiyalı personelde kişinin tatil gününü seçin"
+      />
+      <div role="status" className="rounded-lg border border-border bg-surface-2/50 px-4 py-3 text-sm sm:col-span-4">
+        {c ? (
+          <>
+            <p className="font-medium">
+              {c.calendar} takvim günü → {fmtDays(c.days)} izin
+            </p>
+            <p className="mt-0.5 text-muted">
+              {skipped.length ? `Sayılmayan: ${skipped.join(" · ")}` : "Bu aralıkta hafta tatili veya resmi tatil yok."}
+            </p>
+            {differs && c && (
+              <p className="mt-2 rounded-md bg-warning-soft px-2.5 py-1.5 text-warning">
+                Gün alanında {fmtDays(n)} yazıyor; tarihlere göre önerilen {fmtDays(c.days)}. Kaydedilince bakiyeden {fmtDays(n)} düşer.{" "}
+                {c.days > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setValue("days", dayStr(c.days), { shouldDirty: true, shouldValidate: true })}
+                    className="font-semibold underline"
+                  >
+                    Öneriyi kullan
+                  </button>
+                )}
+              </p>
+            )}
+          </>
+        ) : (
+          <p className="text-muted">Gün ve başlangıç girilince hangi günlerin izinden sayılmadığı burada görünür.</p>
+        )}
+        <p className="mt-2 text-xs text-muted">
+          Bu bir öneridir (İş K. md. 56: hafta tatili ve resmi tatiller yıllık izinden sayılmaz). Gün sayısını elle değiştirebilirsiniz; bakiyeden Gün alanındaki sayı düşer.
+        </p>
+      </div>
+    </>
+  );
+}
+
 /** İzin türü; altında seçilen türün yasal notu (ör. "Yasal hak: 3 gün ücretli; yıllık izinden düşmez"). */
 function LeaveTypeField({ className }: { className?: string }) {
   const { control } = useFormContext();
@@ -198,24 +290,28 @@ function LeaveTypeField({ className }: { className?: string }) {
 }
 
 /** İzin evrakı ekle: izin kaydı ve (isteğe bağlı) imzalı evrak tek seferde kaydedilir. */
-export function LeaveRecordForm({ people, balances = {} }: { people: Option[]; balances?: Record<string, LeaveBalanceInfo> }) {
+export function LeaveRecordForm({
+  people, balances = {}, holidays = [],
+}: { people: Option[]; balances?: Record<string, LeaveBalanceInfo>; /** resmi tatiller (gün önerisi için) */ holidays?: Holiday[] }) {
   const [fileKey, setFileKey] = useState(0);
   const reset = () => setFileKey((k) => k + 1);
   return (
     <Form
       schema={leaveRecordDocSchema}
-      defaultValues={{ assignment: "", leave_type: "yillik", days: "", start_date: "", end_date: "", return_date: "", note: "", ...EMPTY_FILE }}
+      defaultValues={{ assignment: "", leave_type: "yillik", days: "", start_date: "", end_date: "", return_date: "", note: "", weekly_rest: DEFAULT_WEEKLY_REST, ...EMPTY_FILE }}
       action={createLeaveRecord}
       onSuccess={reset}
       className="space-y-4 p-5"
     >
+      <HolidayContext.Provider value={holidays}>
       <Suggest />
       <FormGrid cols={6}>
         <OwnerSelect name="assignment" label="Personel adı" options={people} onReset={reset} className="sm:col-span-3" />
         <LeaveTypeField className="sm:col-span-3" />
         <BalanceBox balances={balances} />
-        <TextField name="days" label="Gün (izin süresi)" required inputMode="decimal" suffix="gün" className="sm:col-span-2" hint="İzin türünün yasal süresi önerilir" />
+        <DaysField />
         <LeaveDates />
+        <DayBreakdown />
         <TextField name="note" label="Not (isteğe bağlı)" className="sm:col-span-6" />
         <FileArea
           key={fileKey}
@@ -227,6 +323,7 @@ export function LeaveRecordForm({ people, balances = {} }: { people: Option[]; b
           hint="İsteğe bağlı: imzalı izin evrakını seçin (PDF veya fotoğraf — en fazla 50 MB)"
         />
       </FormGrid>
+      </HolidayContext.Provider>
       <SubmitButton>Kaydet</SubmitButton>
     </Form>
   );

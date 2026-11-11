@@ -8,8 +8,7 @@ import { guard, nul, pgMessage, str, validate } from "@/lib/form";
 import { toNumber } from "@/lib/parse";
 import { LEAVE_TYPE_LABELS } from "@/lib/format";
 import { leaveDeducts, legalAnnualLeaveDays } from "@/lib/leave-law";
-import type { LeaveRecordValues } from "@/lib/schemas";
-import { EMPTY_FILE, leaveRecordDocSchema, type FileValues } from "@/lib/schemas-ops";
+import { EMPTY_FILE, leaveRecordDocSchema, type LeaveRecordDocValues } from "@/lib/schemas-ops";
 import type { ActionState } from "@/lib/action-types";
 
 const UUID = /^[0-9a-f-]{36}$/i;
@@ -42,7 +41,7 @@ async function ensureAnnualBalance(supabase: Db, personnelId: string, startDate:
  * İzin kaydı. Formdan dosya alanları (storage_path, file_name, mime_type, size_bytes) gelirse
  * imzalı izin evrakı da belge olarak kaydedilip izne bağlanır — tek seferde.
  */
-export async function createLeaveRecord(values: LeaveRecordValues & Partial<FileValues>): Promise<ActionState> {
+export async function createLeaveRecord(values: LeaveRecordDocValues): Promise<ActionState> {
   return guard(async () => {
     const actor = await assertStaff("leaves.manage");
     const v = validate(leaveRecordDocSchema, { ...EMPTY_FILE, ...values });
@@ -157,4 +156,95 @@ export async function attachLeaveDocument(input: {
     revalidatePath("/izinler");
     return { ok: true, message: "Evrak yüklendi." };
   });
+}
+
+const dayNum = (v: unknown, max: number): number | null => {
+  const n = typeof v === "number" ? v : toNumber(String(v ?? ""));
+  return n === null || !Number.isFinite(n) || n < 0 || n > max ? null : Math.round(n * 100) / 100;
+};
+
+/**
+ * Yönetici müdahalesi: bir izin kaydının gün sayısını elle düzeltir (resmi tatil, yarım gün, vardiya gibi
+ * sistemin bilemeyeceği durumlar). Bakiyeden bu sayı düşer.
+ */
+export async function updateLeaveDays(input: { id: string; days: string | number }): Promise<ActionState> {
+  return guard(async () => {
+    await assertStaff("leaves.manage");
+    if (!UUID.test(input.id ?? "")) return { error: "Geçersiz kayıt." };
+    const days = dayNum(input.days, 365);
+    if (days === null || days < 0.5) return { error: "Gün sayısı 0,5 ile 365 arasında olmalı." };
+    const supabase = await createClient();
+    const { data, error } = await supabase.from("leave_records").update({ days }).eq("id", input.id).select("id");
+    if (error) return { error: pgMessage(error) };
+    if (!data?.length) return { error: "İzin kaydı bulunamadı veya değiştirme yetkiniz yok." };
+    revalidatePath("/izinler", "layout");
+    revalidatePath("/personel", "layout");
+    return { ok: true, message: "Gün sayısı güncellendi." };
+  });
+}
+
+/**
+ * Yönetici müdahalesi: yıllık izin bakiyesini elle düzeltir. Kalan = hak edilen + devreden − elle düşülen −
+ * o yıl kaydedilmiş yıllık izin günleri. Sözleşmeyle fazla hak, devreden izin, sistem dışı kullanım gibi
+ * durumlar buradan işlenir; kim/ne zaman düzeltti bilgisi satırın metadata alanında ve işlem geçmişinde kalır.
+ */
+export async function updateLeaveBalance(input: {
+  id: string; entitled: string | number; carried: string | number; used: string | number; note?: string;
+}): Promise<ActionState> {
+  return guard(async () => {
+    const actor = await assertStaff("leaves.manage");
+    if (!UUID.test(input.id ?? "")) return { error: "Geçersiz kayıt." };
+    const entitled = dayNum(input.entitled, 365);
+    const carried = dayNum(input.carried, 365);
+    const used = dayNum(input.used, 365);
+    if (entitled === null || carried === null || used === null) return { error: "Gün alanları 0 ile 365 arasında sayı olmalı (yarım gün için 0,5)." };
+    const note = String(input.note ?? "").trim().slice(0, 200);
+
+    const supabase = await createClient();
+    const { data: row } = await supabase.from("leave_balances").select("metadata").eq("id", input.id).maybeSingle();
+    if (!row) return { error: "Bakiye bulunamadı." };
+    const metadata = {
+      ...((row.metadata as Record<string, unknown> | null) ?? {}),
+      auto: false,
+      manual: true,
+      manual_by: actor.full_name,
+      manual_at: new Date().toISOString(),
+      ...(note ? { manual_note: note } : {}),
+    };
+    const { data, error } = await supabase
+      .from("leave_balances")
+      .update({ entitled_days: entitled, carried_days: carried, used_days: used, metadata })
+      .eq("id", input.id)
+      .select("id");
+    if (error) return { error: pgMessage(error) };
+    if (!data?.length) return { error: "Bakiye değiştirilemedi (yetki)." };
+    revalidatePath("/izinler", "layout");
+    revalidatePath("/personel", "layout");
+    return { ok: true, message: "Bakiye güncellendi." };
+  });
+}
+
+/** Resmi tatil ekle (İzin Yönetimi > Resmi tatiller): yıllık izin günü önerisinde bu günler sayılmaz. */
+export async function addHoliday(input: { day: string; name: string; half: boolean }): Promise<ActionState> {
+  return guard(async (): Promise<ActionState> => {
+    await assertStaff("leaves.manage");
+    const day = String(input.day ?? "");
+    const name = String(input.name ?? "").trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return { error: "Tarih seçin.", fieldErrors: { day: "Tarih seçin" } };
+    if (name.length < 2 || name.length > 80) return { error: "Tatilin adını yazın (en fazla 80 karakter).", fieldErrors: { name: "Ad yazın" } };
+    const supabase = await createClient();
+    const { error } = await supabase.from("public_holidays").insert({ day, name, half: Boolean(input.half) });
+    if (error) return { error: error.code === "23505" ? "Bu tarih zaten listede. Değiştirmek için önce silin." : pgMessage(error) };
+    revalidatePath("/izinler", "layout");
+    return { ok: true, message: "Resmi tatil eklendi." };
+  });
+}
+
+export async function deleteHoliday(fd: FormData): Promise<void> {
+  await assertStaff("leaves.manage");
+  const id = str(fd, "id");
+  if (!id || !UUID.test(id)) return;
+  const supabase = await createClient();
+  await supabase.from("public_holidays").delete().eq("id", id);
+  revalidatePath("/izinler", "layout");
 }

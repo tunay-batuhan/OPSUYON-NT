@@ -123,7 +123,7 @@ export function TextField({
 }: Common & {
   /** Her kelimenin ilk harfini büyütür (alandan çıkınca; telefon klavyesi de kelime başlarını büyük yazar). */
   titleCase?: boolean;
-  type?: "text" | "email" | "tel" | "date" | "number";
+  type?: "text" | "email" | "tel" | "date" | "number" | "time";
   placeholder?: string;
   autoComplete?: string;
   inputMode?: "text" | "numeric" | "decimal" | "email" | "tel";

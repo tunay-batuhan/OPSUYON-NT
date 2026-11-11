@@ -32,12 +32,18 @@ export function sectionPages(section: Section, user: CurrentUser, on: Set<string
     ];
     return pages.filter((p) => p.ok).map(({ href, label, exact }) => ({ href, label, exact }));
   }
-  // cari: müşteri tarafı (merkezde Faturalar ve Cari Hesap ayrı menülerdir)
-  if (!customer) return [];
-  const pages: (NavChild & { ok: boolean })[] = [
-    { href: "/cari-hesap", label: "Cari Ekstre", exact: true, ok: on.has("cari_hesap") && can("ledger.read") },
-    { href: "/cari-hesap/faturalar", label: "Faturalar", ok: on.has("cari_faturalar") && can("invoices.read") },
-  ];
+  // cari (firma bazlı): merkezde Cari Hesap + Fatura girişi + Tahsilat girişi; müşteride Cari Hesap + Faturalar (PDF)
+  // (merkezde fatura PDF'leri ayrı "Faturalar" menüsündedir)
+  const pages: (NavChild & { ok: boolean })[] = customer
+    ? [
+        { href: "/cari-hesap", label: "Cari Hesap", exact: true, ok: on.has("cari_hesap") && can("ledger.read") },
+        { href: "/cari-hesap/faturalar", label: "Faturalar", ok: on.has("cari_faturalar") && can("invoices.read") },
+      ]
+    : [
+        { href: "/cari-hesap", label: "Cari Hesap", exact: true, ok: can("ledger.read") },
+        { href: "/cari-hesap/fatura-ekle", label: "Fatura girişi", ok: can("finance.manage") },
+        { href: "/cari-hesap/tahsilat-ekle", label: "Tahsilat girişi", ok: can("finance.manage") },
+      ];
   return pages.filter((p) => p.ok).map(({ href, label, exact }) => ({ href, label, exact }));
 }
 
@@ -74,7 +80,6 @@ function customerMenu(user: CurrentUser, on: Set<string>): NavItem[] {
   const cari = sectionPages("cari", user, on);
   if (cari.length) items.push({ href: cari[0].href, label: "Cari Hesap", icon: "ledger", match: ["/cari-hesap"] });
 
-  if (on.has("raporlar") && can("reports.read")) items.push({ href: "/raporlar", label: "Raporlar", icon: "reports" });
   if (on.has("mesajlar") && (can("messages.use") || can("messages.manage"))) items.push({ href: "/mesajlar", label: "Mesajlar", icon: "messages" });
   return items;
 }
@@ -94,7 +99,6 @@ function staffMenu(user: CurrentUser): NavItem[] {
     { href: "/risk-analizi", label: "Risk Analizi", icon: "risk", anyOf: ["risk.read"] },
     { href: "/faturalar", label: "Faturalar", icon: "invoices", anyOf: ["invoices.read"] },
     { href: "/cari-hesap", label: "Cari Hesap", icon: "ledger", anyOf: ["ledger.read"], match: ["/cari-hesap"] },
-    { href: "/raporlar", label: "Raporlar", icon: "reports", anyOf: ["reports.read"] },
     { href: "/mesajlar", label: "Mesajlar", icon: "messages", anyOf: ["messages.use", "messages.manage"] },
     { href: "/merkez/firmalar", label: "Firmalar", icon: "organizations", anyOf: ["organizations.read"], group: "Yönetim" },
     { href: "/merkez/kullanicilar", label: "Kullanıcılar & hesaplar", icon: "users", anyOf: ["users.read"], group: "Yönetim" },

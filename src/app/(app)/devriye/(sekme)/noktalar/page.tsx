@@ -38,7 +38,8 @@ export default async function PatrolProjectsPage({ searchParams }: PageProps<"/d
   const supabase = await createClient();
   const [{ data: points }, { data: pins }, { data: scans }] = ids.length
     ? await Promise.all([
-        supabase.from("patrol_points").select("project_id, is_active").in("project_id", ids),
+        // yalnızca kontrol noktaları sayılır; "Devriye başlat / bitir" etiketi (kind 'tur') nokta değildir
+        supabase.from("patrol_points").select("project_id, is_active").in("project_id", ids).eq("kind", "nokta"),
         supabase.from("patrol_pins").select("project_id, pin").in("project_id", ids),
         supabase.from("patrol_scans").select("project_id, scanned_at").in("project_id", ids).gte("scanned_at", since).order("scanned_at", { ascending: false }).limit(5000),
       ])
@@ -64,7 +65,7 @@ export default async function PatrolProjectsPage({ searchParams }: PageProps<"/d
     <>
       {projects.length > 8 && <FilterBar action={PATH} fields={[{ name: "ara", label: "Proje", kind: "text", value: str1(sp.ara), placeholder: "Proje veya firma adı…" }]} />}
       <Card>
-        <CardHeader title={`${rows.length} proje`} description="Bir projeyi açın: noktalarını ekleyip adlandırın, etiketlerini yazdırın ve projeye PIN verin." />
+        <CardHeader title={`${rows.length} proje`} description="Bir projeyi açın: noktalarını ekleyip adlandırın, başlat / bitir etiketiyle birlikte etiketlerini yazdırın ve projeye PIN verin (PIN yalnızca devriye başlatılırken sorulur)." />
         {rows.length === 0 ? (
           <EmptyState
             title={ara ? "Aramaya uyan proje yok" : "Devriye için uygun proje yok"}
