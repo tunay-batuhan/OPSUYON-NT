@@ -102,7 +102,7 @@ function staffMenu(user: CurrentUser): NavItem[] {
     { href: "/mesajlar", label: "Mesajlar", icon: "messages", anyOf: ["messages.use", "messages.manage"] },
     { href: "/merkez/firmalar", label: "Firmalar", icon: "organizations", anyOf: ["organizations.read"], group: "Yönetim" },
     { href: "/merkez/kullanicilar", label: "Kullanıcılar & hesaplar", icon: "users", anyOf: ["users.read"], group: "Yönetim" },
-    { href: "/merkez/moduller", label: "Müşteri modülleri", icon: "modules", anyOf: ["access.manage"], group: "Yönetim" },
+    { href: "/merkez/yetkiler", label: "Roller ve yetkiler", icon: "modules", anyOf: ["access.manage"], group: "Yönetim", match: ["/merkez/yetkiler", "/merkez/moduller"] },
     { href: "/merkez/islem-gecmisi", label: "İşlem geçmişi", icon: "audit", anyOf: ["audit.read"], group: "Yönetim" },
   ];
   return defs

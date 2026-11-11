@@ -5,6 +5,7 @@ import { hasPermission, requireStaff } from "@/lib/auth";
 import { getServiceLines } from "@/lib/lines";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/format";
+import { EMPTY_PERSONAL, PERSONNEL_BASE_COLUMNS, PERSONNEL_PERSONAL_COLUMNS } from "@/lib/personnel-columns";
 import type { Personnel } from "@/lib/types";
 
 const marital = { bekar: "Bekar", evli: "Evli" } as const;
@@ -18,15 +19,17 @@ export default async function PersonnelCardPage({ params }: PageProps<"/merkez/p
 
   const sensitive = hasPermission(user, "personnel.sensitive.read");
   const manage = hasPermission(user, "personnel.manage");
-  const [lines, { data: person }, priv, { data: orgRows }, { data: asg }] = await Promise.all([
+  const [lines, { data: person }, priv, { data: orgRows }, { data: asg }, { data: personal }] = await Promise.all([
     getServiceLines(),
-    supabase.from("personnel").select("*").eq("id", id).maybeSingle(),
+    supabase.from("personnel").select(PERSONNEL_BASE_COLUMNS).eq("id", id).maybeSingle(),
     sensitive ? supabase.from("personnel_private").select("national_id, iban").eq("personnel_id", id).maybeSingle() : null,
     supabase.from("organizations").select("id, name").order("name"),
     supabase.from("personnel_assignments").select("end_date").eq("personnel_id", id),
+    // kişisel bilgiler ayrı okunur (yetki yoksa boş gelir)
+    supabase.from("personnel_personal").select(PERSONNEL_PERSONAL_COLUMNS).eq("personnel_id", id).maybeSingle(),
   ]);
   if (!person) notFound();
-  const p = person as Personnel;
+  const p = { ...EMPTY_PERSONAL, ...(personal ?? {}), ...person } as unknown as Personnel;
   const orgs = (orgRows ?? []) as { id: string; name: string }[];
   // Firmalar arası geçiş: aktif görev varken olmaz; geçmiş görevi olan personeli yalnızca Süper Yönetici geçirir
   const assignments = (asg ?? []) as { end_date: string | null }[];

@@ -21,6 +21,22 @@ function generatePassword(length = 12) {
   return Array.from({ length }, () => ALPHABET[randomInt(ALPHABET.length)]).join("");
 }
 
+type Actor = Awaited<ReturnType<typeof assertStaff>>;
+const SUPER_ONLY = "Merkez hesaplarını yalnızca Süper Yönetici yönetebilir.";
+
+/**
+ * Merkez hesapları (parola, kısıtlama, rol) yalnızca Süper Yönetici tarafından yönetilir: "kullanıcı yönetme"
+ * yetkisi olan bir merkez çalışanı bir yöneticinin parolasını sıfırlayarak ya da rolünü değiştirerek yetkisini
+ * yükseltememeli. Aynı kural veritabanında da vardır (app.guard_profiles); bu denetim servis anahtarıyla yapılan
+ * işlemler (parola, Auth kısıtlaması) içindir. Hedef bulunamazsa da reddedilir.
+ */
+async function denyUnlessMayManage(actor: Actor, targetId: string): Promise<string | null> {
+  if (actor.roleCode === "super_admin") return null;
+  const { data: target } = await createAdminClient().from("profiles").select("kind").eq("id", targetId).maybeSingle();
+  if (!target) return "Kullanıcı bulunamadı.";
+  return target.kind === "staff" ? SUPER_ONLY : null;
+}
+
 type NewAccount = {
   kind: "customer" | "staff";
   full_name: string;
@@ -33,7 +49,7 @@ type NewAccount = {
   role_id?: string;
 };
 
-async function createAccount(actor: Awaited<ReturnType<typeof assertStaff>>, d: NewAccount): Promise<ActionState> {
+async function createAccount(actor: Actor, d: NewAccount): Promise<ActionState> {
   const username = slugify(d.username || d.full_name).slice(0, 32);
   if (!USERNAME_RE.test(username)) {
     return { error: "Kullanıcı adı oluşturulamadı.", fieldErrors: { username: "3-32 karakter; harf, rakam, . _ - kullanın" } };
@@ -44,6 +60,7 @@ async function createAccount(actor: Awaited<ReturnType<typeof assertStaff>>, d: 
   let staff_role_id: string | null = null;
 
   if (d.kind === "staff") {
+    if (actor.roleCode !== "super_admin") return { error: "Merkez hesabını yalnızca Süper Yönetici açabilir." };
     staff_role_id = d.staff_role_id ?? null;
     const { data: role } = await admin.from("roles").select("code, scope").eq("id", staff_role_id ?? "").maybeSingle();
     if (!role || role.scope !== "staff") return { error: "Geçersiz rol.", fieldErrors: { staff_role_id: "Geçersiz rol" } };
@@ -152,9 +169,11 @@ export async function setStaffOverride(fd: FormData): Promise<void> {
 
 export async function resetPassword(values: ResetPasswordValues): Promise<ActionState> {
   return guard(async () => {
-    await assertStaff("users.manage");
+    const actor = await assertStaff("users.manage");
     const v = validate(resetPasswordSchema, values);
     if (!v.ok) return v.state;
+    const denied = await denyUnlessMayManage(actor, v.data.id);
+    if (denied) return { error: denied };
     const password = v.data.password || generatePassword();
 
     const { error } = await createAdminClient().auth.admin.updateUserById(v.data.id, { password });
@@ -167,9 +186,12 @@ export async function setUserActive(fd: FormData): Promise<void> {
   const actor = await assertStaff("users.manage");
   const id = str(fd, "id");
   if (!id || id === actor.id) return; // never lock yourself out
+  if (await denyUnlessMayManage(actor, id)) return; // merkez hesabını yalnızca Süper Yönetici kısıtlar
   const active = fd.get("active") === "1";
   const admin = createAdminClient(actor.id);
-  await admin.from("profiles").update({ is_active: active }).eq("id", id);
+  // son Süper Yönetici kısıtlanamaz (veritabanı kuralı); hata olursa Auth tarafına dokunulmaz
+  const { error } = await admin.from("profiles").update({ is_active: active }).eq("id", id);
+  if (error) return;
   // Also block Auth itself so refresh tokens / password sign-ins stop immediately.
   await admin.auth.admin.updateUserById(id, { ban_duration: active ? "none" : "876000h" });
   revalidatePath(`/merkez/kullanicilar/${id}`, "layout");
@@ -179,6 +201,7 @@ export async function setUserActive(fd: FormData): Promise<void> {
 export async function updateStaffRole(values: StaffRoleValues): Promise<ActionState> {
   return guard(async () => {
     const actor = await assertStaff("users.manage");
+    if (actor.roleCode !== "super_admin") return { error: "Merkez rolünü yalnızca Süper Yönetici değiştirebilir." };
     const v = validate(staffRoleSchema, values);
     if (!v.ok) return v.state;
     const { id, staff_role_id } = v.data;

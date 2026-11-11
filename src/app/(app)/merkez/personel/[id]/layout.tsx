@@ -21,13 +21,14 @@ export default async function PersonnelDetailLayout({ params, children }: Layout
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
   const user = await requireStaff("personnel.read");
   const supabase = await createClient();
-  const [{ data }, { count: nAssign }, { count: nDocs }] = await Promise.all([
-    supabase.from("personnel").select("id, full_name, title, status, birth_date, hire_date, organizations(name)").eq("id", id).maybeSingle(),
+  const [{ data }, { data: personal }, { count: nAssign }, { count: nDocs }] = await Promise.all([
+    supabase.from("personnel").select("id, full_name, title, status, hire_date, organizations(name)").eq("id", id).maybeSingle(),
+    supabase.from("personnel_personal").select("birth_date").eq("personnel_id", id).maybeSingle(),
     supabase.from("personnel_assignments").select("id", { count: "exact", head: true }).eq("personnel_id", id),
     supabase.from("documents").select("id", { count: "exact", head: true }).eq("personnel_id", id),
   ]);
   if (!data) notFound();
-  const p = data as unknown as Head;
+  const p = { ...(data as unknown as Omit<Head, "birth_date">), birth_date: (personal?.birth_date as string | null | undefined) ?? null } as Head;
   const canUpload = hasPermission(user, "documents.manage");
 
   // başlıktaki kısa bilgi: yaş, çalışma süresi, yasal yıllık izin hakkı (İş K. md. 53)

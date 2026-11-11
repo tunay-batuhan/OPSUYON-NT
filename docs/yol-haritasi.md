@@ -269,3 +269,29 @@ Devriye, manyetik kalem/anahtar sisteminin QR karşılığıdır: **başlatılı
 | Etiket | **A7** (74×105 mm), A4 yatayda 8 adet, başlıkta logo; başlat/bitir etiketi lacivert başlıklı |
 Kod: migration `20261111000600_patrol_tours.sql` (kurallar veritabanında: `patrol_tour_scan/start/end/resume`), `src/app/actions/patrol-tour.ts`, `src/components/patrol-scan.tsx`, `src/lib/patrol-report.ts`.
 Sonraya: planlı tur saatleri ve "tur atılmadı" uyarısı, devriye fotoğrafı, raporun telefonlara gönderilmesi.
+
+## 13. Yetkilendirme (11 Kasım): roller, müşteri ekranları, güvenlik
+**Model (üç katman + bir kapı):**
+1. **Hesap türü** — Merkez (kendi ekibimiz) / Müşteri (bir firmaya bağlı).
+2. **Rol = yetki paketi** — merkez hesabında tek rol, her yerde geçerli; müşteri hesabında proje bazında rol (`project_members.role_id`).
+3. **Kişiye özel istisna** — rolün üstüne tek tek izin ver / engelle (`staff_permission_overrides`, `member_permission_overrides`).
+4. **Müşteri ekranları** (eski "Müşteri modülleri", `app_modules`) — ekran müşteri panelinde var mı; TÜM müşteriler için tek düğme. Müşteri bir ekranı ancak ekran açık VE rolünde yetkisi varsa görür.
+
+**Yeni:** Yönetim › **Roller ve yetkiler** (`/merkez/yetkiler`): Genel bakış (açıklama + rol × ekran tabloları) · Merkez rolleri · Müşteri rolleri · Müşteri ekranları. Süper Yönetici yeni rol açar, yetkilerini seçer (alanlara göre, Görme / Değiştirme), "Bu rolle görünen menüler" önizlemesi. Hazır roller silinemez, yetkileri düzenlenebilir.
+
+**Kapatılan açıklar** (migration `20261111000700_role_management.sql` + `src/app/actions/users.ts`): "kullanıcı yönetme" yetkisi olan merkez çalışanı Süper Yönetici'nin parolasını sıfırlayabiliyor, rolünü düşürebiliyor, hesabını kısıtlayabiliyor; doğrudan veritabanı isteğiyle kendini Süper Yönetici yapabiliyor ve kendine yetki verebiliyordu. Artık kurallar veritabanında:
+- roller, rol yetkileri, merkez çalışanının kişiye özel yetkileri, hesap türü ve merkez rolü → yalnızca Süper Yönetici
+- merkez hesapları (parola, kısıtlama) → yalnızca Süper Yönetici
+- müşteri rolüne / müşteri istisnasına yalnızca "müşteriye verilebilir" (görme) yetkiler (`permissions.customer_grantable`)
+- son aktif Süper Yönetici silinemez, kısıtlanamaz, rolü düşürülemez
+
+**Test:** 27 veritabanı saldırı/izin denemesi (işlem geri alınarak), tarayıcıda sınırlı merkez hesabıyla sunucuya giden isteği değiştirme saldırısı, bağımsız güvenlik denetimi.
+
+**Bağımsız güvenlik denetimi (11 Kasım) — bulgular ve durum:** kritik bulgu yok; kiracı (firma) ayrımı, müşterinin yazamaması, pasif proje / arşiv firma / kısıtlı hesap, depolama, anonim erişim ve XSS denetimleri temiz.
+| Bulgu | Durum |
+|---|---|
+| Yüksek: müşteri hesapları personelin kişisel bilgilerini (adres, doğum tarihi, telefon…) doğrudan veritabanı isteğiyle okuyabiliyordu | `personnel_personal` görünümü + `personnel.personal.read` yetkisi (migration 000800); sütunların kapatılması `20261111000900` — yeni kod yayına girdikten SONRA uygulanır |
+| Orta: firma değiştiren personeli ve yeni firmadaki izinlerini eski firma görmeye devam ediyordu | `app.can_access_personnel` personelin hâlâ o firmanın kadrosunda olmasını ister; izin kayıtları projesine göre süzülür |
+| Orta: devriye PIN deneme sınırı etiket başınaydı | Sınır proje başına (5 hatalı / 10 dk) |
+| Düşük: `.env.local` (eski Supabase projesinin genel anahtarı) ve demo parolası herkese açık depoda | Karar bekliyor: gerçek veri öncesi demo hesapları kapatılmalı / parolaları değiştirilmeli |
+| Düşük: Supabase parola kuralları zayıf (en az 6 karakter, captcha yok) | Karar bekliyor |

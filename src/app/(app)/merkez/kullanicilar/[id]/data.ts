@@ -11,16 +11,13 @@ export type Member = {
   projects: { id: string; name: string; service_line: string } | null;
 };
 
-const customerGrantable = (p: Permission) =>
-  !["yonetim"].includes(p.module) && !p.code.endsWith(".manage") && p.code !== "messages.manage";
-
-export const moduleLabel: Record<string, string> = { yonetim: "Yönetim", projeler: "Projeler", personel: "Personel & izin", belgeler: "Belgeler", finans: "Finans & cari hesap", iletisim: "İletişim", raporlar: "Raporlar", devriye: "Devriye" };
+export { moduleLabel } from "@/lib/permissions";
 
 /** Kullanıcı detayının tüm verisi; layout ve sekme sayfaları aynı istekte paylaşır (bir kez yüklenir). */
 export const loadUserDetail = cache(async (id: string) => {
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
   const me = await requireStaff("users.read");
-  const manage = hasPermission(me, "users.manage");
+  const canManageUsers = hasPermission(me, "users.manage");
   const supabase = await createClient();
 
   const { data: profile } = await supabase
@@ -38,7 +35,10 @@ export const loadUserDetail = cache(async (id: string) => {
   ]);
   const roles = (allRoles ?? []) as Role[];
   const allPermissions = (perms ?? []) as Permission[];
-  const permissions = allPermissions.filter(customerGrantable);
+  // müşteriye verilebilir yetkiler veritabanında işaretlidir (yalnızca görme yetkileri)
+  const permissions = allPermissions.filter((p) => (p as Permission & { customer_grantable?: boolean }).customer_grantable);
+  // Merkez hesaplarını (parola, kısıtlama, rol) yalnızca Süper Yönetici yönetir
+  const manage = canManageUsers && (u.kind !== "staff" || me.roleCode === "super_admin");
   const customerRoles = roles.filter((r) => r.scope === "customer");
   const staffRoles = roles.filter((r) => r.scope === "staff" && (r.code !== "super_admin" || me.roleCode === "super_admin"));
   const roleGrants = new Map<string, Set<string>>();

@@ -25,10 +25,13 @@ async function ensureAnnualBalance(supabase: Db, personnelId: string, startDate:
   const year = Number(startDate.slice(0, 4));
   const { data: existing } = await supabase.from("leave_balances").select("id").eq("personnel_id", personnelId).eq("year", year).maybeSingle();
   if (existing) return;
-  const { data: p } = await supabase.from("personnel").select("hire_date, birth_date").eq("id", personnelId).maybeSingle();
+  const [{ data: p }, { data: personal }] = await Promise.all([
+    supabase.from("personnel").select("hire_date").eq("id", personnelId).maybeSingle(),
+    supabase.from("personnel_personal").select("birth_date").eq("personnel_id", personnelId).maybeSingle(),
+  ]);
   if (!p?.hire_date) return;
   // hak, iznin başladığı gündeki kıdem ve yaşa göre
-  const { days, reason } = legalAnnualLeaveDays(p.hire_date as string, p.birth_date as string | null, new Date(startDate));
+  const { days, reason } = legalAnnualLeaveDays(p.hire_date as string, (personal?.birth_date as string | null | undefined) ?? null, new Date(startDate));
   await supabase
     .from("leave_balances")
     .upsert(
