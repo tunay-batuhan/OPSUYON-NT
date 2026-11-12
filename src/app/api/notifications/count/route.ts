@@ -10,6 +10,6 @@ import { loadNotificationCounts } from "@/lib/notifications";
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: { "Cache-Control": "no-store" } });
-  const counts = await loadNotificationCounts(user.kind);
+  const counts = await loadNotificationCounts(user);
   return NextResponse.json(counts, { headers: { "Cache-Control": "private, no-store" } });
 }

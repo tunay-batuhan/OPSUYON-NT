@@ -87,6 +87,23 @@ export async function assertStaff(permission: string): Promise<CurrentUser> {
   return user;
 }
 
+export const isSuperAdmin = (user: Pick<CurrentUser, "kind" | "roleCode"> | null | undefined) =>
+  Boolean(user && user.kind === "staff" && user.roleCode === "super_admin");
+
+/** Yalnızca Süper Yönetici (ör. İletişim talepleri). Diğer merkez hesapları merkez ana sayfasına döner. */
+export async function requireSuperAdmin(): Promise<CurrentUser> {
+  const user = await requireStaff();
+  if (!isSuperAdmin(user)) redirect("/merkez?yetki=yok");
+  return user;
+}
+
+/** Server action'lar için: Süper Yönetici değilse hata fırlatır. */
+export async function assertSuperAdmin(): Promise<CurrentUser> {
+  const user = await getCurrentUser();
+  if (!isSuperAdmin(user)) throw new Error("Bu işlem için yetkiniz yok.");
+  return user!;
+}
+
 export const homePathFor = (user: Pick<Profile, "kind">) => (user.kind === "staff" ? "/merkez" : "/panel");
 
 /** Menu-level check: may the user do this on at least one project (or globally, for staff)? */

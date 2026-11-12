@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { BRAND, BRAND_TAGLINE } from "@/lib/brand";
+import { SITE_INDEXABLE, SITE_URL } from "@/lib/site";
 import { NavProgress } from "@/components/nav-progress";
 
 const geistSans = Geist({
@@ -21,7 +22,11 @@ export const metadata: Metadata = {
   },
   description:
     "Güvenlik, temizlik ve kurumsal tedarik hizmetlerinde personel, puantaj, bordro, fatura ve cari hesap takibi.",
-  metadataBase: new URL("https://opsuyon.com"),
+  applicationName: BRAND,
+  metadataBase: new URL(SITE_URL),
+  // Arama motoru anahtarı (src/lib/site.ts): kapalıyken her sayfa noindex. Açıkken de giriş arkasındaki
+  // ekranlar, /giris ve devriye sayfaları kendi düzenlerinde noindex kalır.
+  robots: SITE_INDEXABLE ? undefined : { index: false, follow: false, googleBot: { index: false, follow: false } },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

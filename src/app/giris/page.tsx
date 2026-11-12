@@ -6,7 +6,12 @@ import { Logo } from "@/components/logo";
 import { LoginForm } from "@/components/forms/auth-forms";
 import { getCurrentUser, homePathFor } from "@/lib/auth";
 
-export const metadata: Metadata = { title: "Giriş" };
+export const metadata: Metadata = {
+  title: "Giriş",
+  description: "OPSÜYON müşteri ve merkez paneline giriş.",
+  // Giriş sayfası arama sonuçlarında çıkmaz; bağlantıları izlenebilir.
+  robots: { index: false, follow: true, googleBot: { index: false, follow: true } },
+};
 
 export default async function LoginPage() {
   const user = await getCurrentUser().catch(() => null);

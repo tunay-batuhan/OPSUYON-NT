@@ -296,3 +296,18 @@ Sonraya: planlı tur saatleri ve "tur atılmadı" uyarısı, devriye fotoğrafı
 | Orta: devriye PIN deneme sınırı etiket başınaydı | Sınır proje başına (5 hatalı / 10 dk) |
 | Düşük: `.env.local` (eski Supabase projesinin genel anahtarı) ve demo parolası herkese açık depoda | Karar bekliyor: gerçek veri öncesi demo hesapları kapatılmalı / parolaları değiştirilmeli |
 | Düşük: Supabase parola kuralları zayıf (en az 6 karakter, captcha yok) | Karar bekliyor |
+
+## 14. Herkese açık site, iletişim formu, SEO (12 Kasım)
+**Sayfalar** (girişsiz, `src/app/(site)/`): Ana sayfa `/` (eski görünüm korundu: büyük logo + alt başlık, büyük Giriş Yap + slogan, hero cümlesi + alan adı hapı, hizmet kartları, 7 simgeli şerit, lacivert slogan şeridi; altına Özellikler · Nasıl çalışır · SSS · iletişim çağrısı eklendi) · `/hakkimizda` · `/iletisim` (form) · `/gizlilik-politikasi` · `/kvkk-aydinlatma-metni` · `/cerez-politikasi` · `/kullanim-kosullari`. İç sayfalar `(site)/(sayfalar)/` altında kompakt üst çubukla; alt bilgi tüm sitede ortak.
+
+**Tek ayar dosyası:** `src/lib/site.ts` — şirket unvanı, adres, telefon, e-posta, vergi, MERSİS, KEP, çalışma saatleri, sosyal medya, KVKK başvuru e-postası, yetkili mahkeme, yasal metin tarihi. Köşeli parantezli değerler (`[Şirket Unvanı]`) yer tutucudur: sayfada sarı işaretli görünür, bağlantı olmaz, JSON-LD'ye yazılmaz.
+
+**Arama motoru anahtarı:** `SITE_INDEXABLE=true` (Vercel ortam değişkeni + yeniden yayın). Varsayılan KAPALI: robots.txt her şeyi kapatır, site haritası boş, her sayfada `noindex`. Açılınca: herkese açık 7 sayfa site haritasında, giriş arkası yollar robots.txt'de kapalı ve `noindex` (`(app)/layout.tsx`), `/giris` ve `/d/…` `noindex`. Site adresi `SITE_URL` (varsayılan https://opsuyon-nt.vercel.app; opsuyon.com bağlanınca değiştirilecek).
+
+**Statik / dinamik:** yasal sayfalar ve Hakkımızda tamamen statik; ana sayfa statik + saatlik yenileme (hizmet alanları oturumsuz okunur); `/iletisim` istek anında (form damgası). Üstteki "Giriş Yap / Panele git" düğmesi tarayıcıda belirlenir: oturum çerezi varsa `/api/session` sorulur.
+
+**İletişim formu → İletişim talepleri:** tablo `public.contact_messages` (migration `20261112000100_contact_messages.sql`; RLS açık, anon/oturumlu erişim YOK, yalnızca sunucu servis anahtarıyla). Koruma: gizli alan (honeypot), sunucunun imzaladığı form damgası (en az 3 sn), IP başına 10 dk'da 3 / günde 10 mesaj, site geneli saatte 60; IP saklanmaz, yalnızca gizli anahtarlı özeti 30 gün. Mesajlar 12 ay sonra silinir (pg_cron `purge-old-contact-messages`). Gelen kutusu: Yönetim › **İletişim talepleri** (`/merkez/iletisim-talepleri`), yalnızca Süper Yönetici (menü + sayfa + işlem sunucuda denetlenir); durum Yeni / Okundu / Yanıtlandı, e-posta ile yanıtla, onaylı silme; yeni mesajlar Süper Yönetici'nin zilinde ve Bildirimler'de.
+
+**Logo tek kaynak:** `src/lib/logo-art.ts` (halka, kişi, sarı ok). `<LogoMark>`/`<Logo>`, paylaşım görseli ve `scripts/brand-assets.mjs` buradan türer. Betik `public/brand/` (işaret ve logo SVG/PNG, beyaz sürüm; yazı çizgiye çevrilmiş), `src/app/icon.svg`, `favicon.ico` (16/32/48), `apple-icon.png`, manifest ikonlarını üretir. Logo değişirse yalnızca `logo-art.ts` düzenlenir ve betik çalıştırılır (opentype.js geçici klasöre kurulur, projeye bağımlılık eklenmedi).
+
+**Açık kararlar (şirket / avukat):** şirket bilgileri; KVKK'da müşteri personeli için rolümüz (veri işleyen mi, ortak veri sorumlusu mu) ve özel nitelikli veriler (sağlık raporu, adli sicil); Vercel / Supabase / Anthropic için yurt dışı aktarım standart sözleşmeleri ve Kurul'a bildirim; VERBİS kaydı; saklama süreleri (sözleşme bitince hesap ve belgeler); kullanım koşullarında sorumluluk sınırı ve yetkili mahkeme. Metinler avukat onayından geçmedi.

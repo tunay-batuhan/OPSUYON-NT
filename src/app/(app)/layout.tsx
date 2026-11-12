@@ -1,8 +1,12 @@
+import type { Metadata } from "next";
 import { AppShell } from "@/components/app-shell";
 import { menuFor } from "@/lib/menu";
 import { requireUser } from "@/lib/auth";
 import { getEnabledModules } from "@/lib/modules";
 import { getNotificationCounts } from "@/lib/notifications";
+
+// Giriş arkasındaki hiçbir ekran arama motoruna girmez (SITE_INDEXABLE açık olsa da).
+export const metadata: Metadata = { robots: { index: false, follow: false, googleBot: { index: false, follow: false } } };
 
 const initials = (name: string) =>
   name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]!.toLocaleUpperCase("tr")).join("");

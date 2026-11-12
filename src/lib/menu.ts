@@ -1,7 +1,7 @@
-import { canAnywhere, type CurrentUser } from "@/lib/auth";
+import { canAnywhere, isSuperAdmin, type CurrentUser } from "@/lib/auth";
 import type { NavChild, NavItem } from "@/components/nav";
 
-type Def = NavItem & { anyOf?: string[]; staffOnly?: boolean };
+type Def = NavItem & { anyOf?: string[]; staffOnly?: boolean; /** yalnızca Süper Yönetici */ superOnly?: boolean };
 
 /**
  * Alt sayfalar sol menüde açılır liste değil, sayfanın üstünde SEKME olarak görünür (Tunay, 6 Kasım).
@@ -104,9 +104,11 @@ function staffMenu(user: CurrentUser): NavItem[] {
     { href: "/merkez/kullanicilar", label: "Kullanıcılar & hesaplar", icon: "users", anyOf: ["users.read"], group: "Yönetim" },
     { href: "/merkez/yetkiler", label: "Roller ve yetkiler", icon: "modules", anyOf: ["access.manage"], group: "Yönetim", match: ["/merkez/yetkiler", "/merkez/moduller"] },
     { href: "/merkez/islem-gecmisi", label: "İşlem geçmişi", icon: "audit", anyOf: ["audit.read"], group: "Yönetim" },
+    // web sitesindeki iletişim formundan gelen mesajlar (şimdilik yalnızca Süper Yönetici; sayfa da sunucuda denetler)
+    { href: "/merkez/iletisim-talepleri", label: "İletişim talepleri", icon: "inbox", group: "Yönetim", superOnly: true },
   ];
   return defs
-    .filter((d) => !d.anyOf || d.anyOf.some((p) => canAnywhere(user, p)))
+    .filter((d) => (!d.anyOf || d.anyOf.some((p) => canAnywhere(user, p))) && (!d.superOnly || isSuperAdmin(user)))
     .map((d) => {
       // Devriye alt sayfaları (Rapor, Noktalar, Yeni nokta) sayfada sekme; menüdeki öğe ilk sekmeye gider
       const href = d.icon === "patrol" ? (sectionPages("devriye", user, new Set())[0]?.href ?? d.href) : d.href;

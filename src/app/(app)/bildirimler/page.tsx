@@ -1,8 +1,10 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { CalendarClock, FileText, MessageSquare } from "lucide-react";
+import { CalendarClock, FileText, Inbox, MessageSquare } from "lucide-react";
 import { Card, CardHeader, EmptyState, PageHeader } from "@/components/ui";
-import { requireUser } from "@/lib/auth";
+import { isSuperAdmin, requireUser } from "@/lib/auth";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { CONTACT_TOPICS, type ContactTopic } from "@/lib/schemas-contact";
 import { getEnabledModules } from "@/lib/modules";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatDateTime, isoDayFromNow, isoTimeFromNow } from "@/lib/format";
@@ -28,6 +30,12 @@ export default async function NotificationsPage() {
       : Promise.resolve({ data: [] }),
   ]);
 
+  // Web sitesi iletişim formundan gelen yeni mesajlar: yalnızca Süper Yönetici (tabloya oturumlu erişim yok, servis anahtarıyla)
+  const { data: contactData } = isSuperAdmin(user)
+    ? await createAdminClient().from("contact_messages").select("id, full_name, company, topic, created_at").eq("status", "yeni").order("created_at", { ascending: false }).limit(20)
+    : { data: [] };
+  const contactRows = (contactData ?? []) as { id: string; full_name: string; company: string | null; topic: ContactTopic; created_at: string }[];
+
   const readMap = new Map((reads ?? []).map((r) => [r.thread_id as string, new Date(r.last_read_at as string).getTime()]));
   const unread = new Map<string, Msg>();
   for (const m of (msgs ?? []) as unknown as Msg[]) {
@@ -36,13 +44,29 @@ export default async function NotificationsPage() {
   const threads = [...unread.values()];
   const contractRows = !showContracts ? [] : (contracts ?? []) as unknown as { id: string; name: string; end_date: string; organizations: { name: string } | null }[];
   const docRows = (docs ?? []) as unknown as { id: string; title: string; created_at: string; project_id: string; projects: { name: string } | null }[];
-  const nothing = threads.length + contractRows.length + docRows.length === 0;
+  const nothing = threads.length + contractRows.length + docRows.length + contactRows.length === 0;
 
   return (
     <>
       <PageHeader title="Bildirimler" description="Dikkat etmeniz gereken gelişmeler." />
       {nothing && <Card><EmptyState title="Yeni bildirim yok" description="Mesaj, belge ve yaklaşan sözleşme bildirimleri burada görünür." /></Card>}
       <div className="space-y-6">
+        {contactRows.length > 0 && (
+          <Card>
+            <CardHeader title="Yeni iletişim talepleri" description="Web sitesindeki iletişim formundan" />
+            <ul className="divide-y divide-border">
+              {contactRows.map((c) => (
+                <li key={c.id}>
+                  <Link href={`/merkez/iletisim-talepleri/${c.id}`} className="flex items-center gap-3 px-5 py-3 hover:bg-surface-2">
+                    <Inbox className="size-5 shrink-0 text-brand" aria-hidden />
+                    <span className="flex-1"><span className="font-medium">{c.full_name}</span> <span className="text-muted">· {CONTACT_TOPICS[c.topic] ?? c.topic}{c.company ? ` · ${c.company}` : ""}</span></span>
+                    <span className="shrink-0 text-xs text-muted">{formatDateTime(c.created_at)}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        )}
         {threads.length > 0 && (
           <Card>
             <CardHeader title="Okunmamış mesajlar" />
