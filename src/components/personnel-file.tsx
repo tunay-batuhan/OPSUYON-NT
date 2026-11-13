@@ -79,11 +79,13 @@ const lineOf = (code: string | null | undefined, lineNames: Record<string, strin
 /* Liste: Hizmet + Ad soyad filtresi, aktif personel, 10'ar kayıt       */
 /* ------------------------------------------------------------------ */
 export async function PersonnelFileList({
-  screen, searchParams, lineNames, headless = false,
+  screen, searchParams, lineNames, headless = false, actions,
 }: {
   screen: FileScreen;
   searchParams: SP;
   lineNames: Record<string, string>;
+  /** Başlığın sağındaki düğmeler (ör. merkezde "Eğitim ekle"). */
+  actions?: ReactNode;
   /** Başlığı sayfanın layout.tsx dosyası çiziyor (sekmeli bölüm): bileşen başlık çizmez. */
   headless?: boolean;
 }) {
@@ -142,7 +144,7 @@ export async function PersonnelFileList({
 
   return (
     <>
-      {!headless && <PageHeader title={screen.title} description={screen.description} />}
+      {!headless && <PageHeader title={screen.title} description={screen.description} actions={actions} />}
       <FilterBar action={path} fields={fields} />
       <Card>
         <CardHeader title={`${total} personel`} description={screen.mode === "checklist" ? "Evrakları görmek için personele tıklayın." : "Eğitimleri görmek için personele tıklayın."} />
@@ -190,7 +192,9 @@ export async function PersonnelFileList({
 /* ------------------------------------------------------------------ */
 /* Detay: seçilen personelin evrakları / eğitimleri (PDF indir + Görüntüle) */
 /* ------------------------------------------------------------------ */
-export async function PersonnelFileDetail({ screen, id, searchParams, lineNames }: { screen: FileScreen; id: string; searchParams: SP; lineNames: Record<string, string> }) {
+export async function PersonnelFileDetail({
+  screen, id, searchParams, lineNames, actions,
+}: { screen: FileScreen; id: string; searchParams: SP; lineNames: Record<string, string>; actions?: ReactNode }) {
   if (!isUuid(id)) notFound();
   const supabase = await createClient();
   const { data } = await supabase
@@ -307,6 +311,7 @@ export async function PersonnelFileDetail({ screen, id, searchParams, lineNames 
         }
         title={person.full_name}
         description={sub || undefined}
+        actions={actions}
       />
       {body}
     </>

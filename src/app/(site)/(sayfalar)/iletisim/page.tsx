@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Fragment } from "react";
 import { connection } from "next/server";
 import { Building2, Clock, Mail, MapPin, Phone } from "lucide-react";
 import { ContactForm } from "@/components/site/contact-form";
 import { CompanyAddress, Fact, PageHero } from "@/components/site/parts";
 import { issueFormStamp } from "@/lib/contact";
-import { COMPANY, mailHref, telHref } from "@/lib/site";
+import { COMPANY, has, mailHref, telHref } from "@/lib/site";
 import { pageMetadata } from "@/lib/seo";
 import { BRAND } from "@/lib/brand";
 
@@ -27,10 +28,14 @@ export default async function ContactPage({ searchParams }: PageProps<"/iletisim
 
   const rows = [
     { icon: MapPin, label: "Adres", value: <CompanyAddress /> },
-    { icon: Phone, label: "Telefon", value: <Fact value={COMPANY.phone} href={telHref()} className="font-medium text-brand underline-offset-2 hover:underline" /> },
+    has(COMPANY.phone) && { icon: Phone, label: "Telefon", value: <Fact value={COMPANY.phone} href={telHref()} className="font-medium text-brand underline-offset-2 hover:underline" /> },
     { icon: Mail, label: "E-posta", value: <Fact value={COMPANY.email} href={mailHref()} className="font-medium text-brand underline-offset-2 hover:underline" /> },
-    { icon: Clock, label: "Çalışma saatleri", value: <Fact value={COMPANY.workingHours} /> },
-  ];
+    has(COMPANY.workingHours) && { icon: Clock, label: "Çalışma saatleri", value: <Fact value={COMPANY.workingHours} /> },
+  ].filter((r) => !!r);
+  // Şirket bilgileri kutusu: unvan + doldurulmuş isteğe bağlı alanlar
+  const facts: [string, string][] = (
+    [["Vergi dairesi", COMPANY.taxOffice], ["Vergi no", COMPANY.taxNumber], ["MERSİS", COMPANY.mersis], ["Ticaret sicil no", COMPANY.tradeRegistry], ["KEP", COMPANY.kep]] as [string, string][]
+  ).filter(([, v]) => has(v));
 
   return (
     <>
@@ -62,10 +67,9 @@ export default async function ContactPage({ searchParams }: PageProps<"/iletisim
             </h3>
             <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
               <dt className="text-muted">Unvan</dt><dd className="[overflow-wrap:anywhere]"><Fact value={COMPANY.legalName} /></dd>
-              <dt className="text-muted">Vergi dairesi</dt><dd><Fact value={COMPANY.taxOffice} /></dd>
-              <dt className="text-muted">Vergi no</dt><dd><Fact value={COMPANY.taxNumber} /></dd>
-              <dt className="text-muted">MERSİS</dt><dd><Fact value={COMPANY.mersis} /></dd>
-              <dt className="text-muted">KEP</dt><dd className="[overflow-wrap:anywhere]"><Fact value={COMPANY.kep} /></dd>
+              {facts.map(([k, v]) => (
+                <Fragment key={k}><dt className="text-muted">{k}</dt><dd className="[overflow-wrap:anywhere]">{v}</dd></Fragment>
+              ))}
             </dl>
           </div>
 

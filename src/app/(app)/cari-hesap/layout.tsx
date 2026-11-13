@@ -16,9 +16,9 @@ export default async function LedgerLayout({ children }: { children: ReactNode }
         title="Cari Hesap"
         tabs={user ? sectionPages("cari", user, on) : []}
         descriptions={{
-          "/cari-hesap": "Firma bazında faturalar, tahsilatlar ve bakiye (tüm faturalar − tüm tahsilatlar).",
-          "/cari-hesap/fatura-ekle": "Firmaya fatura girin: tarih, saat, açıklama ve genel toplam.",
-          "/cari-hesap/tahsilat-ekle": "Firmadan yapılan tahsilatı girin: tarih, saat, açıklama ve tahsilat tutarı.",
+          "/cari-hesap": "Firma bazında faturalar, tahsilatlar ve bakiye (tüm faturalar − tüm tahsilatlar). Ekli dosyaları görüntüleyin, Rapor al ile ekstre PDF alın.",
+          "/cari-hesap/fatura-ekle": "Firmaya fatura girin: tarih, saat, açıklama, genel toplam ve isteğe bağlı fatura dosyası.",
+          "/cari-hesap/tahsilat-ekle": "Firmadan yapılan tahsilatı girin: tarih, saat, açıklama, tahsilat tutarı ve isteğe bağlı dekont.",
           "/cari-hesap/faturalar": "Ay ve yıl seçin; o döneme ait faturayı PDF olarak indirin.",
         }}
       />

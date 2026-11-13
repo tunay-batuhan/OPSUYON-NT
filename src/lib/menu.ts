@@ -90,6 +90,8 @@ function staffMenu(user: CurrentUser): NavItem[] {
     { href: "/merkez", label: "Ana Sayfa", icon: "home", exact: true },
     { href: "/projeler", label: "Projeler", icon: "projects", anyOf: ["projects.read"], match: ["/projeler", "/merkez/projeler"] },
     { href: "/personel", label: "Personel", icon: "personnel", anyOf: ["personnel.read"], match: ["/personel", "/merkez/personel"] },
+    // Eğitimler: müşteridekiyle aynı liste + "Eğitim ekle" (evrak ekleme ekranı, kategori Eğitim seçili)
+    { href: "/egitimler", label: "Eğitimler", icon: "training", anyOf: ["trainings.read"] },
     { href: "/puantaj", label: "Puantaj", icon: "timesheets", anyOf: ["timesheets.read"] },
     { href: "/izinler", label: "İzin Yönetimi", icon: "leaves", anyOf: ["leaves.read"] },
     { href: "/bordrolar", label: "Bordrolar", icon: "payroll", anyOf: ["payroll.read"] },

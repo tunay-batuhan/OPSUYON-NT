@@ -13,7 +13,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { assembleTour, asTours, fetchAll, scannerNames, scansOfTours, toursQuery, type TourFilter, type TourScanRaw } from "@/lib/patrol-report";
 import {
   PATROL_KEEP_DAYS, TOUR_COLUMNS, TOUR_STATUS, checkpointStats, dayRange, fmtClock, fmtDay, fmtDayLong, istanbulDay, isTourStatus,
-  locationLabel, mapsUrl, tourDuration, tourStatus, type TourReportTour, type TourStatus,
+  locationLabel, mapsUrl, scannedPointNames, tourDuration, tourStatus, type TourReportTour, type TourStatus,
 } from "@/lib/patrol";
 
 export const metadata: Metadata = { title: "Devriye Kayıtları" };
@@ -83,13 +83,14 @@ function Cell({ label, children, className }: { label: string; children: ReactNo
   );
 }
 
-const GRID = "md:grid-cols-[minmax(0,1.5fr)_minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,0.7fr)_minmax(0,0.6fr)_minmax(0,0.9fr)]";
+const GRID = "md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,0.9fr)_minmax(0,0.6fr)_minmax(0,0.5fr)_minmax(0,1.7fr)_minmax(0,0.9fr)]";
 
 /** Bir tur: özet satırı (atlananlar dahil) ve açılınca okutmaları. */
 function TourItem({ t, projectLabel, pointName }: { t: TourReportTour; projectLabel?: string; pointName: Map<string, string> }) {
   const st = TOUR_STATUS[t.status];
   const open = t.status === "devam";
   const ended = t.ended_at && istanbulDay(t.ended_at) !== istanbulDay(t.started_at) ? dayClock(t.ended_at) : t.ended_at ? fmtClock(t.ended_at, false) : null;
+  const scannedNames = scannedPointNames(t, (id) => pointName.get(id));
   return (
     <li>
       <details className="group">
@@ -113,9 +114,12 @@ function TourItem({ t, projectLabel, pointName }: { t: TourReportTour; projectLa
           </Cell>
           <Cell label="Süre" className="tabular-nums">{tourDuration(t)}</Cell>
           <Cell label="Nokta" className={cn("tabular-nums", !open && t.missing.length > 0 && "font-medium text-warning")}>{t.done} / {t.total}</Cell>
+          <Cell label="Nokta adı" className="col-span-2 leading-snug md:col-span-1">
+            {scannedNames.length > 0 ? scannedNames.join(", ") : <span className="text-muted">—</span>}
+          </Cell>
           <Cell label="Durum"><Badge tone={st.tone}>{st.label}</Badge></Cell>
           {t.missing.length > 0 && (
-            <p className={cn("col-span-2 text-xs md:col-span-6 md:pl-6", open ? "text-muted" : t.status === "eksik" ? "text-warning" : "text-danger")}>
+            <p className={cn("col-span-2 text-xs md:col-span-7 md:pl-6", open ? "text-muted" : t.status === "eksik" ? "text-warning" : "text-danger")}>
               <span className="font-medium">{open ? "Henüz okutulmayan" : "Atlanan"}:</span> {t.missing.join(", ")}
             </p>
           )}
@@ -396,6 +400,7 @@ export default async function PatrolRecordsPage({ searchParams }: PageProps<"/de
               <span>Bitiş</span>
               <span>Süre</span>
               <span>Nokta</span>
+              <span>Nokta adı</span>
               <span>Durum</span>
             </div>
             <ul className="divide-y divide-border">

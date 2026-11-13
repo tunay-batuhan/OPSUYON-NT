@@ -40,36 +40,44 @@ export const SITE_INDEXABLE = process.env.SITE_INDEXABLE === "true";
 export const absoluteUrl = (path = "/") => `${SITE_URL}${path.startsWith("/") ? path : `/${path}`}`;
 
 /* ------------------------------------------------------------------ */
-/* Şirket bilgileri — SAHİBİ DOLDURACAK                                */
+/* Şirket bilgileri                                                     */
 /* ------------------------------------------------------------------ */
+/*
+ * ZORUNLU (KVKK aydınlatma: veri sorumlusunun kimliği + başvuru yolu): unvan, adres, e-posta.
+ * İSTEĞE BAĞLI: boş ("") bırakılan alan sitenin hiçbir yerinde görünmez; doldurulunca kendiliğinden çıkar.
+ */
 export const COMPANY = {
-  /** Ticaret sicilindeki tam unvan (ör. "Örnek Tesis Yönetim Hizmetleri Anonim Şirketi"). */
-  legalName: "[Şirket Unvanı]",
-  /** Kısa ad (ör. "Örnek A.Ş."): metin içinde "Şirket" yerine kullanılır. */
-  shortName: "[Kısa Şirket Adı]",
+  /** Ticaret sicilindeki tam unvan. */
+  legalName: "OPSUYON Operasyonel Yönetim ve Teknoloji Ltd. Şti.",
+  /** Kısa ad (isteğe bağlı): boşsa her yerde tam unvan kullanılır. */
+  shortName: "",
   address: {
-    street: "[Açık Adres]",
-    district: "[İlçe]",
-    city: "[İl]",
-    postalCode: "[Posta Kodu]",
+    street: "Kemal Türkler Mah. Yazlık Sk. No: 3/2",
+    district: "Sancaktepe",
+    city: "İstanbul",
+    /** isteğe bağlı */
+    postalCode: "",
     /** ISO ülke kodu (JSON-LD) */
     country: "TR",
   },
-  /** Ekranda görünen biçim, ör. "0212 123 45 67". tel: bağlantısı buradan otomatik üretilir. */
-  phone: "[Telefon]",
-  /** Genel iletişim e-postası, ör. "info@opsuyon.com". */
-  email: "[E-posta Adresi]",
-  taxOffice: "[Vergi Dairesi]",
-  taxNumber: "[Vergi Kimlik No]",
+  /** Genel iletişim e-postası (KVKK başvuruları da buraya). */
+  email: "info@opsuyon.com",
+  /* ---- isteğe bağlı ---- */
+  /** Ör. "0212 123 45 67"; tel: bağlantısı buradan otomatik üretilir. */
+  phone: "0216 396 21 93",
+  taxOffice: "",
+  taxNumber: "",
   /** 16 haneli MERSİS numarası */
-  mersis: "[MERSİS No]",
-  /** Ticaret sicil numarası (isteğe bağlı; boş bırakılırsa gösterilmez). */
+  mersis: "",
   tradeRegistry: "",
   /** Kayıtlı elektronik posta adresi, ör. "ornek@hs01.kep.tr" */
-  kep: "[KEP Adresi]",
+  kep: "",
   /** Ör. "Hafta içi 09:00–18:00" */
-  workingHours: "[Çalışma Saatleri]",
+  workingHours: "",
 } as const;
+
+/** İsteğe bağlı alan doldurulmuş mu (boş/yer tutucuysa gösterilmez). */
+export const has = (value: string | null | undefined) => !isPlaceholder(value);
 
 /** Sosyal medya: boş olanlar hiçbir yerde gösterilmez. Tam adres yazılır (https://…). */
 export const SOCIAL: { label: string; url: string }[] = [
@@ -83,22 +91,23 @@ export const activeSocial = () => SOCIAL.filter((s) => !isPlaceholder(s.url));
 
 /** KVKK (6698) veri sorumlusu başvuru kanalları. */
 export const KVKK = {
-  /** KVKK başvurularının yapılacağı e-posta (genel e-postadan farklı olabilir, ör. "kvkk@opsuyon.com"). */
-  email: "[KVKK Başvuru E-postası]",
+  /** KVKK başvurularının yapılacağı e-posta (şimdilik genel e-postayla aynı). */
+  email: COMPANY.email,
   /** VERBİS kayıt numarası (kayıt yükümlülüğü varsa; boşsa gösterilmez). */
   verbis: "",
 } as const;
 
-/** Uyuşmazlıklarda yetkili yer (Kullanım Koşulları). Avukatla belirlenmeli. */
-export const JURISDICTION = "[Yetkili Mahkeme ve İcra Daireleri, ör. İstanbul (Çağlayan)]";
+/** Uyuşmazlıklarda yetkili yer (Kullanım Koşulları): şirket merkezinin bulunduğu il. Avukat farklı derse buraya yazılır. */
+export const JURISDICTION = isPlaceholder(COMPANY.address.city)
+  ? "[Şirket merkezinin bulunduğu il] Mahkemeleri ve İcra Daireleri"
+  : `${COMPANY.address.city} Mahkemeleri ve İcra Daireleri`;
 
 /** Yasal metinlerin "Son güncelleme" tarihi (YYYY-AA-GG). Metin değişince güncelleyin. */
 export const LEGAL_UPDATED_AT = "2026-11-12";
 
-/** Tüm zorunlu şirket alanları doldurulmuş mu? (Doldurulmadan SITE_INDEXABLE açılmamalı.) */
+/** Zorunlu şirket alanları doldurulmuş mu? (Doldurulmadan SITE_INDEXABLE açılmamalı.) */
 export const COMPANY_COMPLETE = [
-  COMPANY.legalName, COMPANY.shortName, COMPANY.address.street, COMPANY.address.district, COMPANY.address.city,
-  COMPANY.phone, COMPANY.email, COMPANY.taxOffice, COMPANY.taxNumber, COMPANY.mersis, COMPANY.kep, KVKK.email,
+  COMPANY.legalName, COMPANY.address.street, COMPANY.address.district, COMPANY.address.city, COMPANY.email, KVKK.email,
 ].every((v) => !isPlaceholder(v));
 
 /* ------------------------------------------------------------------ */
@@ -108,7 +117,7 @@ export const COMPANY_COMPLETE = [
 /** Adres tek satır: doldurulmamış parçalar yer tutucu olarak kalır (sayfada işaretli görünür). */
 export const addressLine = () => {
   const a = COMPANY.address;
-  const cityPart = [a.postalCode, `${a.district}/${a.city}`].join(" ");
+  const cityPart = [has(a.postalCode) ? a.postalCode : "", `${a.district}/${a.city}`].filter(Boolean).join(" ");
   return `${a.street}, ${cityPart}`;
 };
 export const addressFilled = () => [COMPANY.address.street, COMPANY.address.district, COMPANY.address.city].every((v) => !isPlaceholder(v));

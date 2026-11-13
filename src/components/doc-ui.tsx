@@ -4,11 +4,14 @@ import { ViewButton } from "@/components/doc-viewer";
 
 /** PDF indir ikonu / düğmesi (müşterinin istediği "PDF olarak indir"). */
 export function DownloadLink({
-  id, label = "PDF indir", icon = true, className, view = true, title,
-}: { id: string; label?: string; icon?: boolean; className?: string; /** yanına "Görüntüle" düğmesi koy */ view?: boolean; title?: string }) {
+  id, label = "PDF indir", icon = true, className, view = true, title, base = "/api/documents",
+}: {
+  id: string; label?: string; icon?: boolean; className?: string; /** yanına "Görüntüle" düğmesi koy */ view?: boolean; title?: string;
+  /** dosya adresinin kökü: belgeler için /api/documents, cari dosyaları için /api/ledger/files */ base?: string;
+}) {
   const link = (
     <a
-      href={`/api/documents/${id}`}
+      href={`${base}/${id}`}
       title={label}
       className={cn("inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-sm font-medium text-brand hover:bg-brand-soft", className)}
     >
@@ -19,7 +22,7 @@ export function DownloadLink({
   return (
     <span className="inline-flex items-center justify-end gap-2 whitespace-nowrap">
       {link}
-      <ViewButton src={`/api/documents/${id}/view`} title={title ?? "Belge"} downloadHref={`/api/documents/${id}`} />
+      <ViewButton src={`${base}/${id}/view`} title={title ?? "Belge"} downloadHref={`${base}/${id}`} />
     </span>
   );
 }

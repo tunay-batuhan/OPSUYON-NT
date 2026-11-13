@@ -3,7 +3,7 @@
 // All fields are strings/booleans/string[] so form input and output types match;
 // numeric strings are converted with toNumber() after validation.
 import { z } from "zod";
-import { isTaxNo, isValidIban, isValidTckn, toNumber } from "@/lib/parse";
+import { isTaxNo, isValidIban, isValidTckn, toMoney, toNumber } from "@/lib/parse";
 
 z.config(z.locales.tr());
 
@@ -28,6 +28,16 @@ export const decimal = (label: string, opts: { required?: boolean; min?: number;
     .refine((v) => v === "" || toNumber(v) !== null, `${label} geçerli bir sayı olmalı`)
     .refine((v) => v === "" || toNumber(v) === null || opts.min === undefined || (toNumber(v) as number) >= opts.min, `${label} en az ${opts.min} olmalı`)
     .refine((v) => v === "" || toNumber(v) === null || opts.max === undefined || (toNumber(v) as number) <= opts.max, `${label} en fazla ${opts.max} olabilir`);
+
+/** Elle girilen para tutarı: "12.000" = on iki bin (toMoney). */
+export const money = (label: string, opts: { required?: boolean; min?: number; max?: number } = {}) =>
+  z
+    .string()
+    .trim()
+    .refine((v) => !opts.required || v !== "", `${label} zorunlu`)
+    .refine((v) => v === "" || toMoney(v) !== null, `${label} geçerli bir tutar olmalı (ör. 12.500,75)`)
+    .refine((v) => v === "" || toMoney(v) === null || opts.min === undefined || (toMoney(v) as number) >= opts.min, `${label} en az ${opts.min} olmalı`)
+    .refine((v) => v === "" || toMoney(v) === null || opts.max === undefined || (toMoney(v) as number) <= opts.max, `${label} en fazla ${opts.max} olabilir`);
 
 export const email = z
   .string()

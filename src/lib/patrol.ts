@@ -178,6 +178,18 @@ export type TourReportTour = PatrolTour & {
   missing: string[];
   scans: (PatrolScanRow & { mark?: "start" | "end" })[];
 };
+/** Turda okutulan noktaların adları: okutma sırasıyla, her nokta bir kez (başlat/bitir okutmaları hariç). */
+export function scannedPointNames(t: Pick<TourReportTour, "scans">, nameOf: (pointId: string) => string | undefined): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const s of t.scans) {
+    if (s.mark || seen.has(s.point_id)) continue;
+    seen.add(s.point_id);
+    out.push(nameOf(s.point_id) ?? "—");
+  }
+  return out;
+}
+
 export type TourReport = {
   project: { id: string; name: string; organization: string | null };
   start: string; // YYYY-MM-DD

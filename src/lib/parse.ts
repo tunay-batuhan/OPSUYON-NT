@@ -12,6 +12,17 @@ export function toNumber(input: string | null | undefined): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+/**
+ * Para tutarı (elle girilen, Türkçe yazım): "12.000" ve "1.250.000" binlik ayraçlı tam sayıdır (12000, 1250000);
+ * toNumber bunları ondalık sanardı ("12.000" → 12). Kuruş virgülle yazılır: "12.500,75". Diğer biçimler toNumber'a gider.
+ * Yalnızca elle girilen tutarlarda kullanılır (Excel içe aktarma toNumber'ı kullanmaya devam eder).
+ */
+export function toMoney(input: string | null | undefined): number | null {
+  const s = String(input ?? "").trim().replace(/\s/g, "");
+  if (/^-?\d{1,3}(\.\d{3})+$/.test(s)) return Number(s.replace(/\./g, ""));
+  return toNumber(s);
+}
+
 /** Turkish national ID (TC Kimlik No) checksum. */
 export function isValidTckn(v: string): boolean {
   if (!/^[1-9]\d{10}$/.test(v)) return false;

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ArrowRight, Eye, ListChecks, ShieldCheck, Zap } from "lucide-react";
 import { CompanyAddress, Fact, PageHero } from "@/components/site/parts";
 import { BRAND, BRAND_FOOTER, BRAND_TAGLINE } from "@/lib/brand";
-import { COMPANY } from "@/lib/site";
+import { COMPANY, has, mailHref } from "@/lib/site";
 import { pageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = pageMetadata({
@@ -73,10 +73,16 @@ export default function AboutPage() {
               {[
                 ["Unvan", <Fact key="u" value={COMPANY.legalName} />],
                 ["Adres", <CompanyAddress key="a" />],
-                ["Vergi dairesi / no", <span key="v"><Fact value={COMPANY.taxOffice} /> / <Fact value={COMPANY.taxNumber} /></span>],
-                ["MERSİS no", <Fact key="m" value={COMPANY.mersis} />],
-                ...(COMPANY.tradeRegistry ? [["Ticaret sicil no", <Fact key="t" value={COMPANY.tradeRegistry} />] as const] : []),
-                ["KEP adresi", <Fact key="k" value={COMPANY.kep} />],
+                ["E-posta", <Fact key="e" value={COMPANY.email} href={mailHref()} />],
+                ...(
+                  [
+                    ["Vergi dairesi", COMPANY.taxOffice],
+                    ["Vergi no", COMPANY.taxNumber],
+                    ["MERSİS no", COMPANY.mersis],
+                    ["Ticaret sicil no", COMPANY.tradeRegistry],
+                    ["KEP adresi", COMPANY.kep],
+                  ] as [string, string][]
+                ).filter(([, v]) => has(v)),
               ].map(([k, val]) => (
                 <div key={String(k)}>
                   <dt className="text-muted">{k}</dt>

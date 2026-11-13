@@ -120,8 +120,8 @@ function Fields({ people, categories }: { people: DocPerson[]; categories: DocCa
 }
 
 export function PersonnelDocForm({
-  people, categories, defaultPerson,
-}: { people: DocPerson[]; categories: DocCategory[]; defaultPerson?: string }) {
+  people, categories, defaultPerson, defaultCategory,
+}: { people: DocPerson[]; categories: DocCategory[]; defaultPerson?: string; defaultCategory?: string }) {
   const [resetKey, setResetKey] = useState(0);
   const now = new Date();
   const pre = people.find((p) => p.id === defaultPerson);
@@ -129,7 +129,7 @@ export function PersonnelDocForm({
     <Form
       schema={personnelDocumentSchema}
       defaultValues={{
-        personnel_id: pre?.id ?? "", project_id: pre?.projectId ?? "", category_code: "", title: "",
+        personnel_id: pre?.id ?? "", project_id: pre?.projectId ?? "", category_code: defaultCategory ?? "", title: "",
         period_month: String(now.getMonth() + 1), period_year: String(now.getFullYear()), description: "", customer_visible: true,
         storage_path: "", file_name: "", mime_type: "", size_bytes: "", inspection_date: "", inspection_shift: "",
       }}

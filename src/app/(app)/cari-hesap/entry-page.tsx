@@ -22,8 +22,8 @@ export async function LedgerEntryPage({ kind }: { kind: LedgerKind }) {
         title={fatura ? "Fatura girişi" : "Tahsilat girişi"}
         description={
           fatura
-            ? "Firmayı seçin; fatura tarihi, saati, açıklaması ve genel toplamı girin. Fatura firmanın cari bakiyesini artırır."
-            : "Firmayı seçin; tahsilat tarihi, saati, açıklaması ve tutarı girin. Tahsilat firmanın cari bakiyesini düşürür."
+            ? "Firmayı seçin; fatura tarihi, saati, açıklaması ve genel toplamı girin, isterseniz fatura PDF’ini ya da görselini ekleyin. Fatura firmanın cari bakiyesini artırır."
+            : "Firmayı seçin; tahsilat tarihi, saati, açıklaması ve tutarı girin, isterseniz dekontu ekleyin. Tahsilat firmanın cari bakiyesini düşürür."
         }
       />
       {firms.length === 0 ? (

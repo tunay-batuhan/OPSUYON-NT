@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { ChevronRight, Info } from "lucide-react";
 import { cn } from "@/components/ui";
-import { COMPANY, COMPANY_COMPLETE, isPlaceholder } from "@/lib/site";
+import { COMPANY, COMPANY_COMPLETE, has, isPlaceholder } from "@/lib/site";
 import { breadcrumbLd, ldJson } from "@/lib/seo";
 
 /**
@@ -29,7 +29,7 @@ export function CompanyAddress({ className }: { className?: string }) {
   const a = COMPANY.address;
   return (
     <span className={className}>
-      <Fact value={a.street} />, <Fact value={a.postalCode} /> <Fact value={a.district} />/<Fact value={a.city} />
+      <Fact value={a.street} />, {has(a.postalCode) && <>{a.postalCode} </>}<Fact value={a.district} />/<Fact value={a.city} />
     </span>
   );
 }

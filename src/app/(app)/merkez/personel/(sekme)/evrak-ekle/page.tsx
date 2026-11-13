@@ -27,13 +27,27 @@ export default async function AddPersonnelDocPage({ searchParams }: PageProps<"/
     .map((a) => ({ id: a.personnel_id, label: `${a.personnel!.full_name} — ${a.projects?.name ?? "Proje"}`, projectId: a.project_id }))
     .sort((a, b) => a.label.localeCompare(b.label, "tr"));
   const categories = (cats ?? []) as DocCategory[];
+  // ?kategori=egitim (Eğitimler > Eğitim ekle): kategori seçili gelir
+  const wantedCategory = categories.find((c) => c.code === str1(sp.kategori))?.code;
   const wantedPerson = wantedRow?.data as { id: string; full_name: string } | null | undefined;
   const wantedUnassigned = wantedPerson && !people.some((p) => p.id === wantedPerson.id);
 
   return (
     <>
       <Card>
-        <CardHeader title="Evrak ekle" description="Yüklenen evrak personel kartındaki Evraklar bölümünde ve ilgili evrak sayfalarında görünür." />
+        {wantedCategory === "egitim" ? (
+          <CardHeader
+            title="Eğitim ekle"
+            description="Her eğitim ayrı belge olarak yüklenir; Eğitimler ekranında ve personel kartındaki Evraklar bölümünde görünür."
+            action={
+              <Link href={wantedPerson ? `/egitimler/${wantedPerson.id}` : "/egitimler"} className="text-sm font-medium text-brand hover:underline">
+                ← Eğitimlere dön
+              </Link>
+            }
+          />
+        ) : (
+          <CardHeader title="Evrak ekle" description="Yüklenen evrak personel kartındaki Evraklar bölümünde ve ilgili evrak sayfalarında görünür." />
+        )}
         <div className="space-y-3 px-5 pt-5">
           {wantedUnassigned && (
             <Notice tone="danger">
@@ -50,7 +64,12 @@ export default async function AddPersonnelDocPage({ searchParams }: PageProps<"/
             {people.length === 0 ? "Aktif proje ataması olan personel yok." : "Tanımlı personel evrakı kategorisi yok."}
           </p>
         ) : (
-          <PersonnelDocForm people={people} categories={categories} defaultPerson={wantedUnassigned ? undefined : wantedPerson?.id} />
+          <PersonnelDocForm
+            people={people}
+            categories={categories}
+            defaultPerson={wantedUnassigned ? undefined : wantedPerson?.id}
+            defaultCategory={wantedCategory}
+          />
         )}
       </Card>
     </>

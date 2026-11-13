@@ -1,7 +1,8 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { ArrowLeft, ReceiptText, Scale, Wallet } from "lucide-react";
-import { Badge, Card, CardHeader, EmptyState, Stat, Table, cn, td, tdNum } from "@/components/ui";
+import { ArrowDown, ArrowLeft, ArrowUp, FileDown, ReceiptText, Scale, Wallet } from "lucide-react";
+import { Badge, Card, CardHeader, EmptyState, Stat, Table, btn, cn, td, tdNum } from "@/components/ui";
+import { DownloadLink } from "@/components/doc-ui";
 import { FilterBar, type FilterField } from "@/components/filter-bar";
 import { Pagination } from "@/components/pagination";
 import { DeleteDocButton } from "@/components/delete-doc-button";
@@ -13,6 +14,7 @@ import { pagingFrom } from "@/lib/paging";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatMoney, istanbulNow } from "@/lib/format";
 import { LEDGER_KIND_LABELS, type LedgerKind } from "@/lib/schemas-ledger";
+import { LedgerFileActions } from "./ledger-file";
 
 export const metadata: Metadata = { title: "Cari Hesap" };
 
@@ -26,6 +28,7 @@ type Balance = {
 };
 type Movement = {
   id: string; kind: LedgerKind; entry_date: string; entry_time: string; description: string | null; amount: number; running_balance: number;
+  file_name: string | null;
 };
 type Sp = Record<string, string | string[] | undefined>;
 
@@ -39,6 +42,8 @@ const balanceTone = (b: number) => (b > 0 ? "text-danger" : b < 0 ? "text-succes
  * Cari Hesap (firma bazlı): bakiye = tüm faturalar − tüm tahsilatlar.
  *  - Merkez: firma başına özet; firma seçilince o firmanın hareketleri (tür, tarih aralığı, sayfalı; finans yöneticisi silebilir).
  *  - Müşteri: kendi firmasının toplamları ve hareketleri (salt okunur).
+ *  - Hareketin dosyası (fatura PDF'i / görseli, dekont) varsa Görüntüle / İndir; finans yöneticisi dosya ekler, değiştirir, kaldırır.
+ *  - Tarih başlığı sıralamayı çevirir (?sira=eski); "Rapor al" seçili firma / dönem / türle ekstre PDF'i üretir.
  */
 export default async function LedgerAllPage({ searchParams }: PageProps<"/cari-hesap">) {
   const user = await requireAccess("cari_hesap", "ledger.read");
@@ -133,16 +138,20 @@ async function FirmLedger({
   const bit = str1(sp.bit);
   const start = bas && ISO.test(bas) ? bas : undefined;
   const end = bit && ISO.test(bit) ? bit : undefined;
+  // Tarih sütunu başlığı sıralamayı değiştirir: varsayılan en yeni üstte, ?sira=eski → en eski üstte.
+  // Yürüyen bakiye görünümde kronolojik hesaplandığı için sıralamadan etkilenmez.
+  const oldFirst = str1(sp.sira) === "eski";
+  const ascending = oldFirst;
   const { from, to } = pagingFrom(sp);
 
   let q = supabase
     .from("firm_ledger_movements")
-    .select("id, kind, entry_date, entry_time, description, amount, running_balance", { count: "exact" })
+    .select("id, kind, entry_date, entry_time, description, amount, running_balance, file_name", { count: "exact" })
     .eq("organization_id", orgId)
-    .order("entry_date", { ascending: false })
-    .order("entry_time", { ascending: false })
-    .order("created_at", { ascending: false })
-    .order("id", { ascending: false })
+    .order("entry_date", { ascending })
+    .order("entry_time", { ascending })
+    .order("created_at", { ascending })
+    .order("id", { ascending })
     .range(from, to);
   if (kind) q = q.eq("kind", kind);
   if (start) q = q.gte("entry_date", start);
@@ -166,11 +175,32 @@ async function FirmLedger({
   ];
   const filtered = Boolean(kind || start || end);
 
+  // sıralama bağlantısı: süzgeçler korunur, ilk sayfaya dönülür
+  const sortHref = (() => {
+    const p = new URLSearchParams();
+    for (const [k, v] of Object.entries(sp)) if (typeof v === "string" && v !== "" && k !== "sayfa" && k !== "sira") p.set(k, v);
+    if (!oldFirst) p.set("sira", "eski");
+    const s = p.toString();
+    return s ? `${PATH}?${s}` : PATH;
+  })();
+  const clearHref = `${PATH}?${new URLSearchParams({ ...(firmField ? { firma: orgId } : {}), ...(oldFirst ? { sira: "eski" } : {}) }).toString()}`.replace(/\?$/, "");
+  // Rapor al: ekrandaki firma, tarih aralığı ve tür süzgeciyle ekstre PDF'i
+  const reportHref = (inline = false) =>
+    `/api/ledger/statement?${new URLSearchParams({
+      firma: orgId,
+      ...(start ? { bas: start } : {}),
+      ...(end ? { bit: end } : {}),
+      ...(kind ? { tur: kind } : {}),
+      ...(inline ? { goster: "1" } : {}),
+    }).toString()}`;
+  const SortIcon = oldFirst ? ArrowUp : ArrowDown;
+
   return (
     <>
       <FilterBar action={PATH} fields={fields}>
+        {oldFirst && <input type="hidden" name="sira" value="eski" />}
         {filtered && (
-          <Link href={firmField ? `${PATH}?firma=${orgId}` : PATH} className="h-9 content-center text-sm text-muted hover:text-fg">Süzgeçleri temizle</Link>
+          <Link href={clearHref} className="h-9 content-center text-sm text-muted hover:text-fg">Süzgeçleri temizle</Link>
         )}
       </FilterBar>
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
@@ -181,12 +211,20 @@ async function FirmLedger({
       <Card>
         <CardHeader
           title={firmField ? `${name} — hareketler` : "Cari hareketler"}
-          description={`${total} kayıt · en yeni üstte · Bakiye sütunu o hareketten sonraki bakiyedir`}
-          action={firmField && (
-            <Link href={PATH} className="inline-flex items-center gap-1 text-sm font-medium text-brand">
-              <ArrowLeft className="size-4" aria-hidden /> Tüm firmalar
-            </Link>
-          )}
+          description={`${total} kayıt · ${oldFirst ? "en eski üstte" : "en yeni üstte"} (sıralamak için Tarih başlığına tıklayın) · Bakiye sütunu o hareketten sonraki bakiyedir`}
+          action={
+            <span className="flex flex-wrap items-center gap-2">
+              {firmField && (
+                <Link href={PATH} className="mr-2 inline-flex items-center gap-1 text-sm font-medium text-brand">
+                  <ArrowLeft className="size-4" aria-hidden /> Tüm firmalar
+                </Link>
+              )}
+              <a href={reportHref(true)} target="_blank" rel="noopener noreferrer" className={btn("secondary", "sm")}>Görüntüle</a>
+              <a href={reportHref()} className={btn("primary", "sm")} title="Seçili firma, tarih aralığı ve türle cari ekstre (PDF)">
+                <FileDown className="size-4" aria-hidden /> Rapor al
+              </a>
+            </span>
+          }
         />
         {rows.length === 0 ? (
           <EmptyState
@@ -195,34 +233,71 @@ async function FirmLedger({
           />
         ) : (
           <>
-            <Table numeric={[4, 5]} head={["Tarih", "Saat", "Tür", "Açıklama", "Tutar", "Bakiye", ...(manage ? [""] : [])]}>
-              {rows.map((r) => (
-                <tr key={r.id}>
-                  <td className={cn(td, "whitespace-nowrap")}>{formatDate(r.entry_date)}</td>
-                  <td className={cn(td, "tabular-nums")}>{r.entry_time.slice(0, 5)}</td>
-                  <td className={td}><Badge tone={r.kind === "fatura" ? "brand" : "success"}>{LEDGER_KIND_LABELS[r.kind]}</Badge></td>
-                  <td className={cn(td, "text-muted [overflow-wrap:anywhere]")}>{r.description ?? "—"}</td>
-                  <td className={cn(tdNum, "font-medium", r.kind === "tahsilat" && "text-success")}>
-                    {r.kind === "tahsilat" ? "−" : ""}{formatMoney(r.amount)}
-                  </td>
-                  <td className={cn(tdNum, "font-semibold", balanceTone(Number(r.running_balance)))}>{formatMoney(r.running_balance)}</td>
-                  {manage && (
-                    <td className={cn(td, "text-right")}>
-                      <DeleteDocButton
-                        id={r.id}
-                        title={`${LEDGER_KIND_LABELS[r.kind]} ${formatDate(r.entry_date)}`}
-                        back={PATH}
-                        action={deleteFirmLedgerEntry}
-                        confirm={{
-                          title: `${LEDGER_KIND_LABELS[r.kind]} kaydı silinsin mi?`,
-                          description: `Kayıt kalıcı olarak silinir ve ${name} bakiyesi buna göre değişir. Bu işlem geri alınamaz.`,
-                          items: [`${formatDate(r.entry_date)} ${r.entry_time.slice(0, 5)} · ${formatMoney(r.amount)}${r.description ? ` · ${r.description}` : ""}`],
-                        }}
-                      />
+            <Table
+              numeric={[4, 5]}
+              head={[
+                <Link
+                  key="tarih"
+                  href={sortHref}
+                  className="inline-flex items-center gap-1 uppercase hover:text-fg"
+                  title={oldFirst ? "En yeni üstte sırala" : "En eski üstte sırala"}
+                  aria-label={`Tarih — ${oldFirst ? "en eskiden yeniye sıralı; en yeni üstte sırala" : "en yeniden eskiye sıralı; en eski üstte sırala"}`}
+                >
+                  Tarih <SortIcon className="size-3.5 text-brand" aria-hidden />
+                </Link>,
+                "Saat", "Tür", "Açıklama", "Tutar", "Bakiye", "Dosya", ...(manage ? [""] : []),
+              ]}
+            >
+              {rows.map((r) => {
+                const rowLabel = `${LEDGER_KIND_LABELS[r.kind]} ${formatDate(r.entry_date)} · ${formatMoney(r.amount)}`;
+                return (
+                  <tr key={r.id}>
+                    <td className={cn(td, "whitespace-nowrap")}>{formatDate(r.entry_date)}</td>
+                    <td className={cn(td, "tabular-nums")}>{r.entry_time.slice(0, 5)}</td>
+                    <td className={td}><Badge tone={r.kind === "fatura" ? "brand" : "success"}>{LEDGER_KIND_LABELS[r.kind]}</Badge></td>
+                    <td className={cn(td, "text-muted [overflow-wrap:anywhere]")}>{r.description ?? "—"}</td>
+                    <td className={cn(tdNum, "font-medium", r.kind === "tahsilat" && "text-success")}>
+                      {r.kind === "tahsilat" ? "−" : ""}{formatMoney(r.amount)}
                     </td>
-                  )}
-                </tr>
-              ))}
+                    <td className={cn(tdNum, "font-semibold", balanceTone(Number(r.running_balance)))}>{formatMoney(r.running_balance)}</td>
+                    <td className={cn(td, "text-right")}>
+                      <span className="inline-flex flex-wrap items-center justify-end gap-2 xl:flex-nowrap">
+                        {r.file_name ? (
+                          <DownloadLink
+                            id={r.id}
+                            base="/api/ledger/files"
+                            label="İndir"
+                            title={`${r.kind === "fatura" ? "Fatura" : "Dekont"} · ${formatDate(r.entry_date)} · ${r.file_name}`}
+                          />
+                        ) : (
+                          !manage && <span className="text-muted">—</span>
+                        )}
+                        {manage && (
+                          <LedgerFileActions id={r.id} organizationId={orgId} hasFile={Boolean(r.file_name)} label={rowLabel} kindLabel={r.kind === "fatura" ? "Fatura" : "Dekont"} />
+                        )}
+                      </span>
+                    </td>
+                    {manage && (
+                      <td className={cn(td, "text-right")}>
+                        <DeleteDocButton
+                          id={r.id}
+                          title={`${LEDGER_KIND_LABELS[r.kind]} ${formatDate(r.entry_date)}`}
+                          back={PATH}
+                          action={deleteFirmLedgerEntry}
+                          confirm={{
+                            title: `${LEDGER_KIND_LABELS[r.kind]} kaydı silinsin mi?`,
+                            description: `Kayıt${r.file_name ? " ve ekli dosyası" : ""} kalıcı olarak silinir; ${name} bakiyesi buna göre değişir. Bu işlem geri alınamaz.`,
+                            items: [
+                              `${formatDate(r.entry_date)} ${r.entry_time.slice(0, 5)} · ${formatMoney(r.amount)}${r.description ? ` · ${r.description}` : ""}`,
+                              ...(r.file_name ? [`Dosya: ${r.file_name}`] : []),
+                            ],
+                          }}
+                        />
+                      </td>
+                    )}
+                  </tr>
+                );
+              })}
             </Table>
             <Pagination path={PATH} searchParams={sp} total={total} />
           </>

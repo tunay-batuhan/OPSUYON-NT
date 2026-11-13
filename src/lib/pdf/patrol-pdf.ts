@@ -2,7 +2,7 @@ import { PDFDocument, rgb, type PDFFont, type PDFPage, type RGB } from "pdf-lib"
 import fontkit from "@pdf-lib/fontkit";
 import { ROBOTO_MEDIUM_B64, ROBOTO_REGULAR_B64 } from "@/lib/pdf/roboto";
 import {
-  TOUR_STATUS, checkpointStats, fmtClock, fmtDateTime, fmtDay, fmtDayLong, istanbulDay, locationLabel, tourDuration,
+  TOUR_STATUS, checkpointStats, fmtClock, fmtDateTime, fmtDay, fmtDayLong, istanbulDay, locationLabel, scannedPointNames, tourDuration,
   type PatrolScanRow, type TourReport, type TourReportTour, type TourStatus,
 } from "@/lib/patrol";
 
@@ -19,7 +19,8 @@ const OK = rgb(0.07, 0.55, 0.3);
 const WARN = rgb(0.75, 0.45, 0.05);
 const BAD = rgb(0.8, 0.15, 0.15);
 
-type Col = { label: string; width: number; align?: "left" | "right" | "center" };
+/** `wrap`: hücre sığmazsa kısaltılmaz, alt satıra iner (satır yüksekliği büyür). */
+type Col = { label: string; width: number; align?: "left" | "right" | "center"; wrap?: boolean };
 type Box = [label: string, value: string, color: RGB];
 
 /** Raporun ortak iskeleti: başlık bandı, künye, özet kutuları, sayfa kıran tablo, tur başlığı, alt bilgi. */
@@ -53,6 +54,25 @@ async function createReportDoc(title: string, project: TourReport["project"]) {
     }
     if (cur) lines.push(cur);
     return lines.map((l) => fit(l, max, size, font));
+  };
+  /** Virgüllü listeyi satırlara böler: önce öğe aralarından (ad ortasından bölmemek için), sığmayan öğe kelimeden. */
+  const wrapList = (list: string, max: number, size: number, font: PDFFont) => {
+    const lines: string[] = [];
+    let cur = "";
+    const items = list.split(", ");
+    items.forEach((item, i) => {
+      const piece = i < items.length - 1 ? `${item},` : item;
+      const next = cur ? `${cur} ${piece}` : piece;
+      if (font.widthOfTextAtSize(next, size) <= max) cur = next;
+      else {
+        if (cur) lines.push(cur);
+        const parts = wrap(piece, max, size, font);
+        cur = parts.pop() ?? "";
+        lines.push(...parts);
+      }
+    });
+    if (cur) lines.push(cur);
+    return lines.length ? lines : [""];
   };
   const text = (s: string, x: number, yy: number, size = 9, font = regular, color = INK) => page.drawText(s, { x, y: yy, size, font, color });
   const newPage = () => {
@@ -134,23 +154,29 @@ async function createReportDoc(title: string, project: TourReport["project"]) {
       y -= 26;
       return;
     }
+    const LH = 11; // sarılan hücrede satır aralığı
     rows.forEach((row, ri) => {
-      if (y - 18 < M + 24) {
+      const cells = cols.map((c, ci) => {
+        const raw = row[ci] ?? "";
+        return c.wrap ? wrapList(raw, c.width - 12, 9, regular) : [fit(raw, c.width - 12, 9, regular)];
+      });
+      const rowH = 18 + (Math.max(...cells.map((l) => l.length)) - 1) * LH;
+      if (y - rowH < M + 24) {
         newPage();
         drawHead();
       }
       let cx = M;
       cols.forEach((c, ci) => {
-        const raw = row[ci] ?? "";
         const color = rowColors?.[ri]?.[ci] ?? INK;
-        const val = fit(raw, c.width - 12, 9, regular);
-        const vw = regular.widthOfTextAtSize(val, 9);
-        const vx = c.align === "right" ? cx + c.width - 6 - vw : c.align === "center" ? cx + (c.width - vw) / 2 : cx + 6;
-        text(val, vx, y - 12.5, 9, regular, color);
+        cells[ci].forEach((val, li) => {
+          const vw = regular.widthOfTextAtSize(val, 9);
+          const vx = c.align === "right" ? cx + c.width - 6 - vw : c.align === "center" ? cx + (c.width - vw) / 2 : cx + 6;
+          text(val, vx, y - 12.5 - li * LH, 9, regular, color);
+        });
         cx += c.width;
       });
-      page.drawLine({ start: { x: M, y: y - 18 }, end: { x: W - M, y: y - 18 }, thickness: 0.5, color: LINE });
-      y -= 18;
+      page.drawLine({ start: { x: M, y: y - rowH }, end: { x: W - M, y: y - rowH }, thickness: 0.5, color: LINE });
+      y -= rowH;
     });
     y -= 18;
   };
@@ -256,13 +282,15 @@ export async function buildPatrolTourPdf(r: TourReport): Promise<Uint8Array> {
   d.table(
     "Turlar",
     [
-      { label: "#", width: 25, align: "right" },
-      { label: "Personel", width: 125 },
-      { label: "Başlangıç", width: oneDay ? 60 : 80, align: "center" },
-      { label: "Bitiş", width: oneDay ? 105 : 85, align: "center" },
+      // toplam 515 (sayfa genişliği - kenar boşlukları); "Nokta adı" kalan yeri alır ve alt satıra iner
+      { label: "#", width: 20, align: "right" },
+      { label: "Personel", width: 88, wrap: true },
+      { label: "Başlangıç", width: oneDay ? 50 : 66, align: "center" },
+      { label: "Bitiş", width: 62, align: "center", wrap: true },
       { label: "Süre", width: 60, align: "center" },
-      { label: "Nokta", width: 50, align: "center" },
-      { label: "Durum", width: 90, align: "center" },
+      { label: "Nokta", width: 38, align: "center" },
+      { label: "Nokta adı", width: oneDay ? 127 : 111, wrap: true },
+      { label: "Durum", width: 70, align: "center", wrap: true },
     ],
     r.tours.map((t, i) => [
       String(i + 1),
@@ -271,9 +299,10 @@ export async function buildPatrolTourPdf(r: TourReport): Promise<Uint8Array> {
       endText(t),
       tourDuration(t),
       `${t.done} / ${t.total}`,
+      scannedPointNames(t, (id) => r.pointNames[id]).join(", ") || "—",
       TOUR_STATUS[t.status].label,
     ]),
-    r.tours.map((t) => [undefined, undefined, undefined, t.status === "zaman_asimi" ? BAD : undefined, undefined, t.missing.length && t.status !== "devam" ? WARN : undefined, STATUS_COLOR[t.status]]),
+    r.tours.map((t) => [undefined, undefined, undefined, t.status === "zaman_asimi" ? BAD : undefined, undefined, t.missing.length && t.status !== "devam" ? WARN : undefined, undefined, STATUS_COLOR[t.status]]),
     "Bu aralıkta devriye turu yok. Devriye, “Devriye başlat / bitir” QR'ı okutulunca başlar.",
   );
 

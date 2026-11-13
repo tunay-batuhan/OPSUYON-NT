@@ -4,7 +4,7 @@ import { Logo } from "@/components/logo";
 import { CompanyAddress, Fact } from "@/components/site/parts";
 import { LEGAL_NAV } from "@/components/site/nav-items";
 import { BRAND, BRAND_FOOTER, BRAND_TAGLINE } from "@/lib/brand";
-import { COMPANY, activeSocial, mailHref, telHref } from "@/lib/site";
+import { COMPANY, activeSocial, has, mailHref, telHref } from "@/lib/site";
 import { FALLBACK_SERVICE_LINES, lineTitle } from "@/lib/lines";
 
 const linkCls = "text-white/80 underline-offset-2 hover:text-white hover:underline";
@@ -75,18 +75,22 @@ export function SiteFooter() {
               <MapPin className="mt-0.5 size-4 shrink-0 text-accent" aria-hidden />
               <span><span className="sr-only">Adres: </span><CompanyAddress /></span>
             </p>
-            <p className="flex gap-2.5">
-              <Phone className="mt-0.5 size-4 shrink-0 text-accent" aria-hidden />
-              <span><span className="sr-only">Telefon: </span><Fact value={COMPANY.phone} href={telHref()} className="text-white/90 underline-offset-2 hover:text-white hover:underline" /></span>
-            </p>
+            {has(COMPANY.phone) && (
+              <p className="flex gap-2.5">
+                <Phone className="mt-0.5 size-4 shrink-0 text-accent" aria-hidden />
+                <span><span className="sr-only">Telefon: </span><Fact value={COMPANY.phone} href={telHref()} className="text-white/90 underline-offset-2 hover:text-white hover:underline" /></span>
+              </p>
+            )}
             <p className="flex gap-2.5">
               <Mail className="mt-0.5 size-4 shrink-0 text-accent" aria-hidden />
               <span className="min-w-0 [overflow-wrap:anywhere]"><span className="sr-only">E-posta: </span><Fact value={COMPANY.email} href={mailHref()} className="text-white/90 underline-offset-2 hover:text-white hover:underline" /></span>
             </p>
-            <p className="flex gap-2.5">
-              <Clock className="mt-0.5 size-4 shrink-0 text-accent" aria-hidden />
-              <span><span className="sr-only">Çalışma saatleri: </span><Fact value={COMPANY.workingHours} /></span>
-            </p>
+            {has(COMPANY.workingHours) && (
+              <p className="flex gap-2.5">
+                <Clock className="mt-0.5 size-4 shrink-0 text-accent" aria-hidden />
+                <span><span className="sr-only">Çalışma saatleri: </span><Fact value={COMPANY.workingHours} /></span>
+              </p>
+            )}
           </address>
           <Link href="/iletisim" className="mt-5 inline-flex h-10 items-center rounded-lg bg-accent px-4 text-sm font-semibold text-accent-fg hover:brightness-105">
             İletişim formu
@@ -97,7 +101,7 @@ export function SiteFooter() {
       <div className="border-t border-white/15">
         <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-5 text-sm sm:px-6 md:flex-row md:items-center md:justify-between">
           <p className="text-white/75">
-            © {year} <Fact value={COMPANY.legalName} />. Tüm hakları saklıdır.
+            © {year} <Fact value={COMPANY.legalName} />{COMPANY.legalName.trim().endsWith(".") ? "" : "."} Tüm hakları saklıdır.
           </p>
           <p className="text-white/60">{BRAND} · {BRAND_TAGLINE}</p>
         </div>
