@@ -46,6 +46,6 @@ domainler.pdf
 supabase/.temp
 supabase/.branches
 !.env.example
-authadmin.txt
+authadmin*.txt
 *.docx
 *.tsbuildinfo
