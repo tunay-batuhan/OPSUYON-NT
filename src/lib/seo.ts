@@ -3,7 +3,7 @@ import { BRAND, BRAND_TAGLINE } from "@/lib/brand";
 import { COMPANY, KVKK, LEGAL_UPDATED_AT, SITE_URL, absoluteUrl, activeSocial, filled } from "@/lib/site";
 
 /** Tanıtım sayfalarının içeriği en son ne zaman değişti (site haritası `lastmod`). İçerik değişince güncelleyin. */
-const CONTENT_UPDATED_AT = "2026-11-12";
+const CONTENT_UPDATED_AT = "2026-11-14";
 
 /** Herkese açık, arama motoruna açılabilecek sayfalar (site haritası buradan üretilir). */
 export const PUBLIC_PAGES: { path: string; name: string; updated: string; priority: number; changeFrequency: "monthly" | "yearly" }[] = [

@@ -106,10 +106,9 @@ export default function KvkkPage() {
       <p>Kişisel verileriniz, yukarıdaki amaçlarla sınırlı olmak üzere şu alıcı gruplarına aktarılabilir:</p>
       <ul>
         <li>
-          <strong>Hizmet sağlayıcılarımız (veri işleyenler):</strong> barındırma hizmeti (Vercel Inc., sunucular İrlanda / AB),
-          veritabanı, kimlik doğrulama ve dosya depolama hizmeti (Supabase Inc., sunucular İrlanda / AB) ve yalnızca yardım
-          asistanını kullandığınızda, yazdığınız sorular ile adınız ve rolünüzle sınırlı olmak üzere yapay zekâ hizmet sağlayıcısı
-          (Anthropic PBC, ABD).
+          <strong>Hizmet sağlayıcılarımız (veri işleyenler):</strong> sunucu barındırma, veritabanı, kimlik doğrulama ve
+          dosya depolama hizmeti sağlayıcıları ile yalnızca yardım asistanını kullandığınızda, yazdığınız sorular ile adınız ve
+          rolünüzle sınırlı olmak üzere yapay zekâ hizmet sağlayıcısı.
         </li>
         <li>
           <strong>Müşterilerimiz:</strong> portal kullanıcısı ve personel bilgileri, yalnızca ilgili müşteri firmanın yetkili
@@ -125,8 +124,8 @@ export default function KvkkPage() {
         </li>
       </ul>
       <p>
-        Hizmet sağlayıcılarımızın sunucuları yurt dışında bulunduğundan, bu sağlayıcılara yapılan aktarımlar yurt dışına
-        aktarım niteliğindedir ve KVKK’nın 9. maddesinde öngörülen uygun güvencelerden biri (örneğin Kişisel Verileri Koruma
+        Web sitesi ve portal Türkiye’deki sunucularımızda çalışır. Bazı hizmet sağlayıcılarımızın sunucuları yurt dışında
+        bulunduğundan, bu sağlayıcılara yapılan aktarımlar yurt dışına aktarım niteliğindedir ve KVKK’nın 9. maddesinde öngörülen uygun güvencelerden biri (örneğin Kişisel Verileri Koruma
         Kurulu tarafından ilan edilen standart sözleşmenin imzalanması ve Kurul’a bildirilmesi) sağlanarak gerçekleştirilir.
       </p>
 

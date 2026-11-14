@@ -23,18 +23,25 @@ export const filled = (value: string | null | undefined): string | undefined => 
 /* ------------------------------------------------------------------ */
 
 /**
- * Sitenin yayındaki kök adresi (sonunda / olmadan). Ortam değişkeni `SITE_URL`; yoksa şu anki canlı adres.
- * Not: opsuyon.com henüz bağlanmadı. Bağlanınca Vercel'de SITE_URL=https://www.opsuyon.com (ya da hangisi
- * esas olacaksa) yazılıp yeniden yayınlanır. Devriye QR etiketleri de aynı değişkeni kullanır.
+ * Sitenin yayındaki kök adresi (sonunda / olmadan). Ortam değişkeni `SITE_URL`; yoksa Vercel'deki yedek adres.
+ * Asıl sunucuda (VDS, /srv/opsuyon/shared/.env) SITE_URL=https://opsuyon.com. Vercel'de tanımsız bırakılır:
+ * yedek adres arama motoruna kapalı kalır (SITE_INDEXABLE yalnızca VDS'te açık). Devriye QR etiketleri de
+ * aynı değişkeni kullanır.
  */
 export const SITE_URL = (process.env.SITE_URL?.trim() || "https://opsuyon-nt.vercel.app").replace(/\/+$/, "");
 
 /**
  * Arama motorlarına açılma anahtarı. Varsayılan KAPALI: yer tutucu şirket bilgileri Google'a girmesin.
- * Kapalıyken robots.txt her şeyi kapatır ve her sayfada `noindex` vardır. Gerçek bilgiler girildikten sonra
- * Vercel'de SITE_INDEXABLE=true yapılıp yeniden yayınlamak TEK adımdır (değer derleme anında okunur).
+ * Kapalıyken robots.txt her şeyi kapatır ve her sayfada `noindex` vardır. Açmak: sunucunun .env dosyasında
+ * SITE_INDEXABLE=true + yeniden derleme (değer derleme anında okunur). Yalnızca asıl adreste açılır.
  */
 export const SITE_INDEXABLE = process.env.SITE_INDEXABLE === "true";
+
+/**
+ * Google Search Console "HTML etiketi" doğrulama kodu (yalnızca content="…" içindeki değer).
+ * Ortam değişkeni `GOOGLE_SITE_VERIFICATION`; boşsa etiket basılmaz.
+ */
+export const GOOGLE_SITE_VERIFICATION = process.env.GOOGLE_SITE_VERIFICATION?.trim() || undefined;
 
 /** Göreli yolu tam adrese çevirir: "/iletisim" → "https://…/iletisim". */
 export const absoluteUrl = (path = "/") => `${SITE_URL}${path.startsWith("/") ? path : `/${path}`}`;
@@ -103,7 +110,9 @@ export const JURISDICTION = isPlaceholder(COMPANY.address.city)
   : `${COMPANY.address.city} Mahkemeleri ve İcra Daireleri`;
 
 /** Yasal metinlerin "Son güncelleme" tarihi (YYYY-AA-GG). Metin değişince güncelleyin. */
-export const LEGAL_UPDATED_AT = "2026-11-12";
+// Yasal metinler hizmet sağlayıcı adı ve sunucu ülkesi vermez (şirket kararı, 14 Kasım 2026): yalnızca
+// "sitenin sunucuları Türkiye'de, bazı sağlayıcıların sunucuları yurt dışında" denir.
+export const LEGAL_UPDATED_AT = "2026-11-14";
 
 /** Zorunlu şirket alanları doldurulmuş mu? (Doldurulmadan SITE_INDEXABLE açılmamalı.) */
 export const COMPANY_COMPLETE = [

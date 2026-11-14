@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { BRAND, BRAND_TAGLINE } from "@/lib/brand";
-import { SITE_INDEXABLE, SITE_URL } from "@/lib/site";
+import { GOOGLE_SITE_VERIFICATION, SITE_INDEXABLE, SITE_URL } from "@/lib/site";
 import { NavProgress } from "@/components/nav-progress";
 
 const geistSans = Geist({
@@ -27,6 +27,8 @@ export const metadata: Metadata = {
   // Arama motoru anahtarı (src/lib/site.ts): kapalıyken her sayfa noindex. Açıkken de giriş arkasındaki
   // ekranlar, /giris ve devriye sayfaları kendi düzenlerinde noindex kalır.
   robots: SITE_INDEXABLE ? undefined : { index: false, follow: false, googleBot: { index: false, follow: false } },
+  // Google Search Console doğrulama etiketi (GOOGLE_SITE_VERIFICATION tanımlıysa)
+  verification: GOOGLE_SITE_VERIFICATION ? { google: GOOGLE_SITE_VERIFICATION } : undefined,
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

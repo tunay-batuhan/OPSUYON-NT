@@ -93,10 +93,10 @@ export default function PrivacyPage() {
 
       <h2 id="paylasim">4. Bilgileri kimlerle paylaşıyoruz?</h2>
       <p>
-        Hizmeti sunabilmek için barındırma (Vercel), veritabanı, kimlik doğrulama ve dosya depolama (Supabase) ile yalnızca
-        yardım asistanı kullanıldığında yapay zekâ (Anthropic) hizmet sağlayıcılarından yararlanırız. Vercel ve Supabase
-        sunucularımız İrlanda’da (Avrupa Birliği), Anthropic’in sunucuları ABD’dedir; bu nedenle bu aktarımlar yurt dışına
-        aktarım niteliğindedir ve KVKK’nın 9. maddesine uygun güvenceler sağlanarak yapılır. Bunların dışında bilgiler yalnızca
+        Hizmeti sunabilmek için sunucu barındırma, veritabanı, kimlik doğrulama ve dosya depolama ile yalnızca yardım asistanı
+        kullanıldığında yapay zekâ hizmet sağlayıcılarından yararlanırız. Web sitesi ve portal Türkiye’deki sunucularımızda
+        çalışır; bazı hizmet sağlayıcılarımızın sunucuları yurt dışında bulunduğundan bu aktarımlar yurt dışına aktarım
+        niteliğindedir ve KVKK’nın 9. maddesine uygun güvenceler sağlanarak yapılır. Bunların dışında bilgiler yalnızca
         yetkili müşteri hesaplarıyla (kendi kayıtlarıyla sınırlı olarak), yasal zorunluluk hâlinde yetkili kamu kurumlarıyla ve
         gerektiğinde hukuk ve mali danışmanlarımızla paylaşılır.
       </p>
