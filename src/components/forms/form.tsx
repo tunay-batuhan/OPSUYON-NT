@@ -7,7 +7,7 @@ import {
 } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { z } from "zod";
-import { AlertCircle, Check, CheckCircle2, ChevronDown, Eye, EyeOff, Loader2, Search, X } from "lucide-react";
+import { AlertCircle, Check, CheckCircle2, ChevronDown, Eye, EyeOff, Loader2, Search, X, type LucideIcon } from "lucide-react";
 import type { ActionState } from "@/lib/action-types";
 import { toTitleCase } from "@/lib/format";
 import { matches } from "@/lib/text";
@@ -89,6 +89,10 @@ export const control =
   "transition-colors focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 " +
   "disabled:cursor-not-allowed disabled:opacity-60 aria-invalid:border-danger aria-invalid:bg-danger-soft/40 aria-invalid:focus:ring-danger/20";
 
+/** Büyük kutu (giriş formu): `control`un yerine geçer (çakışan sınıflar eklenmez, değiştirilir). */
+const largeControl =
+  control.replace("rounded-lg", "rounded-xl").replace("bg-surface ", "bg-surface-2/70 focus:bg-surface ").replace("text-sm", "text-[0.95rem]") + " h-12";
+
 export function Shell({
   id, label, hint, required, error, className, children,
 }: { id: string; label: string; hint?: string; required?: boolean; error?: string; className?: string; children: ReactNode }) {
@@ -119,10 +123,14 @@ function useField(name: string) {
 
 export function TextField({
   name, label, hint, required, className, disabled,
-  type = "text", placeholder, autoComplete, inputMode, prefix, suffix, maxLength, titleCase,
+  type = "text", placeholder, autoComplete, inputMode, prefix, suffix, maxLength, titleCase, icon: Icon, large,
 }: Common & {
   /** Her kelimenin ilk harfini büyütür (alandan çıkınca; telefon klavyesi de kelime başlarını büyük yazar). */
   titleCase?: boolean;
+  /** Kutunun solunda simge (ör. giriş formu). */
+  icon?: LucideIcon;
+  /** Büyük kutu (h-12, yuvarlak): giriş formu gibi tek başına duran formlar. */
+  large?: boolean;
   type?: "text" | "email" | "tel" | "date" | "number" | "time";
   placeholder?: string;
   autoComplete?: string;
@@ -138,6 +146,7 @@ export function TextField({
     <Shell id={id} label={label} hint={hint} required={required} error={error} className={className}>
       <div className="relative">
         {prefix && <span className="pointer-events-none absolute inset-y-0 left-3 grid place-items-center text-sm text-muted">{prefix}</span>}
+        {Icon && <Icon className="pointer-events-none absolute inset-y-0 left-3.5 my-auto size-[1.15rem] text-muted" aria-hidden />}
         <input
           id={id}
           type={type}
@@ -149,7 +158,7 @@ export function TextField({
           autoCapitalize={titleCase ? "words" : undefined}
           aria-invalid={invalid || undefined}
           aria-describedby={error ? `${id}-err` : hint ? `${id}-hint` : undefined}
-          className={cn(control, "h-10", prefix && "pl-8", suffix && "pr-9")}
+          className={cn(large ? largeControl : cn(control, "h-10"), prefix && "pl-8", Icon && "pl-11", suffix && "pr-9")}
           {...reg}
           onBlur={(e) => {
             if (titleCase && e.target.value) {
@@ -165,12 +174,15 @@ export function TextField({
   );
 }
 
-export function PasswordField({ name, label, hint, required, className, autoComplete = "current-password", placeholder }: Common & { autoComplete?: string; placeholder?: string }) {
+export function PasswordField({
+  name, label, hint, required, className, autoComplete = "current-password", placeholder, icon: Icon, large,
+}: Common & { autoComplete?: string; placeholder?: string; icon?: LucideIcon; large?: boolean }) {
   const { id, error, register, invalid } = useField(name);
   const [show, setShow] = useState(false);
   return (
     <Shell id={id} label={label} hint={hint} required={required} error={error} className={className}>
       <div className="relative">
+        {Icon && <Icon className="pointer-events-none absolute inset-y-0 left-3.5 my-auto size-[1.15rem] text-muted" aria-hidden />}
         <input
           id={id}
           type={show ? "text" : "password"}
@@ -178,7 +190,7 @@ export function PasswordField({ name, label, hint, required, className, autoComp
           placeholder={placeholder}
           aria-invalid={invalid || undefined}
           aria-describedby={error ? `${id}-err` : hint ? `${id}-hint` : undefined}
-          className={cn(control, "h-10 pr-10")}
+          className={cn(large ? largeControl : cn(control, "h-10"), "pr-10", Icon && "pl-11")}
           {...register(name)}
         />
         <button
