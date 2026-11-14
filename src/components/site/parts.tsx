@@ -45,9 +45,11 @@ export function JsonLd({ json }: { json: string }) {
 /** İç sayfaların üst bandı: görünür "Konum" izi (+ BreadcrumbList JSON-LD), tek h1, kısa giriş. */
 export function PageHero({ title, path, lead, children }: { title: string; path: string; lead?: ReactNode; children?: ReactNode }) {
   return (
-    <div className="hero-glow border-b border-border">
+    <div className="hero-glow relative overflow-hidden border-b border-border">
       <JsonLd json={ldJson(breadcrumbLd([{ name: title, path }]))} />
-      <div className="mx-auto max-w-6xl px-4 pb-10 pt-8 sm:px-6 sm:pb-14 sm:pt-10">
+      <div aria-hidden className="site-grid pointer-events-none absolute inset-0" />
+      <span aria-hidden className="pointer-events-none absolute -right-24 -top-24 size-72 rounded-full bg-brand/10 blur-2xl" />
+      <div className="site-rise relative mx-auto max-w-6xl px-4 pb-12 pt-8 sm:px-6 sm:pb-16 sm:pt-10">
         <nav aria-label="Konum" className="text-sm text-muted">
           <ol className="flex flex-wrap items-center gap-1">
             <li><Link href="/" className="hover:text-fg hover:underline">Ana sayfa</Link></li>
@@ -55,8 +57,9 @@ export function PageHero({ title, path, lead, children }: { title: string; path:
             <li aria-current="page" className="font-medium text-fg">{title}</li>
           </ol>
         </nav>
-        <h1 className="mt-4 text-3xl font-bold tracking-tight text-navy sm:text-4xl">{title}</h1>
-        {lead && <p className="mt-3 max-w-3xl text-base leading-relaxed text-muted sm:text-lg">{lead}</p>}
+        <h1 className="mt-4 text-3xl font-bold tracking-tight text-navy sm:text-[2.6rem] sm:leading-tight">{title}</h1>
+        <span aria-hidden className="mt-3 block h-1 w-16 rounded-full bg-accent" />
+        {lead && <p className="mt-4 max-w-3xl text-base leading-relaxed text-fg/75 sm:text-lg">{lead}</p>}
         {children}
       </div>
     </div>

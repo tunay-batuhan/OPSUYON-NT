@@ -25,7 +25,7 @@ export const metadata: Metadata = {
   applicationName: BRAND,
   metadataBase: new URL(SITE_URL),
   // Arama motoru anahtarı (src/lib/site.ts): kapalıyken her sayfa noindex. Açıkken de giriş arkasındaki
-  // ekranlar, /giris ve devriye sayfaları kendi düzenlerinde noindex kalır.
+  // ekranlar ve devriye sayfaları kendi düzenlerinde noindex kalır (/giris aranabilir: "opsuyon giriş").
   robots: SITE_INDEXABLE ? undefined : { index: false, follow: false, googleBot: { index: false, follow: false } },
   // Google Search Console doğrulama etiketi (GOOGLE_SITE_VERIFICATION tanımlıysa)
   verification: GOOGLE_SITE_VERIFICATION ? { google: GOOGLE_SITE_VERIFICATION } : undefined,

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, Eye, ListChecks, ShieldCheck, Zap } from "lucide-react";
+import { ArrowRight, Building2, Eye, ListChecks, ShieldCheck, Zap } from "lucide-react";
 import { CompanyAddress, Fact, PageHero } from "@/components/site/parts";
 import { BRAND, BRAND_FOOTER, BRAND_TAGLINE } from "@/lib/brand";
 import { COMPANY, has, mailHref } from "@/lib/site";
@@ -18,16 +18,19 @@ const values = [
   {
     icon: ShieldCheck,
     title: "Daha güvenli",
+    tone: "blue",
     text: "Her hesap yalnızca yetkili olduğu firma ve projeleri görür. Personelin kişisel bilgileri müşteri hesaplarına kapalıdır; yapılan değişiklikler kayıt altına alınır.",
   },
   {
     icon: ListChecks,
     title: "Daha düzenli",
+    tone: "emerald",
     text: "Özlük evrakı, puantaj, izin, bordro, fatura ve devriye kayıtları dağınık dosyalar yerine tek yerde, proje ve hizmet alanına göre düzenli durur.",
   },
   {
     icon: Zap,
     title: "Daha verimli",
+    tone: "amber",
     text: "Yasal izin hakkı hesabı, toplu personel aktarımı, QR ile devriye ve hazır form şablonları tekrar eden işleri kısaltır.",
   },
 ];
@@ -67,8 +70,11 @@ export default function AboutPage() {
             </p>
           </section>
 
-          <aside aria-labelledby="sirket-baslik" className="h-fit rounded-2xl border border-border bg-surface p-6 shadow-card">
-            <h2 id="sirket-baslik" className="text-lg font-bold text-navy">Şirket bilgileri</h2>
+          <aside aria-labelledby="sirket-baslik" className="h-fit overflow-hidden rounded-2xl border border-border bg-surface p-6 shadow-card lg:sticky lg:top-24">
+            <span aria-hidden className="-mx-6 -mt-6 mb-5 block h-1.5 bg-gradient-to-r from-brand via-navy to-accent" />
+            <h2 id="sirket-baslik" className="flex items-center gap-2 text-lg font-bold text-navy">
+              <Building2 className="size-5 text-brand-hover" aria-hidden /> Şirket bilgileri
+            </h2>
             <dl className="mt-4 space-y-3 text-sm">
               {[
                 ["Unvan", <Fact key="u" value={COMPANY.legalName} />],
@@ -97,18 +103,25 @@ export default function AboutPage() {
           <h2 id="ilkeler-baslik" className="text-2xl font-bold text-navy">İlkelerimiz</h2>
           <p className="mt-2 text-lg italic text-navy/80">{BRAND_FOOTER}</p>
           <ul className="mt-8 grid gap-5 md:grid-cols-3">
-            {values.map(({ icon: Icon, title, text }) => (
-              <li key={title} className="rounded-2xl border border-border bg-surface p-6">
-                <span className="grid size-11 place-items-center rounded-xl bg-brand-soft text-brand" aria-hidden><Icon className="size-5" /></span>
-                <h3 className="mt-4 font-semibold text-navy">{title}</h3>
-                <p className="mt-1.5 text-sm leading-relaxed text-fg/75">{text}</p>
+            {values.map(({ icon: Icon, title, text, tone }) => (
+              <li key={title} className="site-lift rounded-2xl border border-border bg-surface p-6 shadow-card">
+                <span
+                  className="grid size-12 place-items-center rounded-xl"
+                  style={{ background: `var(--tone-${tone}-soft)`, color: `var(--tone-${tone})` }}
+                  aria-hidden
+                >
+                  <Icon className="size-6" />
+                </span>
+                <h3 className="mt-4 text-lg font-semibold text-navy">{title}</h3>
+                <p className="mt-1.5 text-sm leading-relaxed text-fg/80">{text}</p>
               </li>
             ))}
           </ul>
         </section>
 
-        <section aria-labelledby="seffaflik-baslik" className="mt-16 grid items-center gap-6 rounded-3xl bg-navy p-8 text-white sm:p-10 md:grid-cols-[1fr_auto]">
-          <div>
+        <section aria-labelledby="seffaflik-baslik" className="site-navy relative mt-16 grid items-center gap-6 overflow-hidden rounded-3xl p-8 text-white sm:p-10 md:grid-cols-[1fr_auto]">
+          <div aria-hidden className="site-grid-dark pointer-events-none absolute inset-0" />
+          <div className="relative">
             <h2 id="seffaflik-baslik" className="flex items-center gap-2 text-2xl font-bold">
               <Eye className="size-6 text-accent" aria-hidden /> Şeffaf yönetim
             </h2>
@@ -116,7 +129,7 @@ export default function AboutPage() {
               Projelerinizde neler olup bittiğini görmek için bizi aramanıza gerek kalmasın. Size uygun yapıyı birlikte kuralım.
             </p>
           </div>
-          <Link href="/iletisim" className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-lg bg-accent px-6 text-base font-semibold text-accent-fg hover:brightness-105">
+          <Link href="/iletisim" className="relative inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-lg bg-accent px-6 text-base font-semibold text-accent-fg hover:brightness-105">
             Bizimle iletişime geçin <ArrowRight className="size-5" aria-hidden />
           </Link>
         </section>

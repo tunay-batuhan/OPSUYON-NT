@@ -106,6 +106,47 @@ body {
     linear-gradient(180deg, #f4f8fe 0%, #e6eef9 100%);
 }
 
+/* ---- Herkese açık site (yalnızca (site) sayfaları ve /giris; panel kullanmaz) ---- */
+/* ince ızgara deseni: kenarlara doğru kaybolur */
+.site-grid {
+  background-image:
+    linear-gradient(to right, color-mix(in oklab, var(--navy) 7%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in oklab, var(--navy) 7%, transparent) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 30%, transparent 75%);
+}
+/* lacivert bölümlerde açık ızgara */
+.site-grid-dark {
+  background-image:
+    linear-gradient(to right, rgb(255 255 255 / 0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(255 255 255 / 0.06) 1px, transparent 1px);
+  background-size: 40px 40px;
+  mask-image: radial-gradient(ellipse 80% 80% at 70% 20%, #000 20%, transparent 80%);
+}
+/* koyu zemin üzerinde parlayan lacivert gradyan */
+.site-navy {
+  background:
+    radial-gradient(40rem 22rem at 100% 0%, color-mix(in oklab, var(--brand) 55%, transparent), transparent 70%),
+    radial-gradient(30rem 18rem at 0% 100%, color-mix(in oklab, var(--accent) 18%, transparent), transparent 70%),
+    linear-gradient(160deg, #0b2f6e 0%, var(--navy) 55%, #071d47 100%);
+}
+/* metin vurgusu: altında sarı fırça çizgisi */
+.site-mark {
+  background-image: linear-gradient(transparent 62%, color-mix(in oklab, var(--accent) 55%, transparent) 62%, color-mix(in oklab, var(--accent) 55%, transparent) 92%, transparent 92%);
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+@keyframes site-rise { from { opacity: 0; translate: 0 14px } }
+@keyframes site-float { 0%, 100% { translate: 0 0 } 50% { translate: 0 -6px } }
+.site-rise { animation: site-rise 700ms cubic-bezier(0.16, 1, 0.3, 1) both }
+.site-rise-2 { animation: site-rise 700ms 120ms cubic-bezier(0.16, 1, 0.3, 1) both }
+.site-rise-3 { animation: site-rise 800ms 240ms cubic-bezier(0.16, 1, 0.3, 1) both }
+.site-float { animation: site-float 6s ease-in-out infinite }
+.site-float-slow { animation: site-float 8s 1s ease-in-out infinite }
+/* kart: üzerine gelince hafifçe kalkar */
+.site-lift { transition: translate 200ms ease, box-shadow 200ms ease, border-color 200ms ease }
+.site-lift:hover { translate: 0 -3px; box-shadow: 0 2px 4px rgb(12 31 69 / 0.06), 0 18px 40px rgb(12 31 69 / 0.12) }
+
 /* Kaydırma çubuğu: ince, oksuz, şeffaf zemin, yuvarlak thumb; üzerine gelince belirginleşir. */
 /* Firefox (standart özellikler) */
 * {
@@ -258,8 +299,8 @@ body {
 .legal-prose ol { list-style: decimal; }
 .legal-prose li + li { margin-top: 0.4rem; }
 .legal-prose li::marker { color: var(--muted); }
-.legal-prose a:not([class]) { color: var(--brand); text-decoration: underline; text-underline-offset: 2px; }
-.legal-prose a:not([class]):hover { color: var(--brand-hover); }
+.legal-prose a:not([class]) { color: var(--brand-hover); text-decoration: underline; text-underline-offset: 2px; }
+.legal-prose a:not([class]):hover { color: var(--navy); }
 .legal-prose strong { font-weight: 600; color: var(--navy); }
 .legal-prose .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 0.75rem; }
 .legal-prose table { width: 100%; border-collapse: collapse; font-size: 0.875rem; line-height: 1.5; }

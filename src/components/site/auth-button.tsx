@@ -7,6 +7,26 @@ import { btn, cn } from "@/components/ui";
 
 /** Supabase oturum çerezi (sb-<proje>-auth-token, parçalıysa .0/.1). İçeriği okunmaz; yalnızca var mı diye bakılır. */
 const SESSION_COOKIE = /(?:^|;\s*)sb-[^=;]*-auth-token(?:\.\d+)?=/;
+const SESSION_COOKIE_NAME = /^sb-.*-auth-token(?:\.\d+)?$/;
+
+type CookieStoreLike = { getAll(): Promise<{ name: string }[]> };
+
+/**
+ * Oturum çerezi var mı? Destekleyen tarayıcıda Cookie Store API (eşzamansız); yoksa document.cookie.
+ * Chrome, eşzamanlı document.cookie okumasını DevTools "Issues" paneline performans uyarısı olarak yazıyor
+ * (Lighthouse En İyi Uygulamalar puanını düşürüyordu).
+ */
+async function hasSessionCookie(): Promise<boolean> {
+  const store = (globalThis as { cookieStore?: CookieStoreLike }).cookieStore;
+  if (store?.getAll) {
+    try {
+      return (await store.getAll()).some((c) => SESSION_COOKIE_NAME.test(c.name));
+    } catch {
+      // erişim engellenmiş: aşağıdaki yola düş
+    }
+  }
+  return SESSION_COOKIE.test(document.cookie);
+}
 
 /**
  * "Giriş Yap" / "Panele git". Tanıtım sayfaları statik üretildiği için sunucuda oturum okunmaz (yoksa her sayfa
@@ -17,10 +37,10 @@ export function AuthButton({ className, size = "md" }: { className?: string; siz
   const [href, setHref] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!SESSION_COOKIE.test(document.cookie)) return;
     const ctrl = new AbortController();
-    fetch("/api/session", { cache: "no-store", signal: ctrl.signal })
-      .then((r) => (r.ok ? r.json() : null))
+    hasSessionCookie()
+      .then((has) => (has && !ctrl.signal.aborted ? fetch("/api/session", { cache: "no-store", signal: ctrl.signal }) : null))
+      .then((r) => (r?.ok ? r.json() : null))
       .then((d: { href?: unknown } | null) => {
         if (typeof d?.href === "string" && d.href.startsWith("/")) setHref(d.href);
       })
