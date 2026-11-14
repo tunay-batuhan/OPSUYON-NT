@@ -33,7 +33,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="tr" className={`${geistSans.variable} ${geistMono.variable} h-full`}>
+    // data-scroll-behavior: sitede yumuşak kaydırma açıkken sayfa değişiminde Next kaydırmayı anlık yapar (Next 16)
+    <html lang="tr" data-scroll-behavior="smooth" className={`${geistSans.variable} ${geistMono.variable} h-full`}>
       <body className="flex min-h-full flex-col">
         <NavProgress>{children}</NavProgress>
       </body>

@@ -143,6 +143,49 @@ body {
 .site-rise-3 { animation: site-rise 800ms 240ms cubic-bezier(0.16, 1, 0.3, 1) both }
 .site-float { animation: site-float 6s ease-in-out infinite }
 .site-float-slow { animation: site-float 8s 1s ease-in-out infinite }
+/* sayfa içi bağlantılar (Hizmetler, Özellikler, SSS) yumuşak kayar — yalnızca herkese açık sitede.
+   Sayfa değişiminde Next kaydırmayı anlık yapar (kök <html data-scroll-behavior="smooth">). */
+html:has(.site-root) { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html:has(.site-root) { scroll-behavior: auto; } }
+
+/* kaydırınca beliren öğeler: tarayıcı destekliyorsa (animation-timeline) JS'siz; desteklemiyorsa hep görünür */
+@keyframes site-reveal { from { opacity: 0; translate: 0 32px; scale: 0.98 } }
+@supports (animation-timeline: view()) {
+  .site-reveal {
+    animation: site-reveal linear both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 40%;
+  }
+}
+
+/* hero arkasındaki yavaş kayan renk lekeleri */
+@keyframes site-drift {
+  0%, 100% { translate: 0 0; scale: 1 }
+  33% { translate: 30px -20px; scale: 1.08 }
+  66% { translate: -20px 15px; scale: 0.95 }
+}
+.site-blob { animation: site-drift 18s ease-in-out infinite; filter: blur(48px) }
+.site-blob-2 { animation: site-drift 22s -7s ease-in-out infinite reverse; filter: blur(56px) }
+
+/* QR devriye çizimi: tarama çizgisi, nabız halkası, kesikli rota, bildirim */
+@keyframes site-scan { 0%, 100% { top: 8% } 50% { top: 86% } }
+.site-scan { animation: site-scan 2.6s ease-in-out infinite }
+@keyframes site-pulse-ring { 0% { scale: 0.6; opacity: 0.7 } 100% { scale: 2.2; opacity: 0 } }
+.site-pulse-ring { animation: site-pulse-ring 2s ease-out infinite }
+@keyframes site-dash { to { stroke-dashoffset: -48 } }
+.site-dash { animation: site-dash 2.4s linear infinite }
+@keyframes site-toast {
+  0%, 12% { opacity: 0; translate: 0 10px }
+  20%, 80% { opacity: 1; translate: 0 0 }
+  90%, 100% { opacity: 0; translate: 0 -6px }
+}
+.site-toast { animation: site-toast 5.2s ease-in-out infinite }
+@keyframes site-fill { from { width: 0 } }
+.site-fill { animation: site-fill 1.6s cubic-bezier(0.16, 1, 0.3, 1) both }
+@supports (animation-timeline: view()) {
+  .site-fill { animation-timeline: view(); animation-range: entry 20% cover 40%; animation-timing-function: linear }
+}
+
 /* kart: üzerine gelince hafifçe kalkar */
 .site-lift { transition: translate 200ms ease, box-shadow 200ms ease, border-color 200ms ease }
 .site-lift:hover { translate: 0 -3px; box-shadow: 0 2px 4px rgb(12 31 69 / 0.06), 0 18px 40px rgb(12 31 69 / 0.12) }

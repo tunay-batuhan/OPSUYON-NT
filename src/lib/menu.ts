@@ -88,8 +88,10 @@ function customerMenu(user: CurrentUser, on: Set<string>): NavItem[] {
 function staffMenu(user: CurrentUser): NavItem[] {
   const defs: Def[] = [
     { href: "/merkez", label: "Ana Sayfa", icon: "home", exact: true },
-    { href: "/projeler", label: "Projeler", icon: "projects", anyOf: ["projects.read"], match: ["/projeler", "/merkez/projeler"] },
-    { href: "/personel", label: "Personel", icon: "personnel", anyOf: ["personnel.read"], match: ["/personel", "/merkez/personel"] },
+    // Doğrudan merkez sayfalarına: /projeler ve /personel merkez kullanıcısını sunucuda yönlendirir; o yönlendirme
+    // ikinci bir sayfa geçişi demek (ilerleme çubuğu iki kez, iki farklı iskelet görünüyordu).
+    { href: "/merkez/projeler", label: "Projeler", icon: "projects", anyOf: ["projects.read"], match: ["/projeler", "/merkez/projeler"] },
+    { href: "/merkez/personel", label: "Personel", icon: "personnel", anyOf: ["personnel.read"], match: ["/personel", "/merkez/personel"] },
     // Eğitimler: müşteridekiyle aynı liste + "Eğitim ekle" (evrak ekleme ekranı, kategori Eğitim seçili)
     { href: "/egitimler", label: "Eğitimler", icon: "training", anyOf: ["trainings.read"] },
     { href: "/puantaj", label: "Puantaj", icon: "timesheets", anyOf: ["timesheets.read"] },
