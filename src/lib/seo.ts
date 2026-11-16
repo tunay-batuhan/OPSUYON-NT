@@ -24,7 +24,7 @@ export const PUBLIC_PAGES: { path: string; name: string; updated: string; priori
 export const PRIVATE_PATHS = [
   "/api/", "/d/", "/ara", "/bildirimler", "/bordrolar", "/cari-hesap", "/denetimler", "/devriye", "/egitimler", "/faturalar",
   "/formlar", "/izinler", "/merkez", "/mesajlar", "/panel", "/personel", "/profil", "/projeler", "/puantaj", "/risk-analizi",
-  "/savunmalar", "/sozlesmeler", "/vardiya",
+  "/savunmalar", "/sozlesmeler", "/vardiya", "/is-planlama", "/teklifler", "/gorevlerim", "/bordrolarim", "/hesabim",
 ];
 
 /**

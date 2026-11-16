@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { usernameToEmail } from "@/lib/supabase/env";
+import { homePathFor } from "@/lib/auth";
 import { guard, validate } from "@/lib/form";
 import { changePasswordSchema, loginSchema, type ChangePasswordValues, type LoginValues } from "@/lib/schemas";
 import type { ActionState } from "@/lib/action-types";
@@ -37,14 +38,15 @@ export async function loginAction(values: LoginValues): Promise<ActionState> {
     if (profile.kind === "customer") {
       const { count } = await supabase.from("projects").select("id", { count: "exact", head: true });
       if (!count) return deny("Hesabınıza henüz proje tanımlanmamış. Lütfen merkez ile iletişime geçin.");
-    } else {
+    } else if (profile.kind === "staff") {
       // pasife alınması gereken projeleri güncelle (gece görevi çalışmamış olsa bile)
       await supabase.rpc("close_expired_projects");
     }
 
     await createAdminClient().from("profiles").update({ last_login_at: new Date().toISOString() }).eq("id", profile.id);
 
-    redirect(profile.kind === "staff" ? "/merkez" : "/panel");
+    // personel: ilk girişte / parolası sıfırlandıysa önce parolasını belirler
+    redirect(profile.kind === "personnel" && profile.must_change_password ? "/hesabim?ilk=1" : homePathFor(profile));
   });
 }
 
@@ -66,6 +68,8 @@ export async function changeOwnPassword(values: ChangePasswordValues): Promise<A
       if (/different|same/i.test(error.message)) return { error: "Yeni parola eskisinden farklı olmalı.", fieldErrors: { password: "Yeni parola eskisinden farklı olmalı" } };
       return { error: error.message };
     }
+    // geçici parola (personel hesabı ilk giriş / sıfırlama) artık kullanılmıyor
+    await createAdminClient().from("profiles").update({ must_change_password: false }).eq("id", data.user.id).eq("must_change_password", true);
     return { ok: true, message: "Parolanız güncellendi." };
   });
 }

@@ -15,6 +15,8 @@ import { LEAVE_TYPE_LABELS, formatDate, formatNumber } from "@/lib/format";
 import { leaveDeducts, tenureLabel } from "@/lib/leave-law";
 import { FILE_SECTIONS, requiredCodes, sectionCodes, type FileSection } from "@/lib/personnel-file";
 import { personnelListQuery } from "../list-query";
+import { PersonnelAccountCard } from "@/components/personnel-account";
+import { PERSONNEL_LOGIN_URL, loadPersonnelAccount } from "@/lib/personnel-account";
 
 export const metadata: Metadata = { title: "Personel" };
 
@@ -43,7 +45,7 @@ export default async function PersonnelDetailPage({ params, searchParams }: Page
   if (!isUuid(id) || !canAnywhere(user, "personnel.read")) notFound();
 
   const supabase = await createClient();
-  const [{ data }, on, lineNames] = await Promise.all([
+  const [{ data }, on, lineNames, acc] = await Promise.all([
     supabase
       .from("personnel")
       .select("id, full_name, title, hire_date, personnel_assignments(position, start_date, end_date, projects(name, service_line))")
@@ -51,6 +53,7 @@ export default async function PersonnelDetailPage({ params, searchParams }: Page
       .maybeSingle(),
     getEnabledModules(),
     getLineNames(),
+    loadPersonnelAccount(user, id),
   ]);
   if (!data) notFound(); // RLS ile görünmeyen personel
   const person = data as unknown as Person;
@@ -122,6 +125,19 @@ export default async function PersonnelDetailPage({ params, searchParams }: Page
           ))}
         </dl>
       </Card>
+
+      {(acc.canManage || acc.account) && (
+        <div className="mb-6">
+          <PersonnelAccountCard
+            personnelId={id}
+            fullName={person.full_name}
+            account={acc.account}
+            canManage={acc.canManage}
+            loginUrl={PERSONNEL_LOGIN_URL}
+            terminated={!active}
+          />
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         {show.ozluk && <OzlukCard id={id} docs={docs} allowed={ozlukAllowed} />}

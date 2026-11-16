@@ -25,7 +25,10 @@ const DURUM = [
 const TUR = [
   { value: "merkez", label: "Merkez" },
   { value: "musteri", label: "Müşteri" },
+  // personel hesapları personel kartından yönetilir; listede yalnızca bu seçimle görünür
+  { value: "personel", label: "Personel hesapları" },
 ];
+const KIND = { merkez: "staff", musteri: "customer", personel: "personnel" } as const;
 
 /** PostgREST `ilike` / `.or()` içinde anlamı olan karakterleri temizler. */
 const likeTerm = (s: string | undefined) => (s ?? "").replace(/[%_*,()\\"]/g, "").trim();
@@ -49,7 +52,7 @@ export default async function UsersPage({ searchParams }: PageProps<"/merkez/kul
     .order("id")
     .range(paging.from, paging.to);
   if (term) q = q.or(`full_name.ilike.%${term}%,username.ilike.%${term}%`);
-  if (tur) q = q.eq("kind", tur === "merkez" ? "staff" : "customer");
+  q = tur ? q.eq("kind", KIND[tur as keyof typeof KIND]) : q.in("kind", ["staff", "customer"]);
   if (firma) q = q.eq("organization_id", firma);
   if (rol) q = q.eq("staff_role_id", rol);
   if (durum !== "tumu") q = q.eq("is_active", durum === "aktif");
@@ -68,7 +71,7 @@ export default async function UsersPage({ searchParams }: PageProps<"/merkez/kul
 
   const fields: FilterField[] = [
     { name: "ad", label: "Ad / kullanıcı adı", kind: "text", value: ad, placeholder: "Birkaç harf yazın…" },
-    { name: "tur", label: "Tür", value: tur, all: "Tümü", options: TUR },
+    { name: "tur", label: "Tür", value: tur, all: "Merkez ve müşteri", options: TUR },
     { name: "firma", label: "Firma", value: firma, all: "Tümü", options: allOrgs.map((o) => ({ value: o.id, label: o.name })) },
     { name: "rol", label: "Merkez rolü", value: rol, all: "Tümü", options: allRoles.filter((r) => r.scope === "staff").map((r) => ({ value: r.id, label: r.name })) },
     { name: "durum", label: "Durum", value: durum, options: DURUM },
@@ -89,11 +92,20 @@ export default async function UsersPage({ searchParams }: PageProps<"/merkez/kul
                 {rows.map((u) => (
                   <tr key={u.id} className="hover:bg-surface-2">
                     <td className={td}>
-                      <Link href={`/merkez/kullanicilar/${u.id}`} className="font-medium hover:text-brand">{u.full_name}</Link>
+                      <Link
+                        href={u.kind === "personnel" && u.personnel_id ? `/merkez/personel/${u.personnel_id}` : `/merkez/kullanicilar/${u.id}`}
+                        className="font-medium hover:text-brand"
+                      >
+                        {u.full_name}
+                      </Link>
                       <p className="text-xs text-muted">@{u.username}</p>
                     </td>
-                    <td className={td}><Badge tone={u.kind === "staff" ? "brand" : "neutral"}>{u.kind === "staff" ? "Merkez" : "Müşteri"}</Badge></td>
-                    <td className={td}>{u.kind === "staff" ? u.roles?.name : u.organizations?.name}</td>
+                    <td className={td}>
+                      <Badge tone={u.kind === "staff" ? "brand" : u.kind === "personnel" ? "success" : "neutral"}>
+                        {u.kind === "staff" ? "Merkez" : u.kind === "personnel" ? "Personel" : "Müşteri"}
+                      </Badge>
+                    </td>
+                    <td className={td}>{u.kind === "staff" ? u.roles?.name : u.kind === "personnel" ? "Personel kartından yönetilir" : u.organizations?.name}</td>
                     <td className={td}>{formatDateTime(u.last_login_at)}</td>
                     <td className={td}><Badge tone={u.is_active ? "success" : "danger"}>{u.is_active ? "Aktif" : "Kısıtlı"}</Badge></td>
                   </tr>

@@ -59,15 +59,28 @@ export async function requireUser(): Promise<CurrentUser> {
 /** Staff-only gate; optionally requires a global permission. */
 export async function requireStaff(permission?: string): Promise<CurrentUser> {
   const user = await requireUser();
-  if (user.kind !== "staff") redirect("/panel");
+  if (user.kind !== "staff") redirect(homePathFor(user));
   if (permission && !hasPermission(user, permission)) redirect("/merkez?yetki=yok");
   return user;
 }
 
 export async function requireCustomer(): Promise<CurrentUser> {
   const user = await requireUser();
-  if (user.kind !== "customer") redirect("/merkez");
+  if (user.kind !== "customer") redirect(homePathFor(user));
   return user;
+}
+
+export type PersonnelUser = CurrentUser & { kind: "personnel"; personnel_id: string };
+
+/**
+ * Personel hesabı (Görevlerim / Bordrolarım / Hesabım). Merkez ve müşteri hesapları kendi ana sayfasına döner.
+ * Parolası sıfırlanmış ya da ilk kez giren personel önce parolasını değiştirir (`passwordPage`: o sayfanın kendisi).
+ */
+export async function requirePersonnel(opts?: { passwordPage?: boolean }): Promise<PersonnelUser> {
+  const user = await requireUser();
+  if (user.kind !== "personnel" || !user.personnel_id) redirect(homePathFor(user));
+  if (user.must_change_password && !opts?.passwordPage) redirect("/hesabim?ilk=1");
+  return user as PersonnelUser;
 }
 
 export function hasPermission(
@@ -104,7 +117,8 @@ export async function assertSuperAdmin(): Promise<CurrentUser> {
   return user!;
 }
 
-export const homePathFor = (user: Pick<Profile, "kind">) => (user.kind === "staff" ? "/merkez" : "/panel");
+export const homePathFor = (user: Pick<Profile, "kind">) =>
+  user.kind === "staff" ? "/merkez" : user.kind === "personnel" ? "/gorevlerim" : "/panel";
 
 /** Menu-level check: may the user do this on at least one project (or globally, for staff)? */
 export function canAnywhere(user: Pick<CurrentUser, "kind" | "permissions" | "roleCode" | "allPermissions">, permission: string): boolean {

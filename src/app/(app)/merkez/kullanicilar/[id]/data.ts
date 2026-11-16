@@ -1,6 +1,6 @@
 import "server-only";
 import { cache } from "react";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { hasPermission, requireStaff } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import type { Permission, Profile, Role } from "@/lib/types";
@@ -27,6 +27,8 @@ export const loadUserDetail = cache(async (id: string) => {
     .maybeSingle();
   if (!profile) notFound();
   const u = profile as unknown as Profile & { organizations: { name: string } | null; roles: { id: string; name: string } | null };
+  // personel hesabı personel kartından yönetilir (parola sıfırla, kapat)
+  if (u.kind === "personnel" && u.personnel_id) redirect(`/merkez/personel/${u.personnel_id}`);
 
   const [{ data: allRoles }, { data: perms }, { data: rolePerms }] = await Promise.all([
     supabase.from("roles").select("*").order("name"),
@@ -35,7 +37,7 @@ export const loadUserDetail = cache(async (id: string) => {
   ]);
   const roles = (allRoles ?? []) as Role[];
   const allPermissions = (perms ?? []) as Permission[];
-  // müşteriye verilebilir yetkiler veritabanında işaretlidir (yalnızca görme yetkileri)
+  // müşteriye verilebilir yetkiler veritabanında işaretlidir (görme yetkileri + site müdürü işlemleri)
   const permissions = allPermissions.filter((p) => (p as Permission & { customer_grantable?: boolean }).customer_grantable);
   // Merkez hesaplarını (parola, kısıtlama, rol) yalnızca Süper Yönetici yönetir
   const manage = canManageUsers && (u.kind !== "staff" || me.roleCode === "super_admin");

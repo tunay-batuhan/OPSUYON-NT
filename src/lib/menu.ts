@@ -47,12 +47,26 @@ export function sectionPages(section: Section, user: CurrentUser, on: Set<string
   return pages.filter((p) => p.ok).map(({ href, label, exact }) => ({ href, label, exact }));
 }
 
+/** Bordrolar bölümünün sekmeleri: yüklenen bordro PDF'leri + maaş hesaplama, avanslar, ücret tanımları. */
+export function payrollPages(user: CurrentUser): NavChild[] {
+  const can = (perm: string) => canAnywhere(user, perm);
+  const staff = user.kind === "staff";
+  const pages: (NavChild & { ok: boolean })[] = [
+    { href: "/bordrolar", label: "Bordrolar", exact: true, ok: can("payroll.read") || (staff && can("documents.manage")) },
+    { href: "/bordrolar/ekle", label: "Bordro ekle", ok: staff && can("documents.manage") },
+    { href: "/bordrolar/maas", label: "Maaş hesaplama", ok: can("payroll.run") || can("payroll.read") },
+    { href: "/bordrolar/avans", label: "Avanslar", ok: can("payroll.advances") || can("payroll.read") },
+    { href: "/bordrolar/ucretler", label: "Ücret tanımları", ok: can("payroll.manage") || can("payroll.read") },
+  ];
+  return pages.filter((p) => p.ok).map(({ href, label, exact }) => ({ href, label, exact }));
+}
+
 /**
  * Müşteri menüsü, müşterinin yazılı isteğine göre (docs/yol-haritasi.md):
  *   Ana Sayfa · Personel · Eğitimler · Bordrolar · Savunmalar ve İhtarlar · Formlar · Puantaj · Denetimler · Devriye Sistemi · Risk Analizi · Cari Hesap   (alt sayfalar sayfada sekme)
  * Her öğe bir "modül"dür; kapalı modüller menüde görünmez (Merkez → Müşteri modülleri).
  */
-function customerMenu(user: CurrentUser, on: Set<string>): NavItem[] {
+function customerMenu(user: CurrentUser, on: Set<string>, extra: MenuExtras): NavItem[] {
   const can = (perm: string) => canAnywhere(user, perm);
   const items: NavItem[] = [{ href: "/panel", label: "Ana Sayfa", icon: "home", exact: true }];
 
@@ -64,8 +78,12 @@ function customerMenu(user: CurrentUser, on: Set<string>): NavItem[] {
 
   // Eğitimler, Bordrolar, Savunmalar ve İhtarlar: Personel altında değil, üst menüde ayrı sekmeler
   if (on.has("personel_egitim") && can("trainings.read")) items.push({ href: "/egitimler", label: "Eğitimler", icon: "training" });
-  if (on.has("personel_bordro") && can("payroll.read")) items.push({ href: "/bordrolar", label: "Bordrolar", icon: "payroll" });
+  if (on.has("personel_bordro")) {
+    const payroll = payrollPages(user);
+    if (payroll.length) items.push({ href: payroll[0].href, label: "Bordrolar", icon: "payroll", match: ["/bordrolar"] });
+  }
   if (on.has("personel_savunma") && can("defenses.read")) items.push({ href: "/savunmalar", label: "Savunmalar ve İhtarlar", icon: "defense" });
+  if (on.has("is_planlama") && can("tasks.read")) items.push({ href: "/is-planlama", label: "İş Planlama", icon: "tasks", badge: alertBadge(extra.taskAlerts) });
 
   if (on.has("formlar") && can("forms.read")) items.push({ href: "/formlar", label: "Formlar", icon: "forms" });
 
@@ -85,7 +103,8 @@ function customerMenu(user: CurrentUser, on: Set<string>): NavItem[] {
 }
 
 /** Merkez menüsü: yönetim ekranları (müşterinin göreceği belgeleri merkez yükler). */
-function staffMenu(user: CurrentUser): NavItem[] {
+function staffMenu(user: CurrentUser, extra: MenuExtras): NavItem[] {
+  const payroll = payrollPages(user);
   const defs: Def[] = [
     { href: "/merkez", label: "Ana Sayfa", icon: "home", exact: true },
     // Doğrudan merkez sayfalarına: /projeler ve /personel merkez kullanıcısını sunucuda yönlendirir; o yönlendirme
@@ -96,7 +115,8 @@ function staffMenu(user: CurrentUser): NavItem[] {
     { href: "/egitimler", label: "Eğitimler", icon: "training", anyOf: ["trainings.read"] },
     { href: "/puantaj", label: "Puantaj", icon: "timesheets", anyOf: ["timesheets.read"] },
     { href: "/izinler", label: "İzin Yönetimi", icon: "leaves", anyOf: ["leaves.read"] },
-    { href: "/bordrolar", label: "Bordrolar", icon: "payroll", anyOf: ["payroll.read"] },
+    ...(payroll.length ? [{ href: payroll[0].href, label: "Bordrolar", icon: "payroll" as const, match: ["/bordrolar"] }] : []),
+    { href: "/is-planlama", label: "İş Planlama", icon: "tasks", anyOf: ["tasks.read"], badge: alertBadge(extra.taskAlerts) },
     { href: "/formlar", label: "Formlar", icon: "forms", anyOf: ["forms.read"] },
     { href: "/denetimler", label: "Denetimler", icon: "inspections", anyOf: ["inspections.read"] },
     { href: "/devriye/rapor", label: "Devriye Sistemi", icon: "patrol", anyOf: ["patrol.read", "patrol.manage"], match: ["/devriye"] },
@@ -104,6 +124,8 @@ function staffMenu(user: CurrentUser): NavItem[] {
     { href: "/faturalar", label: "Faturalar", icon: "invoices", anyOf: ["invoices.read"] },
     { href: "/cari-hesap", label: "Cari Hesap", icon: "ledger", anyOf: ["ledger.read"], match: ["/cari-hesap"] },
     { href: "/mesajlar", label: "Mesajlar", icon: "messages", anyOf: ["messages.use", "messages.manage"] },
+    // satış: müşterinin yanında tabletten teklif (yalnızca merkez)
+    { href: "/teklifler", label: "Teklifler", icon: "offers", anyOf: ["offers.read", "offers.manage"] },
     { href: "/merkez/firmalar", label: "Firmalar", icon: "organizations", anyOf: ["organizations.read"], group: "Yönetim" },
     { href: "/merkez/kullanicilar", label: "Kullanıcılar & hesaplar", icon: "users", anyOf: ["users.read"], group: "Yönetim" },
     { href: "/merkez/yetkiler", label: "Roller ve yetkiler", icon: "modules", anyOf: ["access.manage"], group: "Yönetim", match: ["/merkez/yetkiler", "/merkez/moduller"] },
@@ -120,6 +142,11 @@ function staffMenu(user: CurrentUser): NavItem[] {
     });
 }
 
-export function menuFor(user: CurrentUser, enabledModules: Set<string>): NavItem[] {
-  return user.kind === "customer" ? customerMenu(user, enabledModules) : staffMenu(user);
+export type MenuExtras = { /** İş Planlama: ilgilenilmesi gereken görev sayısı */ taskAlerts?: number };
+
+const alertBadge = (n?: number) => (n ? String(n > 99 ? "99+" : n) : undefined);
+
+export function menuFor(user: CurrentUser, enabledModules: Set<string>, extra: MenuExtras = {}): NavItem[] {
+  if (user.kind === "personnel") return [];
+  return user.kind === "customer" ? customerMenu(user, enabledModules, extra) : staffMenu(user, extra);
 }

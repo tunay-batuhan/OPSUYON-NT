@@ -204,7 +204,7 @@ export function Notice({ tone = "warning", children }: { tone?: "warning" | "dan
 /* ------------------------------------------------------------------ */
 export function Table({ head, children, className, numeric = [] }: { head: ReactNode[]; children: ReactNode; className?: string; numeric?: number[] }) {
   return (
-    <div className={cn("overflow-x-auto", className)}>
+    <div className={cn("relative overflow-x-auto", className)}>
       <table className="w-full text-left text-sm">
         <thead>
           <tr className="border-b border-border bg-surface-2/60 text-xs uppercase tracking-wide text-muted">

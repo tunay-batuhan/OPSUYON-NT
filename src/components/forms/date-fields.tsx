@@ -69,8 +69,12 @@ function CalendarPopover({
 
 /** Form içi tek tarih alanı (YYYY-AA-GG), takvimden seçilir. */
 export function DateField({
-  name, label, hint, required, className, align,
-}: { name: string; label: string; hint?: string; required?: boolean; className?: string; align?: "left" | "right" }) {
+  name, label, hint, required, className, align, clearable,
+}: {
+  name: string; label: string; hint?: string; required?: boolean; className?: string; align?: "left" | "right";
+  /** isteğe bağlı tarih: seçiliyken altında "Tarihi temizle" çıkar */
+  clearable?: boolean;
+}) {
   const { control: ctl, setValue, formState } = useFormContext();
   const value = (useWatch({ control: ctl, name }) as string) ?? "";
   const [open, setOpen] = useState(false);
@@ -96,6 +100,11 @@ export function DateField({
           classNames={{ ...CALENDAR_CLASSES, selected: "[&>button]:bg-brand [&>button]:text-white [&>button]:hover:bg-brand" }}
         />
       </CalendarPopover>
+      {clearable && ok && (
+        <button type="button" onClick={() => setValue(name, "", opts)} className="mt-1 text-xs text-muted underline hover:text-fg">
+          Tarihi temizle
+        </button>
+      )}
     </Shell>
   );
 }

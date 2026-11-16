@@ -46,9 +46,14 @@ export type Profile = {
   id: string;
   username: string;
   full_name: string;
-  kind: "staff" | "customer";
+  /** personnel: sahadaki personelin hesabı (yalnızca Görevlerim / Bordrolarım ekranları) */
+  kind: "staff" | "customer" | "personnel";
   organization_id: string | null;
   staff_role_id: string | null;
+  /** kind = personnel: bağlı personel kartı */
+  personnel_id: string | null;
+  /** ilk girişte / parola sıfırlanınca: önce parolasını değiştirir */
+  must_change_password: boolean;
   phone: string | null;
   is_active: boolean;
   last_login_at: string | null;

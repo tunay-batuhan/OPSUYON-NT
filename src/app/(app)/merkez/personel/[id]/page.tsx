@@ -6,6 +6,8 @@ import { getServiceLines } from "@/lib/lines";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/format";
 import { EMPTY_PERSONAL, PERSONNEL_BASE_COLUMNS, PERSONNEL_PERSONAL_COLUMNS } from "@/lib/personnel-columns";
+import { PersonnelAccountCard } from "@/components/personnel-account";
+import { PERSONNEL_LOGIN_URL, loadPersonnelAccount } from "@/lib/personnel-account";
 import type { Personnel } from "@/lib/types";
 
 const marital = { bekar: "Bekar", evli: "Evli" } as const;
@@ -19,7 +21,7 @@ export default async function PersonnelCardPage({ params }: PageProps<"/merkez/p
 
   const sensitive = hasPermission(user, "personnel.sensitive.read");
   const manage = hasPermission(user, "personnel.manage");
-  const [lines, { data: person }, priv, { data: orgRows }, { data: asg }, { data: personal }] = await Promise.all([
+  const [lines, { data: person }, priv, { data: orgRows }, { data: asg }, { data: personal }, acc] = await Promise.all([
     getServiceLines(),
     supabase.from("personnel").select(PERSONNEL_BASE_COLUMNS).eq("id", id).maybeSingle(),
     sensitive ? supabase.from("personnel_private").select("national_id, iban").eq("personnel_id", id).maybeSingle() : null,
@@ -27,6 +29,7 @@ export default async function PersonnelCardPage({ params }: PageProps<"/merkez/p
     supabase.from("personnel_assignments").select("end_date").eq("personnel_id", id),
     // kişisel bilgiler ayrı okunur (yetki yoksa boş gelir)
     supabase.from("personnel_personal").select(PERSONNEL_PERSONAL_COLUMNS).eq("personnel_id", id).maybeSingle(),
+    loadPersonnelAccount(user, id),
   ]);
   if (!person) notFound();
   const p = { ...EMPTY_PERSONAL, ...(personal ?? {}), ...person } as unknown as Personnel;
@@ -42,8 +45,20 @@ export default async function PersonnelCardPage({ params }: PageProps<"/merkez/p
     p.shoe_size && `Ayakkabı ${p.shoe_size}`,
   ].filter(Boolean).join(" · ");
 
+  const accountCard = (
+    <PersonnelAccountCard
+      personnelId={p.id}
+      fullName={p.full_name}
+      account={acc.account}
+      canManage={acc.canManage}
+      loginUrl={PERSONNEL_LOGIN_URL}
+      terminated={p.status === "terminated"}
+    />
+  );
+
   if (!manage) {
     return (
+      <div className="space-y-6">
       <Card>
         <CardHeader title="Bilgiler" />
         <dl className="grid gap-x-6 gap-y-4 p-5 text-sm sm:grid-cols-3">
@@ -66,11 +81,14 @@ export default async function PersonnelCardPage({ params }: PageProps<"/merkez/p
           )}
         </dl>
       </Card>
+      {accountCard}
+      </div>
     );
   }
 
   return (
     <div className="space-y-6">
+      {accountCard}
       <Card>
         <CardHeader title="Personel kartı" description="Bilgileri düzenleyebilirsiniz. Ayrılan personel için durumu 'Ayrıldı' yapın." />
         <PersonnelEditForm

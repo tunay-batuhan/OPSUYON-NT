@@ -37,7 +37,7 @@ export async function saveRole(values: RoleValues): Promise<RoleSaveState> {
     const wanted = [...new Set(d.permissions)];
     for (const code of wanted) {
       if (!known.has(code)) return { error: `Bilinmeyen yetki: ${code}` };
-      if (d.scope === "customer" && !known.get(code)) return { error: "Müşteri rollerine yalnızca görme yetkileri verilebilir." };
+      if (d.scope === "customer" && !known.get(code)) return { error: "Bu yetki müşteri rollerine verilemez (yalnızca müşteriye verilebilen yetkiler seçilebilir)." };
     }
 
     let id = d.id;

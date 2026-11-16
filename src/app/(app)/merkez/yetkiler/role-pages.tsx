@@ -144,7 +144,7 @@ export async function RoleEditPage({ scope, id }: { scope: RoleScope; id: string
             isNew
               ? scope === "staff"
                 ? "Merkez çalışanları için bir rol. Yetkiler tüm firmalar ve projeler için geçerli olur."
-                : "Müşteri hesapları için bir rol. Hesaba proje bazında verilir; yalnızca görme yetkileri seçilebilir."
+                : "Müşteri hesapları için bir rol. Hesaba proje bazında verilir; görme yetkileri ve site müdürüne açılan işlemler (görev atama, personel hesabı, avans, maaş hesaplama) seçilebilir."
               : `${role!.is_system ? "Hazır rol (silinemez)" : "Özel rol"} · ${used} ${scope === "staff" ? "hesapta" : "proje erişiminde"} kullanılıyor · değişiklik bu roldeki herkese hemen yansır`
           }
         />

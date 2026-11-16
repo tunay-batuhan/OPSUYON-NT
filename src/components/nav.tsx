@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Banknote, BarChart3, Bell, BookOpen, Building2, CalendarClock, CalendarOff, CalendarCheck, ChevronDown, ClipboardCheck,
+  Banknote, BarChart3, Bell, BookOpen, Building2, Calculator, CalendarClock, CalendarOff, CalendarCheck, ChevronDown, ClipboardCheck, ClipboardList,
   FileSignature, FileStack, FolderKanban, Gavel, GraduationCap, History, Home, Inbox, Loader2, MessageSquare, Receipt, Route, ShieldAlert, SlidersHorizontal, UserCog, UserRound, Users,
   type LucideIcon,
 } from "lucide-react";
@@ -42,6 +42,8 @@ export const navIcons: Record<string, LucideIcon> = {
   training: GraduationCap,
   defense: Gavel,
   inbox: Inbox,
+  tasks: ClipboardList,
+  offers: Calculator,
 };
 
 export type NavChild = { href: string; label: string; exact?: boolean };

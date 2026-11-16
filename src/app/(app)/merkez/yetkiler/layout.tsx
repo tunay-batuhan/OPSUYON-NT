@@ -19,7 +19,7 @@ export default function AccessLayout({ children }: { children: ReactNode }) {
         descriptions={{
           "/merkez/yetkiler": "Kim neyi görür, neyi değiştirebilir? Roller birer yetki paketidir; buradan tanımlanır ve hesaplara verilir.",
           "/merkez/yetkiler/merkez-rolleri": "Merkez çalışanlarının rolleri. Yeni rol açabilir, rollerin yetkilerini seçebilirsiniz.",
-          "/merkez/yetkiler/musteri-rolleri": "Müşteri hesaplarının rolleri. Hesaba proje bazında verilir; yalnızca görme yetkileri içerir.",
+          "/merkez/yetkiler/musteri-rolleri": "Müşteri hesaplarının rolleri. Hesaba proje bazında verilir; görme yetkileri ve site müdürü işlemleri (görev atama, personel hesabı, avans, maaş hesaplama) içerir.",
           "/merkez/yetkiler/musteri-ekranlari": "Müşteri panelinde hangi ekranların bulunduğu: tüm müşteriler için tek açma/kapama. Merkez tarafı etkilenmez.",
         }}
       />

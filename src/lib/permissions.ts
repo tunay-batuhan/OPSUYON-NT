@@ -4,11 +4,13 @@
  */
 export const PERMISSION_GROUPS: { module: string; label: string; hint: string }[] = [
   { module: "projeler", label: "Projeler", hint: "Proje bilgileri" },
-  { module: "personel", label: "Personel ve izin", hint: "Personel, özlük, bordro, puantaj, izin, eğitim, kıyafet, savunma" },
+  { module: "personel", label: "Personel ve izin", hint: "Personel, personel hesapları, özlük, bordro ve maaş, avans, puantaj, izin, eğitim, kıyafet, savunma" },
+  { module: "isplanlama", label: "İş Planlama", hint: "Personele görev atama, tarih verme, tamamlama" },
   { module: "belgeler", label: "Belgeler", hint: "Genel belgeler, denetim, risk analizi, formlar" },
   { module: "finans", label: "Finans ve cari hesap", hint: "Faturalar, tahsilatlar, cari hesap" },
   { module: "devriye", label: "Devriye", hint: "Devriye kayıtları, noktalar ve etiketler" },
   { module: "iletisim", label: "Mesajlar", hint: "Merkez ile müşteri arasındaki yazışmalar" },
+  { module: "teklif", label: "Teklifler", hint: "Satış teklifleri ve teklif raporları (yalnızca merkez)" },
   { module: "yonetim", label: "Yönetim", hint: "Firmalar, kullanıcılar, işlem geçmişi, içe aktarma (yalnızca merkez)" },
 ];
 

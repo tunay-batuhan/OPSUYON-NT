@@ -36,12 +36,17 @@ const tableNames: Record<string, string> = {
   app_modules: "Müşteri modülü",
   patrol_points: "Devriye noktası",
   form_templates: "Form şablonu",
+  work_tasks: "Görev (İş Planlama)",
+  pay_rates: "Ücret tanımı",
+  pay_advances: "Avans",
+  payroll_runs: "Maaş dönemi (bordro)",
+  offers: "Teklif",
 };
 const actionTone = { INSERT: "success", UPDATE: "brand", DELETE: "danger" } as const;
 const actionLabel = { INSERT: "Eklendi", UPDATE: "Güncellendi", DELETE: "Silindi" } as const;
 
 type Row = AuditLog & { old_data: Record<string, unknown> | null; new_data: Record<string, unknown> | null; actor_note?: string | null };
-type Actor = { id: string; full_name: string; username: string; kind: "staff" | "customer"; organizations: { name: string } | null };
+type Actor = { id: string; full_name: string; username: string; kind: "staff" | "customer" | "personnel"; organizations: { name: string } | null };
 
 /** PostgREST `ilike` / `.or()` içinde anlamı olan karakterleri temizler. */
 const likeTerm = (s: string | undefined) => (s ?? "").replace(/[%_*,()\\"]/g, "").trim();
@@ -226,7 +231,7 @@ export default async function AuditPage({ searchParams }: PageProps<"/merkez/isl
                         <p className="font-medium">@{who?.username ?? "silinmiş hesap"}</p>
                         <p className="text-xs text-muted">
                           {who?.full_name}
-                          {who && <> · {who.kind === "customer" ? (who.organizations?.name ?? "Müşteri") : "Merkez"}</>}
+                          {who && <> · {who.kind === "customer" ? (who.organizations?.name ?? "Müşteri") : who.kind === "personnel" ? "Personel" : "Merkez"}</>}
                         </p>
                       </>
                     ) : l.actor_note ? (
