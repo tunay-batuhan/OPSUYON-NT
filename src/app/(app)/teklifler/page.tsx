@@ -55,7 +55,7 @@ export default async function OffersPage({ searchParams }: PageProps<"/teklifler
           tone="emerald"
           hint={summary.acceptRate === null ? "Henüz karar verilmiş teklif yok" : `Kabul oranı %${formatNumber(Math.round(summary.acceptRate * 1000) / 10)}`}
         />
-        <Stat label="Kabul edilen aylık tutar" value={formatMoney(summary.acceptedMonthly)} icon={Wallet} tone="violet" hint="Kabul edilen tekliflerin aylık OPSÜYON tutarı" />
+        <Stat label="Kabul edilen aylık tutar" value={formatMoney(summary.acceptedMonthly)} icon={Wallet} tone="violet" hint="Kabul edilen tekliflerin aylık OPSUYON tutarı" />
         <Stat label="Yıllık kâr potansiyeli" value={formatMoney(summary.yearlyPotential)} icon={TrendingUp} tone="amber" hint="Tüm tekliflerde müşterilere gösterilen yıllık net kâr" />
       </div>
 
@@ -85,7 +85,7 @@ export default async function OffersPage({ searchParams }: PageProps<"/teklifler
           <>
             <Table
               numeric={[2, 3, 4, 5, 6]}
-              head={["Teklif no", "Müşteri", "Kişi", "Aylık matrah", "OPSÜYON aylık", "Aylık kâr", "Yıllık kâr", "Durum", "Tarih", "Hazırlayan"]}
+              head={["Teklif no", "Müşteri", "Kişi", "Aylık matrah", "OPSUYON aylık", "Aylık kâr", "Yıllık kâr", "Durum", "Tarih", "Hazırlayan"]}
             >
               {rows.map((r) => {
                 const s = OFFER_STATUS[r.status];

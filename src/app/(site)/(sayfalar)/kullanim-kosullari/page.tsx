@@ -71,7 +71,7 @@ export default function TermsPage() {
         okutmayı yapan görevlinin sorumluluğundadır.
       </p>
 
-      <h2 id="asistan">6. Yardım asistanı (Opsüyon AI)</h2>
+      <h2 id="asistan">6. Yardım asistanı (Opsuyon AI)</h2>
       <p>
         Portaldaki yardım asistanı, portalın kullanımı hakkında yapay zekâ ile üretilmiş bilgilendirici yanıtlar verir. Yanıtlar
         hatalı veya eksik olabilir; hukuki, mali veya iş sağlığı ve güvenliği tavsiyesi değildir. Asistana kişisel veya gizli

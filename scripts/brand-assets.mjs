@@ -1,15 +1,15 @@
-// OPSÜYON logo dosyalarını TEK KAYNAKTAN (src/lib/logo-art.ts) üretir. Elle düzenlenen logo dosyası yoktur.
+// OPSUYON logo dosyalarını TEK KAYNAKTAN (src/lib/logo-art.ts) üretir. Elle düzenlenen logo dosyası yoktur.
 //
 // Üretilenler:
 //   public/brand/opsuyon-mark.svg|png         işaret ("O"), saydam (PNG 1024×1024)
-//   public/brand/opsuyon-logo.svg|png         işaret + "PSÜYON" (lacivert yazı), saydam (PNG ~2000 px genişlik)
+//   public/brand/opsuyon-logo.svg|png         işaret + "PSUYON" (lacivert yazı), saydam (PNG ~2000 px genişlik)
 //   public/brand/opsuyon-logo-white.svg|png   koyu zemin için: beyaz yazı + işaretin arkasında beyaz daire
 //   src/app/icon.svg                          sekme ikonu (işaret tuvali doldurur; kare zemin yok, halkanın içi beyaz)
 //   src/app/favicon.ico                       16 + 32 + 48 px (PNG gömülü ICO)
 //   src/app/apple-icon.png                    180×180, beyaz kare zemin
 //   public/icon-192.png, public/icon-512.png  web manifest ikonları
 //
-// Yazı ("PSÜYON") SVG'lerde <text> değil, çizgiye (path) çevrilmiştir: Geist yazı tipi yüklü olmasa da aynı görünür.
+// Yazı ("PSUYON") SVG'lerde <text> değil, çizgiye (path) çevrilmiştir: Geist yazı tipi yüklü olmasa da aynı görünür.
 // Ölçüler <Logo size="lg"> ile aynıdır (LOGO_SIZES.lg: işaret 56, yazı 36/40, boşluk 6, harf aralığı -0.4px).
 //
 // Çalıştırma (repo kökünden):
@@ -79,7 +79,7 @@ const nestedMark = (disc) =>
   `<svg x="0" y="0" width="${L.mark}" height="${L.mark}" viewBox="0 0 64 64">${disc ? '<circle cx="32" cy="32" r="32" fill="#ffffff"/>' : ""}${logoMarkSvgInner()}</svg>`;
 const logoSvg = ({ white = false } = {}) =>
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width * 4}" height="${height * 4}">${GENERATED}` +
-  `<title>OPSÜYON</title>${nestedMark(white)}<path d="${d}" fill="${white ? "#ffffff" : LOGO_COLORS.navy}"/></svg>`;
+  `<title>OPSUYON</title>${nestedMark(white)}<path d="${d}" fill="${white ? "#ffffff" : LOGO_COLORS.navy}"/></svg>`;
 
 /* ---------------- yazma ---------------- */
 const sizes = [];

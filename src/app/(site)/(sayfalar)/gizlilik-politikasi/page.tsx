@@ -64,7 +64,7 @@ export default function PrivacyPage() {
         amacıyla kaydedilir. Portal içi mesajlarınız ilgili müşteri ve merkez kullanıcıları tarafından görülebilir.
       </p>
       <p>
-        Portaldaki yardım asistanı Opsüyon AI’ı kullanırsanız, yazdığınız sorular ile adınız, hesap türünüz, rolünüz ve
+        Portaldaki yardım asistanı Opsuyon AI’ı kullanırsanız, yazdığınız sorular ile adınız, hesap türünüz, rolünüz ve
         menünüzdeki ekran adları yanıt üretilmesi için yapay zekâ hizmet sağlayıcısına gönderilir. Asistan veritabanına erişmez
         ve sohbetler Şirket tarafından saklanmaz. Asistana kişisel veya gizli bilgi yazmamanızı rica ederiz.
       </p>

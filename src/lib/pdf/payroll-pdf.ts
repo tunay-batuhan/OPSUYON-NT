@@ -14,7 +14,7 @@ const OK = rgb(0.07, 0.55, 0.3);
 const BAD = rgb(0.8, 0.15, 0.15);
 const WHITE = rgb(1, 1, 1);
 
-const FOOTNOTE = "Bu belge OPSÜYON maaş hesaplamasından oluşturulmuştur; resmi bordro yerine geçmez.";
+const FOOTNOTE = "Bu belge OPSUYON maaş hesaplamasından oluşturulmuştur; resmi bordro yerine geçmez.";
 
 const fmtNow = () =>
   new Intl.DateTimeFormat("tr-TR", { timeZone: "Europe/Istanbul", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date());
@@ -25,7 +25,7 @@ async function setup(title: string) {
   const doc = await PDFDocument.create();
   doc.registerFontkit(fontkit);
   doc.setTitle(title);
-  doc.setProducer("OPSÜYON");
+  doc.setProducer("OPSUYON");
   const regular = await doc.embedFont(Buffer.from(ROBOTO_REGULAR_B64, "base64"), { subset: true });
   const bold = await doc.embedFont(Buffer.from(ROBOTO_MEDIUM_B64, "base64"), { subset: true });
   const fit = (text: string, max: number, size: number, font: PDFFont) => {
@@ -64,7 +64,7 @@ export async function buildPayslipPdf(run: PayrollRunView, l: PayrollLineView): 
   page.drawRectangle({ x: 0, y: H - 78, width: W, height: 78, color: NAVY });
   text("BORDRO PUSULASI", M, H - 40, 20, bold, WHITE);
   text(fit(`${period} · ${run.org || run.project}`, W - 2 * M - 100, 10.5, regular), M, H - 60, 10.5, regular, rgb(0.78, 0.85, 0.97));
-  right("OPSÜYON", W - M, H - 40, 13, bold, WHITE);
+  right("OPSUYON", W - M, H - 40, 13, bold, WHITE);
   let y = H - 78 - 26;
 
   // künye
@@ -209,7 +209,7 @@ export async function buildPayrollListPdf(run: PayrollRunView): Promise<Uint8Arr
     page.drawRectangle({ x: 0, y: H - 56, width: W, height: 56, color: NAVY });
     text(fit(`${(run.org || run.project).toLocaleUpperCase("tr")} ${period.toLocaleUpperCase("tr")} MAAŞ BORDROSU`, W - 2 * M - 90, 15, bold), M, H - 30, 15, bold, WHITE);
     text(fit(`${run.project} · ${run.lines.length} personel · ${run.status === "approved" ? `Onaylandı ${fmtDate(run.approvedAt)}` : "TASLAK (onaylanmadı)"}`, W - 2 * M - 90, 8.5, regular), M, H - 46, 8.5, regular, rgb(0.78, 0.85, 0.97));
-    const brand = "OPSÜYON";
+    const brand = "OPSUYON";
     text(brand, W - M - bold.widthOfTextAtSize(brand, 12), H - 30, 12, bold, WHITE);
     y = H - 56 - 14;
   };

@@ -1,10 +1,10 @@
-// Teklif hesabı ("OPSÜYON ile kâra geçin"). Saf fonksiyon: tabletteki canlı hesap (tarayıcı) ve kayıt (sunucu)
+// Teklif hesabı ("OPSUYON ile kâra geçin"). Saf fonksiyon: tabletteki canlı hesap (tarayıcı) ve kayıt (sunucu)
 // AYNI fonksiyonu kullanır; saklanan tutarlar ekranda görülenle birebir aynıdır.
 //
 //   aylık matrah     = hizmet tutarlarının toplamı (KDV hariç)
 //   KDV              = matrah × KDV oranı ÷ 100
-//   OPSÜYON teklifi  = toplam kişi × kişi başı teklif tutarı
-//   aylık net kâr    = KDV − OPSÜYON teklifi      (eksi çıkabilir: teklif KDV'den pahalıysa)
+//   OPSUYON teklifi  = toplam kişi × kişi başı teklif tutarı
+//   aylık net kâr    = KDV − OPSUYON teklifi      (eksi çıkabilir: teklif KDV'den pahalıysa)
 //   yıllık net kâr   = aylık net kâr × 12
 
 export type OfferLineInput = { service: string; people: number; monthly_total: number };

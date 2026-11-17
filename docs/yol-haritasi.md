@@ -1,4 +1,4 @@
-# OPSÜYON — Müşteri çalışmasına göre yol haritası
+# OPSUYON — Müşteri çalışmasına göre yol haritası
 
 Kaynak: `docs/` klasöründeki müşteri çalışması (18–19 Ekim 2026)
 - 5 görsel: 2 ekran düzenlemesi (Puantaj, Denetimler), 3 el yazısı sayfa (menü yapısı, devam, ileri özellikler)

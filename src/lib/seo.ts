@@ -45,7 +45,7 @@ export function pageMetadata({
   description: string;
   /** "/" ile başlayan kanonik yol */
   path: string;
-  /** true: başlık şablonu ("… · OPSÜYON") uygulanmaz */
+  /** true: başlık şablonu ("… · OPSUYON") uygulanmaz */
   absoluteTitle?: boolean;
 }): Metadata {
   const fullTitle = absoluteTitle ? title : `${title} · ${BRAND}`;

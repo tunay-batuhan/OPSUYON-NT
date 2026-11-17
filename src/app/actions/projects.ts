@@ -24,6 +24,7 @@ export async function createOrganization(values: OrganizationValues): Promise<Ac
     const { error } = await supabase.from("organizations").insert({
       name: d.name,
       legal_name: nul(d.legal_name),
+      contact_name: toTitleCase(d.contact_name),
       tax_office: nul(d.tax_office),
       tax_no: nul(d.tax_no),
       address: nul(d.address),
@@ -126,6 +127,7 @@ export async function updateOrganization(values: OrganizationUpdateValues): Prom
       .update({
         name: d.name,
         legal_name: nul(d.legal_name),
+        contact_name: toTitleCase(d.contact_name),
         tax_office: d.tax_office,
         tax_no: d.tax_no,
         address: d.address,

@@ -75,6 +75,7 @@ export const loginSchema = z.object({
 export const organizationSchema = z.object({
   name: str("Firma adı", 120),
   legal_name: opt("Ticari unvan", 200),
+  contact_name: str("Yetkili adı soyadı", 120),
   tax_office: str("Vergi dairesi", 80),
   tax_no: z
     .string()

@@ -1,4 +1,4 @@
-# OPSÜYON — Operasyonel Personel Süreç Yönetimi
+# OPSUYON — Operasyonel Süreç Yönetimi
 
 opsuyon.com · Next.js 16 (App Router) + Supabase (Postgres, Auth, Storage)
 
@@ -28,7 +28,7 @@ Veritabanı şeması `supabase/migrations/` altındadır ve sırayla uygulanır:
 | `…0800_shifts_reports_notifications` | vardiya planı, raporlar, bildirim sayaçları |
 | `…0900_notes_round` | Danışma ve Tesis hizmet alanı, kişiye özel merkez yetkisi, Excel cari ekstre, izin kayıtları, otomatik pasife alma |
 | `20261019…customer_modules` | müşteri modül anahtarları (`app_modules`), Teknik Personel hizmeti, kıyafet / savunma / denetim / risk / cari ekstre belge türleri, personel → işveren firma |
-| `20261019…opsuyon_ai` | Opsüyon AI modül anahtarı |
+| `20261019…opsuyon_ai` | Opsuyon AI modül anahtarı |
 | `20261020…notes_round3` | Formlar (form şablonları), `forms.read`, Savunmalar adı, Yaklaşan Sözleşme anahtarı |
 | `20261105…notes_round5` | Hizmet alanları (Danışma / Tesis Yönetimi; Kurumsal Tedarik pasif), personel kartı alanları (doğum, adres, medeni hal, beden ölçüleri, yedek telefon), Vardiya kaldırıldı |
 | `20261105…leave_types` | İzin türleri: babalık, evlat edinme, engelli çocuk (İş K. Ek md. 2) |
@@ -66,7 +66,7 @@ node --env-file=.env scripts/bootstrap-admin.mjs --username=admin --name="Ad Soy
 - **Müşteri modülleri:** müşteri panelindeki her ekran `app_modules` tablosunda bir modüldür. Kapalı modül müşteri menüsünde görünmez
   ve adresi 404 verir; merkez her zaman erişir. Açıp kapatmak için Merkez → *Müşteri modülleri* (yeniden yayın gerekmez).
   Müşterinin yazılı isteği ve aşamalar: `docs/yol-haritasi.md`.
-- **Opsüyon AI (yardım asistanı):** sağ altta açılan, portalın ekranlarını bilen sohbet asistanı (yalnızca test aşaması). Claude Haiku kullanır; anahtar `CLAUDE_API_KEY` (yalnızca sunucu; Vercel'e de eklenmeli). Bilgisi `src/lib/assistant/guide.ts` içindedir ve **özellik eklendikçe/değiştikçe güncellenmelidir**. Soran kişinin menüsü de modele verilir; veritabanına erişmez, sohbet kaydedilmez. Canlıya çıkarken Merkez → Müşteri modülleri → *Opsüyon AI* anahtarını kapatın.
+- **Opsuyon AI (yardım asistanı):** sağ altta açılan, portalın ekranlarını bilen sohbet asistanı (yalnızca test aşaması). Claude Haiku kullanır; anahtar `CLAUDE_API_KEY` (yalnızca sunucu; Vercel'e de eklenmeli). Bilgisi `src/lib/assistant/guide.ts` içindedir ve **özellik eklendikçe/değiştikçe güncellenmelidir**. Soran kişinin menüsü de modele verilir; veritabanına erişmez, sohbet kaydedilmez. Canlıya çıkarken Merkez → Müşteri modülleri → *Opsuyon AI* anahtarını kapatın.
 - **Görüntüle:** her "PDF indir"in yanında "Görüntüle" düğmesi vardır (`ViewButton`); belge AppShell'deki tek görüntüleyicide, sayfanın altında açılır (`/api/documents/[id]/view`, `/api/forms/[id]/view`). Yeni bir indirme bağlantısı eklerken `DownloadLink`/`PdfIcon` kullanın, görüntüleme kendiliğinden gelir.
 - **Devriye (DEMO — henüz onaylanmadı; menüde rozet, ekranlarda uyarı):** noktalar (`patrol_points`) QR olarak basılır; devriye görevlisi telefonunda *Barkod Okut* ile okutur (`zxing`, kamera yalnızca https'te); günlük rapor okutma kayıtlarından her istekte PDF olarak üretilir (`pdf-lib`, Türkçe karakterler için gömülü Roboto). Okutma yalnızca `record_patrol_scan()` ile yazılır (yetki ve çift okuma kontrolü veritabanında).
 - **Listeler:** sunucu tabanlı 10'arlık sayfalama (`pagingFrom` + `<Pagination>`), filtreler `FilterBar` ile URL'de; Durum varsayılanı Aktif. Form/evrak ekleme kartları sayfanın üstünde ya da alt sekmede (`Tabs`).

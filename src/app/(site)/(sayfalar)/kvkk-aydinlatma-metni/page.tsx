@@ -71,7 +71,7 @@ export default function KvkkPage() {
               <td>
                 Kimlik (ad soyad), iletişim (telefon), kullanıcı adı, bağlı olunan firma, rol ve yetkiler; işlem güvenliği (oturum
                 bilgisi, son giriş zamanı, portalda yapılan değişikliklerin kaydı); portal içi mesajlar; yardım asistanını
-                (Opsüyon AI) kullanırsanız yazdığınız sorular.
+                (Opsuyon AI) kullanırsanız yazdığınız sorular.
               </td>
               <td>Hesabın açılması ve yönetimi, hizmet sözleşmesinin yürütülmesi, yetkilendirme, işlem güvenliğinin sağlanması, destek verilmesi.</td>
               <td>(c) sözleşmenin ifası; (ç) hukuki yükümlülük; (f) meşru menfaat (işlem güvenliği ve kayıt).</td>

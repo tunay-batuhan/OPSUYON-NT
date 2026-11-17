@@ -35,7 +35,7 @@ export async function buildLedgerStatementPdf(s: LedgerStatement): Promise<Uint8
   const doc = await PDFDocument.create();
   doc.registerFontkit(fontkit);
   doc.setTitle(`Cari Hesap Ekstresi - ${s.organization.name} - ${s.start} - ${s.end}`);
-  doc.setProducer("OPSÜYON");
+  doc.setProducer("OPSUYON");
   const regular = await doc.embedFont(Buffer.from(ROBOTO_REGULAR_B64, "base64"), { subset: true });
   const bold = await doc.embedFont(Buffer.from(ROBOTO_MEDIUM_B64, "base64"), { subset: true });
 
@@ -67,7 +67,7 @@ export async function buildLedgerStatementPdf(s: LedgerStatement): Promise<Uint8
   page.drawRectangle({ x: 0, y: H - 78, width: W, height: 78, color: NAVY });
   text("CARİ HESAP EKSTRESİ", M, H - 40, 20, bold, rgb(1, 1, 1));
   text(fit(s.organization.name, W - 2 * M - 100, 10.5, regular), M, H - 60, 10.5, regular, rgb(0.78, 0.85, 0.97));
-  const brand = "OPSÜYON";
+  const brand = "OPSUYON";
   text(brand, W - M - bold.widthOfTextAtSize(brand, 13), H - 40, 13, bold, rgb(1, 1, 1));
   y = H - 78 - 26;
 
@@ -205,7 +205,7 @@ export async function buildLedgerStatementPdf(s: LedgerStatement): Promise<Uint8
   const pages = doc.getPages();
   pages.forEach((pg, i) => {
     pg.drawLine({ start: { x: M, y: M + 6 }, end: { x: W - M, y: M + 6 }, thickness: 0.5, color: LINE });
-    pg.drawText("Bu ekstre OPSÜYON tarafından cari hesap kayıtlarından otomatik oluşturulmuştur.", { x: M, y: M - 6, size: 7.5, font: regular, color: MUTED });
+    pg.drawText("Bu ekstre OPSUYON tarafından cari hesap kayıtlarından otomatik oluşturulmuştur.", { x: M, y: M - 6, size: 7.5, font: regular, color: MUTED });
     const label = `Sayfa ${i + 1} / ${pages.length}`;
     pg.drawText(label, { x: W - M - regular.widthOfTextAtSize(label, 7.5), y: M - 6, size: 7.5, font: regular, color: MUTED });
   });

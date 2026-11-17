@@ -20,13 +20,14 @@ export function OrganizationForm() {
   return (
     <Form
       schema={organizationSchema}
-      defaultValues={{ name: "", legal_name: "", tax_office: "", tax_no: "", email: "", phone: "", address: "" }}
+      defaultValues={{ name: "", legal_name: "", contact_name: "", tax_office: "", tax_no: "", email: "", phone: "", address: "" }}
       action={createOrganization}
       className="space-y-4 p-5"
     >
       <FormGrid>
         <TextField name="name" label="Firma adı" required placeholder="Örn. Atlas Plaza" />
         <TextField name="legal_name" label="Ticari unvan" placeholder="Örn. Atlas Plaza Yönetimi A.Ş." />
+        <TextField name="contact_name" label="Yetkili adı soyadı" required titleCase autoComplete="off" placeholder="Örn. Ahmet Yılmaz" className="sm:col-span-2" />
         <TextField name="tax_office" label="Vergi dairesi" required />
         <TextField name="tax_no" label="Vergi no / TC" required inputMode="numeric" maxLength={11} hint="10 haneli vergi no veya 11 haneli TC kimlik no" />
         <TextField name="email" type="email" label="E-posta" autoComplete="off" placeholder="ornek@firma.com" />
@@ -40,12 +41,12 @@ export function OrganizationForm() {
 
 export function OrganizationEditForm({
   org,
-}: { org: { id: string; name: string; legal_name: string | null; tax_office: string | null; tax_no: string | null; address: string | null; phone: string | null; email: string | null } }) {
+}: { org: { id: string; name: string; legal_name: string | null; contact_name: string | null; tax_office: string | null; tax_no: string | null; address: string | null; phone: string | null; email: string | null } }) {
   return (
     <Form
       schema={organizationUpdateSchema}
       defaultValues={{
-        id: org.id, name: org.name, legal_name: org.legal_name ?? "", tax_office: org.tax_office ?? "", tax_no: org.tax_no ?? "",
+        id: org.id, name: org.name, legal_name: org.legal_name ?? "", contact_name: org.contact_name ?? "", tax_office: org.tax_office ?? "", tax_no: org.tax_no ?? "",
         email: org.email ?? "", phone: org.phone ?? "", address: org.address ?? "",
       }}
       action={updateOrganization}
@@ -55,6 +56,7 @@ export function OrganizationEditForm({
       <FormGrid>
         <TextField name="name" label="Firma adı" required />
         <TextField name="legal_name" label="Ticari unvan" />
+        <TextField name="contact_name" label="Yetkili adı soyadı" required titleCase autoComplete="off" className="sm:col-span-2" />
         <TextField name="tax_office" label="Vergi dairesi" required />
         <TextField name="tax_no" label="Vergi no / TC" required inputMode="numeric" maxLength={11} />
         <TextField name="email" type="email" label="E-posta" autoComplete="off" />

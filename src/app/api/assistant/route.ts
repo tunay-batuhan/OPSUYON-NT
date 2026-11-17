@@ -16,7 +16,7 @@ type Msg = { role: "user" | "assistant"; content: string };
 const json = (body: unknown, status: number) => Response.json(body, { status });
 
 /**
- * Opsüyon AI: oturum açmış kullanıcıya portalın kullanımını anlatan yardım asistanı (test aşaması).
+ * Opsuyon AI: oturum açmış kullanıcıya portalın kullanımını anlatan yardım asistanı (test aşaması).
  * Veritabanına erişmez ve işlem yapmaz; yalnızca rehber metni ve kullanıcının menüsüyle yanıt verir.
  * Yanıt düz metin olarak akıtılır.
  */

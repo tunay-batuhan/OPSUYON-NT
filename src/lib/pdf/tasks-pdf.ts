@@ -36,7 +36,7 @@ async function makeDoc(title: string, landscape: boolean) {
   const doc = await PDFDocument.create();
   doc.registerFontkit(fontkit);
   doc.setTitle(title);
-  doc.setProducer("OPSÜYON");
+  doc.setProducer("OPSUYON");
   const regular = await doc.embedFont(Buffer.from(ROBOTO_REGULAR_B64, "base64"), { subset: true });
   const bold = await doc.embedFont(Buffer.from(ROBOTO_MEDIUM_B64, "base64"), { subset: true });
   const W = landscape ? 841.89 : 595.28;
@@ -78,7 +78,7 @@ async function makeDoc(title: string, landscape: boolean) {
     page.drawRectangle({ x: 0, y: H - 74, width: W, height: 74, color: NAVY });
     text(heading, M, H - 38, 19, bold, rgb(1, 1, 1));
     text(fit(sub, W - 2 * M - 110, 10, regular), M, H - 57, 10, regular, rgb(0.78, 0.85, 0.97));
-    const brand = "OPSÜYON";
+    const brand = "OPSUYON";
     text(brand, W - M - bold.widthOfTextAtSize(brand, 13), H - 38, 13, bold, rgb(1, 1, 1));
     y = H - 74 - 24;
   };
@@ -254,7 +254,7 @@ export async function buildTaskReportPdf(input: { rows: TaskListRow[]; counts: T
     }),
   );
   if (input.truncated) d.paragraph("Not: Rapor en fazla 1000 görev içerir; daha fazlası için süzgeci daraltın.", MUTED);
-  return d.finish("Bu rapor OPSÜYON İş Planlama kayıtlarından otomatik oluşturulmuştur.");
+  return d.finish("Bu rapor OPSUYON İş Planlama kayıtlarından otomatik oluşturulmuştur.");
 }
 
 /** Tek görev formu (A4 dikey): bilgiler, açıklama, sorun / bitirdi notu, fotoğraflar, geçmiş. */
@@ -323,5 +323,5 @@ export async function buildTaskPdf(input: {
       colors: [undefined, e.kind === "issue" ? STAGE_COLOR.issue : undefined],
     })),
   );
-  return d.finish("Bu form OPSÜYON İş Planlama kayıtlarından otomatik oluşturulmuştur.");
+  return d.finish("Bu form OPSUYON İş Planlama kayıtlarından otomatik oluşturulmuştur.");
 }

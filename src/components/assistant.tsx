@@ -55,7 +55,7 @@ function Rich({ text }: { text: string }) {
 }
 
 /**
- * Sağ altta açılan "Opsüyon AI" yardım asistanı (test aşaması). Sohbet yalnızca bu sayfa açık kaldığı sürece
+ * Sağ altta açılan "Opsuyon AI" yardım asistanı (test aşaması). Sohbet yalnızca bu sayfa açık kaldığı sürece
  * tarayıcıda tutulur; sunucuda kaydedilmez.
  */
 export function Assistant({ kind }: { kind: "staff" | "customer" }) {
@@ -137,7 +137,7 @@ export function Assistant({ kind }: { kind: "staff" | "customer" }) {
       {open && (
         <section
           role="dialog"
-          aria-label="Opsüyon AI yardım asistanı"
+          aria-label="Opsuyon AI yardım asistanı"
           className="fixed inset-x-3 bottom-36 z-50 flex print:hidden h-[min(34rem,calc(100dvh-11rem))] flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl sm:inset-x-auto sm:right-5 sm:w-[24rem] lg:bottom-24"
         >
           <header className="flex items-center gap-3 bg-[var(--side-bg)] px-4 py-3 text-white">
@@ -145,7 +145,7 @@ export function Assistant({ kind }: { kind: "staff" | "customer" }) {
               <Sparkles className="size-[18px]" />
             </span>
             <div className="min-w-0 flex-1 leading-tight">
-              <p className="font-semibold">Opsüyon AI</p>
+              <p className="font-semibold">Opsuyon AI</p>
               <p className="truncate text-xs text-white/70">Portal yardım asistanı · test sürümü</p>
             </div>
             {messages.length > 0 && (
@@ -162,7 +162,7 @@ export function Assistant({ kind }: { kind: "staff" | "customer" }) {
             {messages.length === 0 ? (
               <div className="space-y-3">
                 <div className="rounded-2xl rounded-tl-sm bg-surface px-3.5 py-3 shadow-card">
-                  <p className="font-medium">Merhaba, ben Opsüyon AI 👋</p>
+                  <p className="font-medium">Merhaba, ben Opsuyon AI 👋</p>
                   <p className="mt-1 text-muted">Portaldaki her ekranı ve işlevi biliyorum. Gitmek istediğiniz yeri veya yapmak istediğiniz işi yazın, adım adım yolunu tarif edeyim.</p>
                 </div>
                 <p className="text-xs font-medium uppercase tracking-wide text-muted">Örnek sorular</p>
@@ -211,7 +211,7 @@ export function Assistant({ kind }: { kind: "staff" | "customer" }) {
               rows={1}
               maxLength={1000}
               placeholder="Sorunuzu yazın…"
-              aria-label="Opsüyon AI'ya soru"
+              aria-label="Opsuyon AI'ya soru"
               className="max-h-28 min-h-10 flex-1 resize-none rounded-xl border border-border bg-bg px-3 py-2 text-sm placeholder:text-muted/70 focus:border-brand focus:outline-none"
             />
             <button
@@ -229,11 +229,11 @@ export function Assistant({ kind }: { kind: "staff" | "customer" }) {
       <button
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        aria-label={open ? "Asistanı kapat" : "Opsüyon AI'ya sor"}
+        aria-label={open ? "Asistanı kapat" : "Opsuyon AI'ya sor"}
         className="fixed bottom-20 right-4 z-50 flex print:hidden h-12 items-center gap-2 rounded-full bg-brand px-4 font-medium text-brand-fg shadow-lg ring-4 ring-white/70 transition hover:bg-brand-hover sm:right-5 lg:bottom-6"
       >
         {open ? <X className="size-5" aria-hidden /> : <Sparkles className="size-5" aria-hidden />}
-        <span className="hidden sm:inline">Opsüyon AI</span>
+        <span className="hidden sm:inline">Opsuyon AI</span>
       </button>
     </>
   );

@@ -6,7 +6,7 @@
  * yapılandırılmış veri (JSON-LD) buradan okur. Yer tutucu değerler sayfada sarı işaretli görünür, tıklanabilir
  * bağlantıya (tel:, mailto:) dönüşmez ve JSON-LD'ye hiç yazılmaz.
  *
- * Marka metinleri (OPSÜYON, slogan) `src/lib/brand.ts` içinde kalır.
+ * Marka metinleri (OPSUYON, slogan) `src/lib/brand.ts` içinde kalır.
  */
 
 /** "[...]" biçimindeki ya da boş değer henüz doldurulmamış demektir. */

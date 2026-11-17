@@ -65,5 +65,24 @@ export const offerSettingsSchema = z.object({
 
 export type OfferSettingsValues = z.infer<typeof offerSettingsSchema>;
 
+/** Antetin üst ve alt boşluğu (mm): teklif içeriği bu boşlukların arasına yazılır. */
+export const letterheadMarginsSchema = z.object({
+  top_mm: decimal("Üst boşluk", { required: true, min: 0, max: 150 }).refine((v) => Number.isInteger(toNumber(v)), "Tam sayı (mm) yazın"),
+  bottom_mm: decimal("Alt boşluk", { required: true, min: 0, max: 100 }).refine((v) => Number.isInteger(toNumber(v)), "Tam sayı (mm) yazın"),
+});
+export type LetterheadMarginsValues = z.infer<typeof letterheadMarginsSchema>;
+
+/** Antet dosyası: A4 PDF (ilk sayfası kullanılır) ya da PNG/JPG; en fazla 10 MB. */
+export const LETTERHEAD_MAX = 10 * 1024 * 1024;
+export const LETTERHEAD_ACCEPT = "application/pdf,.pdf,image/png,.png,image/jpeg,.jpg,.jpeg";
+export function letterheadKind(name: string, mime?: string): { ext: "pdf" | "png" | "jpg"; mime: "application/pdf" | "image/png" | "image/jpeg" } | null {
+  const ext = name.toLowerCase().match(/\.([a-z0-9]+)$/)?.[1] ?? "";
+  const m = (mime ?? "").toLowerCase();
+  if (m === "application/pdf" || ext === "pdf") return { ext: "pdf", mime: "application/pdf" };
+  if (m === "image/png" || ext === "png") return { ext: "png", mime: "image/png" };
+  if (m === "image/jpeg" || ext === "jpg" || ext === "jpeg") return { ext: "jpg", mime: "image/jpeg" };
+  return null;
+}
+
 /** Her satıra bir hizmet adı; boş satırlar ve tekrarlar atılır. */
 export const serviceList = (text: string) => [...new Set(text.split(/\r?\n/).map((s) => s.trim()).filter(Boolean))].slice(0, 30);

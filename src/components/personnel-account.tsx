@@ -29,7 +29,7 @@ export function PersonnelAccountCard({
 
   const creds = result?.ok && result.password ? { username: result.username, password: result.password } : null;
   const message = creds
-    ? `Merhaba ${fullName}, OPSÜYON personel hesabınız açıldı.\nKullanıcı adı: ${creds.username}\nGeçici parola: ${creds.password}\nGiriş: ${loginUrl}\nİlk girişte kendi parolanızı belirleyeceksiniz. Görevlerinizi ve bordrolarınızı buradan görebilirsiniz.`
+    ? `Merhaba ${fullName}, OPSUYON personel hesabınız açıldı.\nKullanıcı adı: ${creds.username}\nGeçici parola: ${creds.password}\nGiriş: ${loginUrl}\nİlk girişte kendi parolanızı belirleyeceksiniz. Görevlerinizi ve bordrolarınızı buradan görebilirsiniz.`
     : "";
 
   return (

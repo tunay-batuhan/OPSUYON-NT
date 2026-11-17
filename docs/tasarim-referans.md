@@ -5,8 +5,8 @@ Panel tasarımı ve menüler bu görsele göre şekillenecek.
 
 ## Marka
 - Logo: daire içinde kişi ikonu + sarı ok, koyu lacivert yazı. Slogan: **"Tüm Süreçler Tek Platformda…"**, alt şerit: **"Daha Güvenli, Daha Düzenli, Daha Verimli…"**
-- Alt başlık: Operasyonel Personel Süreç Yönetimi · www.opsuyon.com
-- Görselde yazım **OPSÜYON** (Ü ile); proje sahibi daha önce **OPSUYON** (Ü'süz) istedi → netleştirilecek.
+- Alt başlık: Operasyonel Süreç Yönetimi · www.opsuyon.com
+- Yazım **OPSUYON** (Ü'süz; 17 Kasım'da kesinleşti, yeni logo örneğiyle). Alan adı opsuyon.com.
 - Renkler: koyu lacivert (menü, başlıklar) · canlı mavi (aktif öğe, Güvenlik) · yeşil (Temizlik) · turuncu (Kurumsal Tedarik) · sarı (vurgu, buton)
 
 ## Yan menü (koyu lacivert, sırayla)

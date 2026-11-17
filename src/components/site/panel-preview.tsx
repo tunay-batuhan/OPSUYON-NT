@@ -44,7 +44,7 @@ export function PanelPreview() {
           <div className="flex flex-col gap-1 bg-navy px-2.5 py-3">
             <div className="mb-2 flex items-center gap-1.5 px-1.5">
               <span className="grid size-6 place-items-center rounded-full bg-white"><LogoMark gradientId="lm-ring-pv" className="size-6" /></span>
-              <span className="text-xs font-extrabold tracking-tight text-white">PSÜYON</span>
+              <span className="text-xs font-extrabold tracking-tight text-white">PSUYON</span>
             </div>
             {menu.map(({ icon: Icon, label, active }) => (
               <span

@@ -28,7 +28,7 @@ async function createReportDoc(title: string, project: TourReport["project"]) {
   const doc = await PDFDocument.create();
   doc.registerFontkit(fontkit);
   doc.setTitle(title);
-  doc.setProducer("OPSÜYON");
+  doc.setProducer("OPSUYON");
   const regular = await doc.embedFont(Buffer.from(ROBOTO_REGULAR_B64, "base64"), { subset: true });
   const bold = await doc.embedFont(Buffer.from(ROBOTO_MEDIUM_B64, "base64"), { subset: true });
 
@@ -87,7 +87,7 @@ async function createReportDoc(title: string, project: TourReport["project"]) {
   page.drawRectangle({ x: 0, y: H - 78, width: W, height: 78, color: NAVY });
   text("DEVRİYE RAPORU", M, H - 40, 20, bold, rgb(1, 1, 1));
   text(fit(project.name, W - 2 * M - 100, 10.5, regular), M, H - 60, 10.5, regular, rgb(0.78, 0.85, 0.97));
-  const brand = "OPSÜYON";
+  const brand = "OPSUYON";
   text(brand, W - M - bold.widthOfTextAtSize(brand, 13), H - 40, 13, bold, rgb(1, 1, 1));
   y = H - 78 - 26;
 
@@ -201,7 +201,7 @@ async function createReportDoc(title: string, project: TourReport["project"]) {
     const pages = doc.getPages();
     pages.forEach((pg, i) => {
       pg.drawLine({ start: { x: M, y: M + 6 }, end: { x: W - M, y: M + 6 }, thickness: 0.5, color: LINE });
-      pg.drawText("Bu rapor OPSÜYON tarafından devriye tur ve okutma kayıtlarından otomatik oluşturulmuştur.", { x: M, y: M - 6, size: 7.5, font: regular, color: MUTED });
+      pg.drawText("Bu rapor OPSUYON tarafından devriye tur ve okutma kayıtlarından otomatik oluşturulmuştur.", { x: M, y: M - 6, size: 7.5, font: regular, color: MUTED });
       const label = `Sayfa ${i + 1} / ${pages.length}`;
       pg.drawText(label, { x: W - M - regular.widthOfTextAtSize(label, 7.5), y: M - 6, size: 7.5, font: regular, color: MUTED });
     });

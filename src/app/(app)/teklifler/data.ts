@@ -2,6 +2,7 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isOfferStatus, type OfferStatus } from "@/lib/offer-calc";
+import type { OfferLetterhead } from "@/lib/pdf/offer-pdf";
 
 /**
  * Teklif listesi ve raporu (ekran + PDF aynı süzgeçler). Okuma kullanıcının oturumuyla: RLS yalnızca
@@ -31,7 +32,12 @@ export type OfferDetail = OfferRow & {
   vat_rate: number; fee_per_person: number; updated_at: string;
 };
 
-export type OfferSettings = { fee_per_person: number; vat_rate: number; validity_days: number; services: string[] };
+export type OfferSettings = {
+  fee_per_person: number; vat_rate: number; validity_days: number; services: string[];
+  /** merkezin yüklediği antetli kağıt (Storage yolu, dosya adı, türü) */
+  letterhead: { path: string; name: string; mime: string } | null;
+  letterhead_top_mm: number; letterhead_bottom_mm: number; updated_at: string | null;
+};
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const UUID = /^[0-9a-f-]{36}$/i;
@@ -112,7 +118,7 @@ export type OfferSummary = {
   total: number; open: number; accepted: number; rejected: number;
   /** kabul oranı: kabul ÷ (kabul + red); karar verilmemişse null */
   acceptRate: number | null;
-  /** kabul edilen tekliflerin aylık OPSÜYON tutarı toplamı */
+  /** kabul edilen tekliflerin aylık OPSUYON tutarı toplamı */
   acceptedMonthly: number;
   /** tüm tekliflerin yıllık net kâr toplamı (müşteri için kâr potansiyeli) */
   yearlyPotential: number;
@@ -170,11 +176,38 @@ export async function loadOffer(id: string): Promise<{ offer: OfferDetail; lines
 
 export async function loadOfferSettings(): Promise<OfferSettings> {
   const supabase = await createClient();
-  const { data } = await supabase.from("offer_settings").select("fee_per_person, vat_rate, validity_days, services").eq("id", true).maybeSingle();
+  const { data } = await supabase
+    .from("offer_settings")
+    .select("fee_per_person, vat_rate, validity_days, services, letterhead_path, letterhead_name, letterhead_mime, letterhead_top_mm, letterhead_bottom_mm, updated_at")
+    .eq("id", true)
+    .maybeSingle();
   return {
     fee_per_person: Number(data?.fee_per_person ?? 7500),
     vat_rate: Number(data?.vat_rate ?? 20),
     validity_days: Number(data?.validity_days ?? 30),
     services: (data?.services as string[] | null)?.length ? (data!.services as string[]) : ["Güvenlik", "Temizlik", "Teknik Personel", "Bahçıvan"],
+    letterhead: data?.letterhead_path
+      ? { path: data.letterhead_path as string, name: (data.letterhead_name as string | null) ?? "antet", mime: data.letterhead_mime as string }
+      : null,
+    letterhead_top_mm: Number(data?.letterhead_top_mm ?? 45),
+    letterhead_bottom_mm: Number(data?.letterhead_bottom_mm ?? 25),
+    updated_at: (data?.updated_at as string | null) ?? null,
+  };
+}
+
+/**
+ * Teklif PDF'i için antet dosyası (yoksa null). Çağıran yetkiyi denetlemiş olmalı: dosya yönetici istemciyle indirilir.
+ * İndirme başarısız olursa PDF antetsiz (OPSUYON başlığıyla) çıkar.
+ */
+export async function loadOfferLetterhead(s?: OfferSettings): Promise<OfferLetterhead | null> {
+  const settings = s ?? (await loadOfferSettings());
+  if (!settings.letterhead) return null;
+  const { data } = await createAdminClient().storage.from("documents").download(settings.letterhead.path);
+  if (!data) return null;
+  return {
+    bytes: new Uint8Array(await data.arrayBuffer()),
+    mime: settings.letterhead.mime,
+    topMm: settings.letterhead_top_mm,
+    bottomMm: settings.letterhead_bottom_mm,
   };
 }

@@ -3,8 +3,8 @@ import { formatRate, type OfferCalc } from "@/lib/offer-calc";
 import { cn } from "@/components/ui";
 
 /**
- * "OPSÜYON ile kâra geçin" tablosu (müşterinin Excel görünümü): turuncu başlık, lacivert sütun başlıkları,
- * hizmet satırları, toplam ve KDV, OPSÜYON teklifi, aylık ve yıllık net kâr. Hem tabletteki canlı hesapta
+ * "OPSUYON ile kâra geçin" tablosu (müşterinin Excel görünümü): turuncu başlık, lacivert sütun başlıkları,
+ * hizmet satırları, toplam ve KDV, OPSUYON teklifi, aylık ve yıllık net kâr. Hem tabletteki canlı hesapta
  * hem teklif sayfasında kullanılır. Kâr eksiye düşerse kırmızı gösterilir.
  */
 export function OfferResult({ calc, vatRate, fee, className }: { calc: OfferCalc; vatRate: number; fee: number; className?: string }) {
@@ -14,7 +14,7 @@ export function OfferResult({ calc, vatRate, fee, className }: { calc: OfferCalc
   const rows = calc.lines.filter((l) => l.service);
   return (
     <div className={cn("overflow-hidden rounded-2xl border border-border bg-surface shadow-card", className)}>
-      <p className={cn(orange, "px-4 py-3 text-center text-lg font-extrabold tracking-wide text-white sm:text-xl")}>OPSÜYON İLE KÂR&apos;A GEÇİN</p>
+      <p className={cn(orange, "px-4 py-3 text-center text-lg font-extrabold tracking-wide text-white sm:text-xl")}>OPSUYON İLE KÂR&apos;A GEÇİN</p>
       <div className="relative overflow-x-auto">
         <table className="w-full min-w-[30rem] text-sm tabular-nums sm:text-[15px]">
           <thead>
@@ -56,7 +56,7 @@ export function OfferResult({ calc, vatRate, fee, className }: { calc: OfferCalc
 
       <dl className={cn(navy, "mt-3 divide-y divide-white/15")}>
         <div className="flex items-center justify-between gap-4 px-4 py-2.5">
-          <dt className="font-semibold">OPSÜYON kişi başı teklif tutarı</dt>
+          <dt className="font-semibold">OPSUYON kişi başı teklif tutarı</dt>
           <dd className="font-bold tabular-nums">{formatMoney(fee)}</dd>
         </div>
         <div className="flex items-center justify-between gap-4 px-4 py-2.5">

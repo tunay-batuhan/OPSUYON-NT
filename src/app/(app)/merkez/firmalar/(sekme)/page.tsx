@@ -40,7 +40,7 @@ export default async function OrganizationsPage({ searchParams }: PageProps<"/me
 
   let q = supabase.from("organizations").select("*", { count: "exact" }).order("name").order("id").range(paging.from, paging.to);
   if (durum !== "tumu") q = q.eq("status", statusOf[durum]);
-  if (term) q = q.or(`name.ilike.%${term}%,legal_name.ilike.%${term}%,email.ilike.%${term}%,phone.ilike.%${term}%`);
+  if (term) q = q.or(`name.ilike.%${term}%,legal_name.ilike.%${term}%,contact_name.ilike.%${term}%,email.ilike.%${term}%,phone.ilike.%${term}%`);
   const { data, count } = await q;
   const orgs = (data ?? []) as Organization[];
   const total = count ?? 0;
@@ -65,7 +65,7 @@ export default async function OrganizationsPage({ searchParams }: PageProps<"/me
   const manage = hasPermission(user, "organizations.manage");
 
   const fields: FilterField[] = [
-    { name: "ad", label: "Firma adı", kind: "text", value: ad, placeholder: "Ad, ünvan, e-posta, telefon…" },
+    { name: "ad", label: "Firma adı", kind: "text", value: ad, placeholder: "Ad, ünvan, yetkili, e-posta, telefon…" },
     { name: "durum", label: "Durum", value: durum, options: DURUM },
   ];
   const filtered = Boolean(term) || durum !== "aktif";
@@ -90,7 +90,8 @@ export default async function OrganizationsPage({ searchParams }: PageProps<"/me
                     <td className={td}>{projectCount.get(o.id) ?? 0}</td>
                     <td className={td}>{userCount.get(o.id) ?? 0}</td>
                     <td className={td}>
-                      {o.email ?? "—"}
+                      {o.contact_name && <p className="font-medium">{o.contact_name}</p>}
+                      {o.email ?? (o.contact_name ? null : "—")}
                       {o.phone && <p className="text-xs text-muted">{o.phone}</p>}
                     </td>
                     <td className={td}><Badge tone={tone[o.status]}>{label[o.status]}</Badge></td>

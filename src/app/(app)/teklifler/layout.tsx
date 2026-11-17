@@ -18,7 +18,7 @@ export default async function OffersLayout({ children }: { children: ReactNode }
         description="Müşteriye verilen teklifler ve teklif raporu. Bir teklife tıklayınca hesap tablosu, PDF ve durum açılır."
         descriptions={{
           "/teklifler/yeni": "Müşterinin bugün aldığı hizmetleri ve aylık tutarlarını girin; kâr tablosu yazdıkça güncellenir. Tablette kullanmak için tasarlandı.",
-          "/teklifler/ayarlar": "Yeni tekliflerin varsayılan kişi başı tutarı, KDV oranı, geçerlilik süresi ve hizmet satırları.",
+          "/teklifler/ayarlar": "Yeni tekliflerin varsayılan kişi başı tutarı, KDV oranı, geçerlilik süresi, hizmet satırları ve teklif PDF'inin antetli kağıdı.",
         }}
         tabs={
           manage

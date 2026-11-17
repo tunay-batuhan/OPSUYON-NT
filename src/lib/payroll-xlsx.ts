@@ -36,7 +36,7 @@ const MONEY = "#,##0.00";
 /** Dönemin bordrosu (.xlsx): başlık, sütun grupları, personel satırları, TOPLAM satırı ve imza sütunu. */
 export async function buildPayrollXlsx(run: PayrollRunView): Promise<ArrayBuffer> {
   const wb = new ExcelJS.Workbook();
-  wb.creator = "OPSÜYON";
+  wb.creator = "OPSUYON";
   const ws = wb.addWorksheet(periodLabel(run.year, run.month).slice(0, 28), {
     pageSetup: { paperSize: 9, orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
   });
@@ -106,7 +106,7 @@ export async function buildPayrollXlsx(run: PayrollRunView): Promise<ArrayBuffer
   });
 
   ws.addRow([]);
-  ws.addRow(["Hesap: normal kazanç = maaş ÷ 30 × gün · yol = aylık yol ÷ 30 × gün · net ödenen = kazançlar toplamı − kesintiler · bankadan = net ödenen − yemek kartı. OPSÜYON maaş hesaplamasından oluşturulmuştur."]).font = { italic: true, size: 9, color: { argb: "FF64748B" } };
+  ws.addRow(["Hesap: normal kazanç = maaş ÷ 30 × gün · yol = aylık yol ÷ 30 × gün · net ödenen = kazançlar toplamı − kesintiler · bankadan = net ödenen − yemek kartı. OPSUYON maaş hesaplamasından oluşturulmuştur."]).font = { italic: true, size: 9, color: { argb: "FF64748B" } };
 
   COLS.forEach((c, i) => (ws.getColumn(i + 1).width = c.width));
   ws.views = [{ state: "frozen", xSplit: 1, ySplit: 4 }];

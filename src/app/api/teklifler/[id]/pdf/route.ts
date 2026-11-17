@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getCurrentUser, hasPermission } from "@/lib/auth";
 import { slugify } from "@/lib/format";
 import { buildOfferPdf } from "@/lib/pdf/offer-pdf";
-import { loadOffer } from "@/app/(app)/teklifler/data";
+import { loadOffer, loadOfferLetterhead } from "@/app/(app)/teklifler/data";
 
 /**
  * Tek teklif PDF'i. Yetki: offers.read / offers.manage (merkez); teklifi kullanıcının oturumuyla okur, RLS de denetler.
@@ -30,7 +30,7 @@ export async function GET(req: NextRequest, ctx: RouteContext<"/api/teklifler/[i
     created_at: o.created_at,
     creator,
     lines,
-  });
+  }, await loadOfferLetterhead());
   const fileName = `teklif-${o.offer_no}-${slugify(o.customer_name).slice(0, 40) || "musteri"}.pdf`;
   return new NextResponse(Buffer.from(pdf), {
     headers: {

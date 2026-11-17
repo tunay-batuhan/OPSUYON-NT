@@ -14,6 +14,7 @@ export type Organization = {
   id: string;
   name: string;
   legal_name: string | null;
+  contact_name: string | null;
   tax_office: string | null;
   tax_no: string | null;
   address: string | null;

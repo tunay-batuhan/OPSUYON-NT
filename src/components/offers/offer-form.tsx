@@ -110,7 +110,7 @@ function Submit({ editing }: { editing: boolean }) {
 }
 
 /**
- * Teklif hazırlama (tablet için): müşteri bilgileri, hizmet satırları, KDV oranı ve kişi başı OPSÜYON tutarı;
+ * Teklif hazırlama (tablet için): müşteri bilgileri, hizmet satırları, KDV oranı ve kişi başı OPSUYON tutarı;
  * sonuç tablosu yazdıkça güncellenir. Kaydedince teklifin sayfası açılır (tutarları sunucu aynı fonksiyonla yeniden hesaplar).
  */
 export function OfferForm({ defaults }: { defaults: OfferValues }) {
@@ -136,7 +136,7 @@ export function OfferForm({ defaults }: { defaults: OfferValues }) {
           </section>
 
           <section className="rounded-2xl border border-border bg-surface p-5 shadow-card">
-            <h2 className="mb-4 text-base font-semibold">OPSÜYON teklifi</h2>
+            <h2 className="mb-4 text-base font-semibold">OPSUYON teklifi</h2>
             <FormGrid>
               <TextField name="fee_per_person" label="Kişi başı teklif tutarı (aylık)" required large inputMode="decimal" suffix="₺" hint="Toplam teklif = toplam kişi × bu tutar" />
               <TextField name="vat_rate" label="KDV oranı" required large inputMode="decimal" suffix="%" hint="Müşterinin hizmet faturasındaki KDV" />
