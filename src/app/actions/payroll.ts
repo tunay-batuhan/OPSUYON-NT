@@ -6,7 +6,7 @@ import { assertStaff, getCurrentUser, hasPermission } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { guard, nul, pgMessage, validate } from "@/lib/form";
-import { toMoney, toNumber } from "@/lib/parse";
+import { toMoney } from "@/lib/parse";
 import { monthBounds } from "@/lib/payroll";
 import {
   advanceSchema, linesSaveSchema, payRatesSchema,
@@ -36,7 +36,7 @@ const halfDay = (n: number, max: number) => Math.min(max, Math.max(0, Math.round
 
 /**
  * Dönemde satırı olmayan personeli ekler: o ay projede görevli olan (atama ayla kesişen) herkes.
- * Puantaj tablosunda o ay için kayıt varsa eksik gün oradan gelir; yemek günü = tanımdaki yemek günü − eksik gün.
+ * Puantaj tablosunda o ay için kayıt varsa eksik gün oradan gelir.
  */
 async function addMissingLines(db: SupabaseClient, runId: string, projectId: string, year: number, month: number): Promise<number> {
   const admin = createAdminClient();
@@ -54,16 +54,14 @@ async function addMissingLines(db: SupabaseClient, runId: string, projectId: str
   const missing = [...new Set(((asg ?? []) as { personnel_id: string }[]).map((a) => a.personnel_id))].filter((id) => !have.has(id));
   if (!missing.length) return 0;
 
-  const [{ data: rates }, { data: sheets }] = await Promise.all([
-    admin.from("pay_rates").select("personnel_id, meal_days").in("personnel_id", missing),
+  const [{ data: sheets }] = await Promise.all([
     admin.from("timesheets").select("personnel_id, absence_days").eq("project_id", projectId).eq("period_year", year).eq("period_month", month).in("personnel_id", missing),
   ]);
-  const mealOf = new Map(((rates ?? []) as { personnel_id: string; meal_days: number }[]).map((r) => [r.personnel_id, Number(r.meal_days)]));
   const absOf = new Map(((sheets ?? []) as { personnel_id: string; absence_days: number }[]).map((r) => [r.personnel_id, Number(r.absence_days)]));
 
   const rows = missing.map((personnel_id) => {
     const missing_days = halfDay(absOf.get(personnel_id) ?? 0, 30);
-    return { run_id: runId, personnel_id, missing_days, overtime_days: 0, meal_days: halfDay((mealOf.get(personnel_id) ?? 26) - missing_days, 31) };
+    return { run_id: runId, personnel_id, missing_days };
   });
   const { error } = await db.from("payroll_lines").insert(rows);
   if (error) throw new Error(pgMessage(error));
@@ -85,7 +83,7 @@ export async function startPayrollRun(input: { project_id: string; year: number;
     refresh();
     return {
       ok: true,
-      message: added ? `Bordro başlatıldı: ${added} personel listelendi. Eksik gün ve fazla mesaiyi girip “Kaydet ve hesapla”ya basın.` : "Bordro başlatıldı ancak bu ay projede görevli personel yok.",
+      message: added ? `Bordro başlatıldı: ${added} personel listelendi. Eksik günleri girip “Kaydet ve hesapla”ya basın.` : "Bordro başlatıldı ancak bu ay projede görevli personel yok.",
     };
   });
 }
@@ -121,7 +119,7 @@ export async function savePayrollLines(values: LinesSaveValues): Promise<ActionS
       const chunk = rows.slice(i, i + 10);
       const res = await Promise.all(
         chunk.map((r) => {
-          const patch: Record<string, unknown> = { missing_days: r.missing_days, overtime_days: r.overtime_days, meal_days: r.meal_days };
+          const patch: Record<string, unknown> = { missing_days: r.missing_days };
           if (canDeduct) {
             if (r.ihbar_deduction !== undefined) patch.ihbar_deduction = r.ihbar_deduction;
             if (r.bes_deduction !== undefined) patch.bes_deduction = r.bes_deduction;
@@ -241,9 +239,11 @@ export async function savePayRates(values: PayRatesValues): Promise<ActionState>
         personnel_id: d.personnel_id,
         net_salary: m(d.net_salary),
         transport_monthly: m(d.transport_monthly),
-        overtime_daily: m(d.overtime_daily),
-        meal_daily: m(d.meal_daily),
-        meal_days: d.meal_days === "" ? 26 : (toNumber(d.meal_days) ?? 26),
+        overtime_monthly: m(d.overtime_monthly),
+        meal_monthly: m(d.meal_monthly),
+        // eski günlük alanlar (18 Kasım öncesi) kullanılmıyor
+        overtime_daily: 0,
+        meal_daily: 0,
         extra_monthly: m(d.extra_monthly),
         extra_label: nul(d.extra_label),
         updated_by: user.id,

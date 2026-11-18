@@ -70,8 +70,7 @@ export default async function PayrollCalcPage({ searchParams }: PageProps<"/bord
               <>
                 <p className="max-w-2xl text-sm text-muted">
                   Başlatınca o ay projede görevli tüm personel listelenir. Her personelin tutarları merkezin girdiği ücret
-                  tanımlarından, o ay girilen avanslar da avans kayıtlarından gelir. Siz yalnızca eksik gün, fazla mesai
-                  günü ve yemek gününü girersiniz.
+                  tanımlarından, o ay girilen avanslar da avans kayıtlarından gelir. Siz yalnızca eksik günleri girersiniz.
                 </p>
                 <StartRunButton projectId={projectId} year={year} month={month} label={`${periodLabel(year, month)} bordrosunu başlat`} />
               </>
@@ -101,7 +100,7 @@ export default async function PayrollCalcPage({ searchParams }: PageProps<"/bord
             <p className="text-sm font-semibold">
               Onaylandı · {formatDateTime(run.approvedAt)}
               {run.approvedBy ? ` · ${run.approvedBy}` : ""}
-              <span className="block font-normal">Bu dönem kilitli; personel bordrosunu telefonundan görür.{canManage ? " Düzeltme için “Kilidi aç”." : " Düzeltme gerekirse merkezden kilidin açılmasını isteyin."}</span>
+              <span className="block font-normal">Bu dönem kilitli.{canManage ? " Düzeltme için “Kilidi aç”." : " Düzeltme gerekirse merkezden kilidin açılmasını isteyin."}</span>
             </p>
           </div>
         ) : (
@@ -132,8 +131,8 @@ export default async function PayrollCalcPage({ searchParams }: PageProps<"/bord
           )}
         </Card>
         <p className="px-1 text-xs text-muted">
-          Hesap: normal = net maaş ÷ 30 × çalışılan gün · yol = aylık yol ÷ 30 × çalışılan gün · fazla mesai = gün × günlük ücret ·
-          yemek kartı = yemek günü × günlük tutar · net ödenen = kazançlar − (avans + ihbar + BES + diğer) · bankadan = net ödenen − yemek kartı.
+          Hesap: normal = net maaş ÷ 30 × çalışılan gün · yol = aylık yol ÷ 30 × çalışılan gün · fazla mesai = aylık fazla mesai ÷ 30 × çalışılan gün ·
+          yemek kartı = aylık yemek kartı ÷ 30 × çalışılan gün · net ödenen = kazançlar − (avans + ihbar + BES + diğer) · bankadan = net ödenen − yemek kartı.
         </p>
       </div>
     </>

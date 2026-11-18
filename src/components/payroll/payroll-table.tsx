@@ -11,10 +11,10 @@ import { btn, cn } from "@/components/ui";
 import { ActionResult } from "./action-result";
 import { useAction } from "./use-action";
 
-type Field = "missing_days" | "overtime_days" | "meal_days" | "ihbar_deduction" | "bes_deduction" | "other_deduction";
-const DAY_FIELDS: Field[] = ["missing_days", "overtime_days", "meal_days"];
+type Field = "missing_days" | "ihbar_deduction" | "bes_deduction" | "other_deduction";
+const DAY_FIELDS: Field[] = ["missing_days"];
 const DED_FIELDS: Field[] = ["ihbar_deduction", "bes_deduction", "other_deduction"];
-const MAX: Record<Field, number> = { missing_days: 30, overtime_days: 31, meal_days: 31, ihbar_deduction: 9_999_999, bes_deduction: 9_999_999, other_deduction: 9_999_999 };
+const MAX: Record<Field, number> = { missing_days: 30, ihbar_deduction: 9_999_999, bes_deduction: 9_999_999, other_deduction: 9_999_999 };
 
 /** Kutudaki metin → sayı (gün alanları yarım gün olabilir); geçersizse null. */
 function parse(field: Field, text: string): number | null {
@@ -29,8 +29,8 @@ const th = "whitespace-nowrap px-3 py-2 text-right font-medium";
 const tdN = "whitespace-nowrap px-3 py-2 text-right tabular-nums";
 
 /**
- * Ay sonu bordro tablosu (müşterinin Excel düzeni): personel başına eksik gün, fazla mesai günü, yemek günü
- * (payroll.run) ve kesintiler (yalnızca merkez) girilir; tutarları veritabanı hesaplar. "Kaydet ve hesapla"
+ * Ay sonu bordro tablosu (müşterinin Excel düzeni): personel başına eksik gün (payroll.run) ve kesintiler
+ * (yalnızca merkez) girilir; maaş, yol, fazla mesai ve yemek kartı aylık tanımdan ÷ 30 × çalışılan gün hesaplanır; tutarları veritabanı hesaplar. "Kaydet ve hesapla"
  * yalnızca değişen satırları gönderir, sonra tablo yeni tutarlarla yenilenir.
  */
 export function PayrollTable({
@@ -58,7 +58,7 @@ export function PayrollTable({
   function save() {
     const rows: LineEdit[] = dirty.map((l) => {
       const n = (f: Field) => parse(f, value(l, f)) ?? Number(l[f]);
-      const row: LineEdit = { id: l.id, missing_days: n("missing_days"), overtime_days: n("overtime_days"), meal_days: n("meal_days") };
+      const row: LineEdit = { id: l.id, missing_days: n("missing_days") };
       if (editDeductions) {
         row.ihbar_deduction = n("ihbar_deduction");
         row.bes_deduction = n("bes_deduction");
@@ -97,8 +97,8 @@ export function PayrollTable({
             {dirty.length
               ? `${dirty.length} satırda kaydedilmemiş değişiklik var; tutarlar kaydedince yeniden hesaplanır.`
               : editDeductions
-                ? "Eksik gün, fazla mesai günü, yemek günü ve kesintileri girin. Eksik gün değişince yemek günü kendiliğinden düşer."
-                : "Eksik gün, fazla mesai günü ve yemek gününü girin. Eksik gün değişince yemek günü kendiliğinden düşer."}
+                ? "Eksik gün ve kesintileri girin. Maaş, yol, fazla mesai ve yemek kartı eksik gün kadar orantılı düşer."
+                : "Eksik günleri girin. Maaş, yol, fazla mesai ve yemek kartı eksik gün kadar orantılı düşer."}
           </p>
           <div className="flex items-center gap-2">
             {dirty.length > 0 && (
@@ -129,8 +129,6 @@ export function PayrollTable({
               <th className={th}>Net maaş</th>
               <th className={th}>Eksik gün</th>
               <th className={th}>Çalışılan</th>
-              <th className={th}>F. mesai gün</th>
-              <th className={th}>Yemek gün</th>
               <th className={cn(th, "border-l border-border")}>Normal</th>
               <th className={th}>Yol</th>
               <th className={th}>F. mesai</th>
@@ -166,8 +164,6 @@ export function PayrollTable({
                   <td className={cn(tdN, "text-muted")}>{tl(l.net_salary)}</td>
                   <td className={tdN}>{input(l, "missing_days", editDays, "Eksik gün")}</td>
                   <td className={tdN}>{dayFmt(l.worked_days)}</td>
-                  <td className={tdN}>{input(l, "overtime_days", editDays, "Fazla mesai günü")}</td>
-                  <td className={tdN}>{input(l, "meal_days", editDays, "Yemek günü")}</td>
                   <td className={cn(tdN, "border-l border-border")}>{tl(l.normal_pay)}</td>
                   <td className={tdN}>{tl(l.transport_pay)}</td>
                   <td className={tdN}>{tl(l.overtime_pay)}</td>
@@ -197,7 +193,7 @@ export function PayrollTable({
           <tfoot>
             <tr className="border-t-2 border-border bg-surface-2/60 font-semibold">
               <td className="sticky left-0 z-10 bg-surface-2 px-3 py-2.5">TOPLAM · {lines.length} kişi</td>
-              <td colSpan={5} />
+              <td colSpan={3} />
               <td className={cn(tdN, "border-l border-border")}>{tl(totals.normal_pay)}</td>
               <td className={tdN}>{tl(totals.transport_pay)}</td>
               <td className={tdN}>{tl(totals.overtime_pay)}</td>

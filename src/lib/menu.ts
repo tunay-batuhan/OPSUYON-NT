@@ -32,12 +32,11 @@ export function sectionPages(section: Section, user: CurrentUser, on: Set<string
     ];
     return pages.filter((p) => p.ok).map(({ href, label, exact }) => ({ href, label, exact }));
   }
-  // cari (firma bazlı): merkezde Cari Hesap + Fatura girişi + Tahsilat girişi; müşteride Cari Hesap + Faturalar (PDF)
-  // (merkezde fatura PDF'leri ayrı "Faturalar" menüsündedir)
+  // cari (firma bazlı): merkezde Cari Hesap + Fatura girişi + Tahsilat girişi; müşteride Cari Hesap
+  // (18 Kasım: ayrı "Faturalar" menüsü / sekmesi kaldırıldı; fatura ve dosyası cari hareketlerinde görülür)
   const pages: (NavChild & { ok: boolean })[] = customer
     ? [
         { href: "/cari-hesap", label: "Cari Hesap", exact: true, ok: on.has("cari_hesap") && can("ledger.read") },
-        { href: "/cari-hesap/faturalar", label: "Faturalar", ok: on.has("cari_faturalar") && can("invoices.read") },
       ]
     : [
         { href: "/cari-hesap", label: "Cari Hesap", exact: true, ok: can("ledger.read") },
@@ -121,7 +120,6 @@ function staffMenu(user: CurrentUser, extra: MenuExtras): NavItem[] {
     { href: "/denetimler", label: "Denetimler", icon: "inspections", anyOf: ["inspections.read"] },
     { href: "/devriye/rapor", label: "Devriye Sistemi", icon: "patrol", anyOf: ["patrol.read", "patrol.manage"], match: ["/devriye"] },
     { href: "/risk-analizi", label: "Risk Analizi", icon: "risk", anyOf: ["risk.read"] },
-    { href: "/faturalar", label: "Faturalar", icon: "invoices", anyOf: ["invoices.read"] },
     { href: "/cari-hesap", label: "Cari Hesap", icon: "ledger", anyOf: ["ledger.read"], match: ["/cari-hesap"] },
     { href: "/mesajlar", label: "Mesajlar", icon: "messages", anyOf: ["messages.use", "messages.manage"] },
     // satış: müşterinin yanında tabletten teklif (yalnızca merkez)

@@ -10,7 +10,7 @@ import { slugify } from "@/lib/format";
 import { isUuid } from "@/lib/lookups";
 
 /**
- * Personel hesapları (Görevlerim / Bordrolarım ekranına giriş). Hesabı açabilen:
+ * Personel hesapları (Görevlerim ekranına giriş). Hesabı açabilen:
  *   * merkez: "personnel.accounts" ya da "users.manage" yetkisi
  *   * müşteri (site müdürü): personelin AKTİF görevli olduğu projede "personnel.accounts" yetkisi
  * Kullanıcı adı addan üretilir (mehmet.kaya); geçici parola okunması kolaydır ve ilk girişte değiştirilir.

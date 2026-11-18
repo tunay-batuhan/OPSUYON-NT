@@ -23,11 +23,11 @@ export default async function PayrollLayout({ children }: { children: ReactNode 
         descriptions={{
           "/bordrolar/ekle": "Proje, ay ve yıl seçip bordro dosyasını ekleyin; işaretliyse müşteri Bordrolar ekranında görür.",
           "/bordrolar/maas":
-            "Proje ve ayı seçin; eksik gün, fazla mesai ve yemek gününü girip “Kaydet ve hesapla”ya basın. Tutarlar ücret tanımlarından ve avanslardan hesaplanır. Onaylanan bordro kilitlenir ve personel telefonundan görür.",
+            "Proje ve ayı seçin; eksik günleri girip “Kaydet ve hesapla”ya basın. Tutarlar ücret tanımlarından ve avanslardan hesaplanır. Onaylanan bordro kilitlenir.",
           "/bordrolar/avans": "Ay içinde personele verilen avansları girin; o ayın maaşından otomatik düşülür.",
           "/bordrolar/ucretler": customer
             ? "Personelin net maaş, yol, fazla mesai, yemek kartı ve ek ödeme tutarları. Ücret tanımlarını merkez girer."
-            : "Personel başına net tutarlar: maaş, aylık yol, günlük fazla mesai, günlük yemek kartı ve ek ödeme. Müşteri görür, değiştiremez.",
+            : "Personel başına aylık net tutarlar: maaş, yol, fazla mesai, yemek kartı ve ek ödeme. Müşteri görür, değiştiremez.",
         }}
         tabs={tabs}
       />

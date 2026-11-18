@@ -13,9 +13,7 @@ export type LedgerStatement = {
   start: string;
   end: string;
   kind: LedgerKind | null;
-  /** Devir bakiyesi: başlangıç gününden önceki tüm hareketlerin bakiyesi */
-  opening: number;
-  /** Dönemdeki toplamlar (tür süzgecinden bağımsız; devir + fatura − tahsilat = dönem sonu) */
+  /** Dönemdeki toplamlar (tür süzgecinden bağımsız; fatura − tahsilat = dönem sonu). Devir bakiyesi yoktur. */
   invoiced: number;
   collected: number;
   closing: number;
@@ -28,7 +26,8 @@ const COLS = "id, kind, entry_date, entry_time, description, amount, running_bal
 /**
  * Firma cari ekstresi (Cari Hesap → Rapor al). Okumalar çağıranın oturumuyla yapılır: RLS, müşterinin yalnızca
  * kendi firmasını görmesini sağlar. Tarih verilmezse ekrandaki gibi firmanın ilk hareketinden bugüne (ya da son harekete).
- * Yürüyen bakiye veritabanı görünümünde kronolojik hesaplanır; sıralama ve süzgeçler onu değiştirmez.
+ * Devir bakiyesi yoktur (18 Kasım, müşteri isteği): bakiye dönemin ilk hareketinden başlar ve kronolojik yürür;
+ * tür süzgeci yalnızca listeyi daraltır, bakiyeyi değiştirmez.
  */
 export async function loadLedgerStatement(
   orgId: string,
@@ -48,20 +47,6 @@ export async function loadLedgerStatement(
   let end = opts.end ?? (lastEntry && lastEntry > today ? lastEntry : today);
   if (start > end) [start, end] = [end, start];
 
-  // devir: başlangıçtan önceki son hareketin yürüyen bakiyesi
-  const { data: before } = await supabase
-    .from("firm_ledger_movements")
-    .select("running_balance")
-    .eq("organization_id", orgId)
-    .lt("entry_date", start)
-    .order("entry_date", { ascending: false })
-    .order("entry_time", { ascending: false })
-    .order("created_at", { ascending: false })
-    .order("id", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  const opening = Number(before?.running_balance ?? 0);
-
   // dönemdeki tüm hareketler (toplamlar için), 1000'er
   const all: StatementRow[] = [];
   for (let from = 0; ; from += 1000) {
@@ -80,16 +65,22 @@ export async function loadLedgerStatement(
     all.push(...((data ?? []) as StatementRow[]).map((r) => ({ ...r, amount: Number(r.amount), running_balance: Number(r.running_balance) })));
     if (!data || data.length < 1000) break;
   }
+  // dönem içi yürüyen bakiye (devir yok)
+  let bal = 0;
+  for (const r of all) {
+    bal = Math.round((bal + (r.kind === "fatura" ? r.amount : -r.amount)) * 100) / 100;
+    r.running_balance = bal;
+  }
 
   const sum = (k: LedgerKind) => Math.round(all.filter((r) => r.kind === k).reduce((a, r) => a + r.amount, 0) * 100) / 100;
   const invoiced = sum("fatura");
   const collected = sum("tahsilat");
-  const closing = Math.round((opening + invoiced - collected) * 100) / 100;
+  const closing = Math.round((invoiced - collected) * 100) / 100;
   const kind = opts.kind ?? null;
 
   return {
     organization: { id: orgId, name },
-    start, end, kind, opening, invoiced, collected, closing,
+    start, end, kind, invoiced, collected, closing,
     rows: kind ? all.filter((r) => r.kind === kind) : all,
   };
 }

@@ -8,6 +8,7 @@ import { guard, nul, pgMessage, validate } from "@/lib/form";
 import { formatDate, isoDayInTurkey } from "@/lib/format";
 import { normalizeIban, toNumber } from "@/lib/parse";
 import { legalAnnualLeaveDays } from "@/lib/leave-law";
+import { openingLeaveBalance } from "@/lib/leave-balance";
 import {
   assignSchema, leaveSchema, timesheetSchema,
   type AssignValues, type LeaveValues, type TimesheetValues,
@@ -60,14 +61,20 @@ export async function createPersonnel(values: PersonnelCreateValues): Promise<Ac
       .single();
     if (error) return { error: pgMessage(error) };
 
-    // İşe giriş tarihi varsa bu yılın yasal yıllık izin hakkı bakiyeye yazılır.
+    // İşe giriş tarihi varsa bu yılın yasal yıllık izin hakkı bakiyeye yazılır; önceki yıldönümlerinde biriken hak
+    // (ör. 2022 girişte 3 × 14 gün) "devreden" olur, toplam = işe girişten bu yana hak edilen.
     // Yetki (leaves.manage) yoksa ya da hata olursa sessizce geçilir; personel kaydı yine başarılı sayılır.
     if (d.hire_date) {
       try {
-        const { days } = legalAnnualLeaveDays(d.hire_date, nul(d.birth_date));
+        const now = new Date();
+        const { reason } = legalAnnualLeaveDays(d.hire_date, nul(d.birth_date), now);
+        const open = await openingLeaveBalance(supabase, data.id, now.getFullYear(), d.hire_date, nul(d.birth_date), now);
         await supabase
           .from("leave_balances")
-          .upsert({ personnel_id: data.id, year: new Date().getFullYear(), entitled_days: days }, { onConflict: "personnel_id,year" });
+          .upsert(
+            { personnel_id: data.id, year: now.getFullYear(), entitled_days: open.entitled_days, carried_days: open.carried_days, metadata: { ...open.metadata, reason } },
+            { onConflict: "personnel_id,year" },
+          );
       } catch {
         /* izin bakiyesi isteğe bağlı */
       }
@@ -209,6 +216,7 @@ export async function upsertLeaveBalance(values: LeaveValues): Promise<ActionSta
         entitled_days: toNumber(d.entitled_days) ?? 0,
         carried_days: toNumber(d.carried_days) ?? 0,
         used_days: toNumber(d.used_days) ?? 0,
+        metadata: { manual: true },
       },
       { onConflict: "personnel_id,year" },
     );
@@ -232,7 +240,7 @@ export async function updatePersonnel(values: PersonnelEditValues): Promise<Acti
     //  - daha önce projede çalışmışsa yalnızca Süper Yönetici değiştirir (kadro bütünlüğü; geçmiş kayıtlar eski firmada kalır)
     //  - hiç ataması yoksa personel yöneticisi değiştirebilir
     const newOrg = nul(d.organization_id);
-    const { data: cur } = await supabase.from("personnel").select("organization_id, termination_date").eq("id", d.id).maybeSingle();
+    const { data: cur } = await supabase.from("personnel").select("organization_id, termination_date, hire_date").eq("id", d.id).maybeSingle();
     if (cur && (cur.organization_id ?? null) !== newOrg) {
       const { data: asg } = await supabase.from("personnel_assignments").select("end_date").eq("personnel_id", d.id);
       const rows = asg ?? [];
@@ -265,6 +273,27 @@ export async function updatePersonnel(values: PersonnelEditValues): Promise<Acti
         { onConflict: "personnel_id" },
       );
       if (pErr) return { error: pgMessage(pErr) };
+    }
+    // İşe giriş tarihi değiştiyse bu yılın OTOMATİK açılmış izin bakiyesi yeni tarihe göre yeniden hesaplanır
+    // (elle girilmiş / düzeltilmiş bakiyeye dokunulmaz).
+    const hire = nul(d.hire_date);
+    if (hire && hire !== (cur?.hire_date ?? null)) {
+      try {
+        const now = new Date();
+        const year = now.getFullYear();
+        const { data: bal } = await supabase.from("leave_balances").select("id, metadata").eq("personnel_id", d.id).eq("year", year).maybeSingle();
+        if (bal && (bal.metadata as { manual?: boolean } | null)?.manual !== true) {
+          const { reason } = legalAnnualLeaveDays(hire, nul(d.birth_date), now);
+          const open = await openingLeaveBalance(supabase, d.id, year, hire, nul(d.birth_date), now);
+          await supabase
+            .from("leave_balances")
+            .update({ entitled_days: open.entitled_days, carried_days: open.carried_days, metadata: { ...open.metadata, reason } })
+            .eq("id", bal.id);
+        }
+      } catch {
+        /* izin bakiyesi isteğe bağlı (yetki yoksa geçilir) */
+      }
+      revalidatePath("/izinler", "layout");
     }
     revalidatePath("/merkez/personel");
     revalidatePath(`/merkez/personel/${d.id}`, "layout");

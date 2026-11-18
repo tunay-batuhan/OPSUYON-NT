@@ -3,19 +3,18 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
-import { Banknote, ClipboardList, LogOut, UserRound } from "lucide-react";
+import { ClipboardList, LogOut, UserRound } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { logoutAction } from "@/app/actions/auth";
 import { cn } from "@/components/ui";
 
 const TABS = [
   { href: "/gorevlerim", label: "Görevlerim", Icon: ClipboardList },
-  { href: "/bordrolarim", label: "Bordrolarım", Icon: Banknote },
   { href: "/hesabim", label: "Hesabım", Icon: UserRound },
 ];
 
 /**
- * Personelin telefon ekranı: lacivert üst çubuk (logo, ad, çıkış) + alttaki 3 sekme. Masaüstünde ortada dar sütun.
+ * Personelin telefon ekranı: lacivert üst çubuk (logo, ad, çıkış) + alttaki 2 sekme (Görevlerim, Hesabım; personel bordro görmez). Masaüstünde ortada dar sütun.
  * `locked`: parola değiştirilene kadar sekmeler gizlenir (yalnızca Hesabım açılır).
  */
 export function PortalShell({ fullName, locked, children }: { fullName: string; locked: boolean; children: ReactNode }) {

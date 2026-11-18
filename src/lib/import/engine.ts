@@ -217,7 +217,7 @@ async function prepareLeave(rows: Parsed["rows"], ctx: Ctx): Promise<Prepared[]>
     const yearN = v.year ? toNumber(v.year) : (ctx.options.year ?? null);
     if (yearN === null || !Number.isInteger(yearN) || yearN < 2000 || yearN > 2100) errors.push("Yıl geçersiz (dosyada yıl yoksa ekrandan yılı seçin)");
     const entitled = numField(v, "entitled_days", "Hak edilen", 0, 60, errors);
-    const carried = numField(v, "carried_days", "Devreden", 0, 60, errors);
+    const carried = numField(v, "carried_days", "Devreden", 0, 999, errors);
     const used = numField(v, "used_days", "Kullanılan", 0, 120, errors);
     if (!errors.length && used > entitled + carried) warnings.push(`Kullanılan (${used}) hak + devreden toplamını (${entitled + carried}) aşıyor`);
 

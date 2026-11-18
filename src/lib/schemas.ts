@@ -163,8 +163,8 @@ export const leaveSchema = z.object({
   personnel_id: uuid("Personel"),
   year: year(),
   entitled_days: decimal("Hak edilen", { min: 0, max: 60 }),
-  carried_days: decimal("Devreden", { min: 0, max: 60 }),
-  used_days: decimal("Kullanılan", { min: 0, max: 120 }),
+  carried_days: decimal("Devreden", { min: 0, max: 999 }),
+  used_days: decimal("Kullanılan", { min: 0, max: 999 }),
 });
 
 export const threadSchema = z.object({

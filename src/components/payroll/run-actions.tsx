@@ -47,7 +47,7 @@ export function RunToolbar({
             <ConfirmDialog
               tone="warning"
               title={`${title} onaylansın mı?`}
-              description="Tüm satırlar güncel ücret tanımı ve avanslarla son kez hesaplanır, sonra dönem kilitlenir. Kilitli dönemde gün, avans ve kesinti değiştirilemez; personel bordrosunu telefonundan görür. Kilidi yalnızca merkez açabilir."
+              description="Tüm satırlar güncel ücret tanımı ve avanslarla son kez hesaplanır, sonra dönem kilitlenir. Kilitli dönemde gün, avans ve kesinti değiştirilemez. Kilidi yalnızca merkez açabilir."
               items={[`${count} personel`]}
               confirmLabel="Onayla ve kilitle"
               onConfirm={() => run(() => approvePayrollRun(runId))}

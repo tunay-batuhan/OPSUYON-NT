@@ -21,7 +21,7 @@ type Option = { value: string; label: string };
 /** Personelin bu yılki yıllık izin durumu: bakiye satırı varsa sayılar, yoksa yasal hak tahmini. */
 export type LeaveBalanceInfo =
   | { year: number; total: number; used: number; left: number }
-  | { year: number; legal: { days: number; reason: string }; hasHireDate: boolean };
+  | { year: number; legal: { days: number; reason: string }; accrued: { total: number; detail: string }; hasHireDate: boolean };
 
 const fmtDays = (n: number) => `${Number.isInteger(n) ? n : n.toLocaleString("tr-TR", { maximumFractionDigits: 1 })} gün`;
 
@@ -41,7 +41,7 @@ function BalanceBox({ balances }: { balances: Record<string, LeaveBalanceInfo> }
         <p className="font-medium">{b.year} yıllık izin bakiyesi henüz açılmamış</p>
         <p className="mt-0.5 text-muted">
           {b.hasHireDate
-            ? `Yasal hak: ${fmtDays(b.legal.days)} (${b.legal.reason}). Yıllık izin kaydedilince bakiye bu hakla açılır${req ? `; bu izinle kalan ${fmtDays(b.legal.days - req)}` : ""}.`
+            ? `İşe girişten bu yana hak edilen: ${fmtDays(b.accrued.total)} (${b.accrued.detail}; ${b.legal.reason}). Yıllık izin kaydedilince bakiye bu hakla açılır${req ? `; bu izinle kalan ${fmtDays(b.accrued.total - req)}` : ""}.`
             : "Personel kartında işe giriş tarihi yok; kalan izin hesaplanamaz. Önce personel kartına işe giriş tarihini girin."}
         </p>
       </div>

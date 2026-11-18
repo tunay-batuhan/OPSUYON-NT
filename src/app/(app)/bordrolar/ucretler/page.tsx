@@ -13,8 +13,8 @@ export const metadata: Metadata = { title: "Ücret tanımları" };
 type Asg = { personnel_id: string; project_id: string; personnel: { full_name: string; title: string | null } | null };
 
 /**
- * Ücret tanımları: projede görevli (aktif) personelin net maaş, aylık yol, günlük fazla mesai, günlük yemek kartı,
- * aylık yemek günü ve ek ödemesi. Yalnızca merkez (payroll.manage) düzenler; müşteri görür.
+ * Ücret tanımları: projede görevli (aktif) personelin net maaş, aylık yol, aylık fazla mesai, aylık yemek kartı ve
+ * ek ödemesi (hepsi net; maaş, yol, fazla mesai ve yemek kartı eksik gün kadar ÷ 30 orantılı düşer). Yalnızca merkez (payroll.manage) düzenler; müşteri görür.
  */
 export default async function PayRatesPage({ searchParams }: PageProps<"/bordrolar/ucretler">) {
   const user = await requirePayrollAccess(["payroll.manage", "payroll.read"]);
@@ -50,7 +50,7 @@ export default async function PayRatesPage({ searchParams }: PageProps<"/bordrol
   // ücretler kullanıcı oturumuyla (RLS: payroll.read / payroll.manage)
   const db = await createClient();
   const { data: rateRows } = ids.length
-    ? await db.from("pay_rates").select("personnel_id, net_salary, transport_monthly, overtime_daily, meal_daily, meal_days, extra_monthly, extra_label, updated_at").in("personnel_id", ids)
+    ? await db.from("pay_rates").select("personnel_id, net_salary, transport_monthly, overtime_monthly, meal_monthly, extra_monthly, extra_label, updated_at").in("personnel_id", ids)
     : { data: [] };
   const rateOf = new Map(((rateRows ?? []) as (NonNullable<RatesRowData["rates"]> & { personnel_id: string })[]).map((r) => [r.personnel_id, r]));
   const projectName = new Map(projects.map((p) => [p.id, p.name]));
@@ -65,8 +65,8 @@ export default async function PayRatesPage({ searchParams }: PageProps<"/bordrol
         project: projectName.get(a.project_id) ?? "",
         rates: r
           ? {
-              net_salary: Number(r.net_salary), transport_monthly: Number(r.transport_monthly), overtime_daily: Number(r.overtime_daily),
-              meal_daily: Number(r.meal_daily), meal_days: Number(r.meal_days), extra_monthly: Number(r.extra_monthly),
+              net_salary: Number(r.net_salary), transport_monthly: Number(r.transport_monthly), overtime_monthly: Number(r.overtime_monthly),
+              meal_monthly: Number(r.meal_monthly), extra_monthly: Number(r.extra_monthly),
               extra_label: r.extra_label, updated_at: r.updated_at,
             }
           : null,
@@ -105,9 +105,8 @@ export default async function PayRatesPage({ searchParams }: PageProps<"/bordrol
                     <th className="px-4 py-3 text-left font-medium">Personel</th>
                     <th className="whitespace-nowrap px-4 py-3 text-right font-medium">Net maaş</th>
                     <th className="whitespace-nowrap px-4 py-3 text-right font-medium">Yol (aylık)</th>
-                    <th className="whitespace-nowrap px-4 py-3 text-right font-medium">F. mesai (günlük)</th>
-                    <th className="whitespace-nowrap px-4 py-3 text-right font-medium">Yemek (günlük)</th>
-                    <th className="whitespace-nowrap px-4 py-3 text-right font-medium">Yemek günü</th>
+                    <th className="whitespace-nowrap px-4 py-3 text-right font-medium">F. mesai (aylık)</th>
+                    <th className="whitespace-nowrap px-4 py-3 text-right font-medium">Yemek kartı (aylık)</th>
                     <th className="whitespace-nowrap px-4 py-3 text-right font-medium">Ek ödeme</th>
                     {editable && <th className="px-4 py-3"><span className="sr-only">Düzenle</span></th>}
                   </tr>

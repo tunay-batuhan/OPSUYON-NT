@@ -10,7 +10,7 @@ const UUID = /^[0-9a-f-]{36}$/i;
  * Cari hesap ekstresi (PDF), Cari Hesap ekranındaki seçimle her istekte üretilir.
  *   ?firma=…            → firma (merkez için zorunlu; müşteri her zaman yalnızca kendi firması)
  *   &bas=YYYY-AA-GG&bit=YYYY-AA-GG → dönem (boşsa firmanın ilk hareketinden bugüne)
- *   &tur=fatura|tahsilat → yalnızca bu tür listelenir (devir ve bakiyeler tüm hareketlere göre)
+ *   &tur=fatura|tahsilat → yalnızca bu tür listelenir (bakiyeler tüm hareketlere göre)
  *   &goster=1 → tarayıcıda aç (indirmek yerine)
  * Yetki: ekranla aynı (ledger.read); satırları RLS süzer.
  */

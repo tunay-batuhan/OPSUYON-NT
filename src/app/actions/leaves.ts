@@ -8,6 +8,7 @@ import { guard, nul, pgMessage, str, validate } from "@/lib/form";
 import { toNumber } from "@/lib/parse";
 import { LEAVE_TYPE_LABELS } from "@/lib/format";
 import { leaveDeducts, legalAnnualLeaveDays } from "@/lib/leave-law";
+import { openingLeaveBalance } from "@/lib/leave-balance";
 import { EMPTY_FILE, leaveRecordDocSchema, type LeaveRecordDocValues } from "@/lib/schemas-ops";
 import type { ActionState } from "@/lib/action-types";
 
@@ -30,12 +31,14 @@ async function ensureAnnualBalance(supabase: Db, personnelId: string, startDate:
     supabase.from("personnel_personal").select("birth_date").eq("personnel_id", personnelId).maybeSingle(),
   ]);
   if (!p?.hire_date) return;
-  // hak, iznin başladığı gündeki kıdem ve yaşa göre
-  const { days, reason } = legalAnnualLeaveDays(p.hire_date as string, (personal?.birth_date as string | null | undefined) ?? null, new Date(startDate));
+  // hak, iznin başladığı gündeki kıdem ve yaşa göre; önceki yıllardan biriken hak "devreden" olarak eklenir
+  const birth = (personal?.birth_date as string | null | undefined) ?? null;
+  const { reason } = legalAnnualLeaveDays(p.hire_date as string, birth, new Date(startDate));
+  const open = await openingLeaveBalance(supabase, personnelId, year, p.hire_date as string, birth, new Date(startDate));
   await supabase
     .from("leave_balances")
     .upsert(
-      { personnel_id: personnelId, year, entitled_days: days, carried_days: 0, used_days: 0, metadata: { auto: true, reason } },
+      { personnel_id: personnelId, year, entitled_days: open.entitled_days, carried_days: open.carried_days, used_days: 0, metadata: { ...open.metadata, reason } },
       { onConflict: "personnel_id,year", ignoreDuplicates: true },
     );
 }
@@ -197,10 +200,10 @@ export async function updateLeaveBalance(input: {
   return guard(async () => {
     const actor = await assertStaff("leaves.manage");
     if (!UUID.test(input.id ?? "")) return { error: "Geçersiz kayıt." };
-    const entitled = dayNum(input.entitled, 365);
-    const carried = dayNum(input.carried, 365);
-    const used = dayNum(input.used, 365);
-    if (entitled === null || carried === null || used === null) return { error: "Gün alanları 0 ile 365 arasında sayı olmalı (yarım gün için 0,5)." };
+    const entitled = dayNum(input.entitled, 999);
+    const carried = dayNum(input.carried, 999);
+    const used = dayNum(input.used, 999);
+    if (entitled === null || carried === null || used === null) return { error: "Gün alanları 0 ile 999 arasında sayı olmalı (yarım gün için 0,5)." };
     const note = String(input.note ?? "").trim().slice(0, 200);
 
     const supabase = await createClient();

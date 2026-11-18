@@ -7,7 +7,7 @@ import { homePathFor, requireUser } from "@/lib/auth";
 export const metadata: Metadata = { robots: { index: false, follow: false, googleBot: { index: false, follow: false } } };
 
 /**
- * Personel hesabının ekranları (telefon için): Görevlerim · Bordrolarım · Hesabım.
+ * Personel hesabının ekranları (telefon için): Görevlerim · Hesabım (personel bordro görmez).
  * Merkez ve müşteri hesapları buraya girmez; kendi ana sayfalarına döner.
  */
 export default async function PortalLayout({ children }: LayoutProps<"/">) {

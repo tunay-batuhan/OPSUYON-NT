@@ -4,7 +4,7 @@ import { ChevronLeft, FilePlus2 } from "lucide-react";
 import { Badge, PageHeader, btn } from "@/components/ui";
 import { Tabs } from "@/components/tabs";
 import { hasPermission, requireStaff } from "@/lib/auth";
-import { ageOf, legalAnnualLeaveDays, tenureLabel } from "@/lib/leave-law";
+import { accruedAnnualLeave, ageOf, legalAnnualLeaveDays, tenureLabel } from "@/lib/leave-law";
 import { createClient } from "@/lib/supabase/server";
 
 type Head = {
@@ -35,12 +35,13 @@ export default async function PersonnelDetailLayout({ params, children }: Layout
   const age = ageOf(p.birth_date);
   const tenure = tenureLabel(p.hire_date);
   const leave = legalAnnualLeaveDays(p.hire_date, p.birth_date);
+  const acc = accruedAnnualLeave(p.hire_date, p.birth_date);
   const summary = [
     p.title,
     p.organizations?.name,
     age !== null ? `${age} yaş` : null,
     tenure ? `Çalışma süresi: ${tenure}` : null,
-    p.hire_date ? `Yasal yıllık izin: ${leave.days} gün` : null,
+    p.hire_date ? `Yasal yıllık izin: ${leave.days} gün/yıl${acc.years > 1 ? ` (işe girişten bu yana ${acc.total} gün)` : ""}` : null,
   ].filter(Boolean).join(" · ");
   const base = `/merkez/personel/${p.id}`;
 

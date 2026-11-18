@@ -10,7 +10,7 @@ import {
   assignSchema, organizationSchema, organizationUpdateSchema, projectCreateSchema, projectUpdateSchema,
 } from "@/lib/schemas";
 import { MARITAL_OPTIONS, personnelCreateSchema, personnelEditSchema } from "@/lib/schemas-personnel";
-import { ageOf, legalAnnualLeaveDays, tenureLabel } from "@/lib/leave-law";
+import { accruedAnnualLeave, ageOf, legalAnnualLeaveDays, tenureLabel } from "@/lib/leave-law";
 import type { Personnel } from "@/lib/types";
 import { Form, FormGrid, SelectField, SubmitButton, TextField, TextareaField } from "@/components/forms/form";
 
@@ -160,6 +160,7 @@ function PersonnelSummary() {
   const b = isIsoDate(birth) ? birth : null;
   const age = ageOf(b);
   const leave = legalAnnualLeaveDays(h, b);
+  const acc = accruedAnnualLeave(h, b);
   // bugünün tarihine bağlı değerler: sunucu/tarayıcı gün farkında uyarı vermesin
   return (
     <div role="status" aria-live="polite" className="grid gap-3 rounded-xl border border-border bg-surface-2/60 px-4 py-3 text-sm sm:grid-cols-3">
@@ -173,8 +174,13 @@ function PersonnelSummary() {
       </div>
       <div>
         <p className="text-xs text-muted">Yasal yıllık izin hakkı</p>
-        <p className="mt-0.5 font-semibold" suppressHydrationWarning>{h ? `${leave.days} gün` : "—"}</p>
+        <p className="mt-0.5 font-semibold" suppressHydrationWarning>{h ? `${leave.days} gün / yıl` : "—"}</p>
         <p className="mt-0.5 text-xs text-muted" suppressHydrationWarning>{leave.reason}</p>
+        {h && acc.years > 0 && (
+          <p className="mt-1 text-xs font-medium" suppressHydrationWarning>
+            İşe girişten bu yana: {acc.total} gün ({acc.detail})
+          </p>
+        )}
       </div>
     </div>
   );

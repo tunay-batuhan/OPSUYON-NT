@@ -28,7 +28,7 @@ const balanceHint = (b: number) => (b > 0 ? "Firma borçlu" : b < 0 ? "Firma ala
 const balanceColor = (b: number) => (b > 0 ? BAD : b < 0 ? OK : INK);
 
 /**
- * Cari hesap ekstresi (PDF): firma ve dönem, devir bakiyesi, dönemin hareketleri ve yürüyen bakiye,
+ * Cari hesap ekstresi (PDF): firma ve dönem, dönemin hareketleri ve yürüyen bakiye (devir bakiyesi yok),
  * dönem toplamları (fatura, tahsilat) ve dönem sonu bakiyesi. Türkçe karakterler için Roboto gömülür.
  */
 export async function buildLedgerStatementPdf(s: LedgerStatement): Promise<Uint8Array> {
@@ -87,7 +87,6 @@ export async function buildLedgerStatementPdf(s: LedgerStatement): Promise<Uint8
 
   /* ---- özet kutuları ---- */
   const boxes: [string, string, RGB][] = [
-    ["Devir bakiyesi", formatMoney(s.opening), balanceColor(s.opening)],
     ["Dönem faturaları", formatMoney(s.invoiced), BRAND],
     ["Dönem tahsilatları", formatMoney(s.collected), OK],
     [`Dönem sonu · ${balanceHint(s.closing)}`, formatMoney(s.closing), balanceColor(s.closing)],
@@ -136,7 +135,7 @@ export async function buildLedgerStatementPdf(s: LedgerStatement): Promise<Uint8
   const LH = 11;
   /** Sütun numarasına göre hücre renkleri ({ 6: BAD } → yalnızca Bakiye kırmızı). */
   const at = (m: Record<number, RGB>) => cols.map((_, i) => m[i]);
-  /** Satır: `strong` → kalın (devir / dönem sonu), `fill` → zemin rengi. */
+  /** Satır: `strong` → kalın (dönem toplamı / dönem sonu), `fill` → zemin rengi. */
   const row = (cells: string[], colors: (RGB | undefined)[] = [], strong = false, fill?: RGB) => {
     const font = strong ? bold : regular;
     const lines = cols.map((c, ci) => (c.wrap ? wrap(cells[ci] ?? "", c.width - 12, 9, font) : [fit(cells[ci] ?? "", c.width - 12, 9, font)]));
@@ -160,7 +159,6 @@ export async function buildLedgerStatementPdf(s: LedgerStatement): Promise<Uint8
   };
 
   drawHead();
-  row([formatDate(s.start), "", "", "Devir bakiyesi", "", "", formatMoney(s.opening)], at({ 0: MUTED, 6: balanceColor(s.opening) }), true, SOFT);
   if (s.rows.length === 0) {
     row(["", "", "", s.kind ? "Bu dönemde bu türde hareket yok" : "Bu dönemde hareket yok", "", "", ""], at({ 3: MUTED }));
   }
@@ -190,8 +188,8 @@ export async function buildLedgerStatementPdf(s: LedgerStatement): Promise<Uint8
   /* ---- açıklama ---- */
   const notes = [
     "Bakiye = faturalar − tahsilatlar. Pozitif bakiye firmanın borcunu, negatif bakiye fazla tahsilatı (firmanın alacağını) gösterir.",
-    "Bakiye sütunu, o hareketten sonraki firma bakiyesidir; tüm hareketler kronolojik sırayla hesaplanır.",
-    ...(s.kind ? ["Tür süzgeci yalnızca listeyi daraltır; devir, dönem toplamları ve bakiyeler tüm hareketlere göre hesaplanmıştır."] : []),
+    "Bakiye sütunu, dönemin ilk hareketinden itibaren o hareketten sonraki bakiyedir; hareketler kronolojik sırayla hesaplanır.",
+    ...(s.kind ? ["Tür süzgeci yalnızca listeyi daraltır; dönem toplamları ve bakiyeler tüm hareketlere göre hesaplanmıştır."] : []),
   ];
   for (const n of notes) {
     for (const line of wrap(n, W - 2 * M - 12, 8.5, regular)) {

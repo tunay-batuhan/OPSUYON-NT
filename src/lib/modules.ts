@@ -13,11 +13,14 @@ export type AppModule = {
   sort_order: number;
 };
 
+const REMOVED_MODULES = new Set(["cari_faturalar"]);
+
 /** Müşteri panelindeki ekranlar birer modüldür; açık/kapalı durumu veritabanında tutulur. */
 export const getModules = cache(async (): Promise<AppModule[]> => {
   const supabase = await createClient();
   const { data } = await supabase.from("app_modules").select("*").order("sort_order");
-  return (data ?? []) as AppModule[];
+  // "Faturalar (Cari Hesap altında)" ekranı 18 Kasım'da kaldırıldı (fatura ve dosyası cari hareketlerinde); ayarda görünmesin
+  return ((data ?? []) as AppModule[]).filter((m) => !REMOVED_MODULES.has(m.code));
 });
 
 export const getEnabledModules = cache(async (): Promise<Set<string>> => {

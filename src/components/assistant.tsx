@@ -12,7 +12,7 @@ const SUGGESTIONS = {
     "Yıllık izin bilgilerini nereden görürüm?",
     "Bordromu nasıl indiririm?",
     "Denetim raporlarına nasıl ulaşırım?",
-    "Faturalara nasıl bakarım?",
+    "Cari hesabımda faturaları nasıl görürüm?",
   ],
   staff: [
     "Yeni müşteri nasıl eklenir?",

@@ -17,6 +17,9 @@ export type PayrollLineRow = {
   transport_monthly: number;
   overtime_daily: number;
   meal_daily: number;
+  /** aylık net fazla mesai ve yemek kartı (18 Kasım'dan beri; ÷ 30 × çalışılan gün) */
+  overtime_monthly: number;
+  meal_monthly: number;
   extra_monthly: number;
   extra_label: string | null;
   worked_days: number;
@@ -51,7 +54,7 @@ export type PayrollRunView = {
 
 export const LINE_COLUMNS =
   "id, run_id, personnel_id, missing_days, overtime_days, meal_days, ihbar_deduction, bes_deduction, other_deduction, other_note, has_rates, " +
-  "net_salary, transport_monthly, overtime_daily, meal_daily, extra_monthly, extra_label, worked_days, normal_pay, transport_pay, overtime_pay, " +
+  "net_salary, transport_monthly, overtime_daily, meal_daily, overtime_monthly, meal_monthly, extra_monthly, extra_label, worked_days, normal_pay, transport_pay, overtime_pay, " +
   "meal_pay, extra_pay, earnings_total, advance_total, deductions_total, net_paid, meal_card_paid, bank_paid";
 
 /** PostgREST numeric sütunları sayı olarak döner; yine de metin gelirse sayıya çevrilir. */

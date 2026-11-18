@@ -73,7 +73,7 @@ export async function requireCustomer(): Promise<CurrentUser> {
 export type PersonnelUser = CurrentUser & { kind: "personnel"; personnel_id: string };
 
 /**
- * Personel hesabı (Görevlerim / Bordrolarım / Hesabım). Merkez ve müşteri hesapları kendi ana sayfasına döner.
+ * Personel hesabı (Görevlerim / Hesabım). Merkez ve müşteri hesapları kendi ana sayfasına döner.
  * Parolası sıfırlanmış ya da ilk kez giren personel önce parolasını değiştirir (`passwordPage`: o sayfanın kendisi).
  */
 export async function requirePersonnel(opts?: { passwordPage?: boolean }): Promise<PersonnelUser> {

@@ -9,12 +9,12 @@ import { LINE_COLUMNS, numify, type PayrollLineRow, type PayrollLineView, type P
 
 /**
  * Bordro sekmelerinin kapısı: yetkilerden en az biri (herhangi bir projede) gerekir; müşteride "Bordrolar" modülü
- * de açık olmalı. Personel hesabı kendi ekranına (Bordrolarım) döner.
+ * de açık olmalı. Personel hesabı bordro görmez; Görevlerim'e döner.
  */
 export async function requirePayrollAccess(perms: string[]): Promise<CurrentUser> {
   const user = await getCurrentUser();
   if (!user) redirect("/");
-  if (user.kind === "personnel") redirect("/bordrolarim");
+  if (user.kind === "personnel") redirect("/gorevlerim"); // personel bordro görmez
   if (user.kind === "customer" && !(await getEnabledModules()).has("personel_bordro")) notFound();
   if (!perms.some((p) => canAnywhere(user, p))) notFound();
   return user;
@@ -89,21 +89,4 @@ async function decorate(run: RunRow, lines: PayrollLineRow[]): Promise<PayrollRu
   };
 }
 
-/**
- * Personel hesabının kendi bordro satırı (Bordrolarım ve PDF): yalnızca kendisine ait ve dönemi ONAYLI ise.
- * Personel hesabı RLS ile bordro tablolarını okuyamaz; servis anahtarıyla, kimliği oturumdan alınarak okunur.
- */
-export async function loadOwnPayslip(personnelId: string, lineId: string): Promise<PayrollRunView | null> {
-  const admin = createAdminClient();
-  const { data: line } = await admin.from("payroll_lines").select(LINE_COLUMNS).eq("id", lineId).eq("personnel_id", personnelId).maybeSingle();
-  if (!line) return null;
-  const l = numify(line as unknown as PayrollLineRow);
-  const { data: run } = await admin
-    .from("payroll_runs")
-    .select("id, project_id, period_year, period_month, status, approved_at, approved_by")
-    .eq("id", l.run_id)
-    .eq("status", "approved")
-    .maybeSingle();
-  if (!run) return null;
-  return decorate(run as RunRow, [l]);
-}
+

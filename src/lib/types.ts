@@ -47,7 +47,7 @@ export type Profile = {
   id: string;
   username: string;
   full_name: string;
-  /** personnel: sahadaki personelin hesabı (yalnızca Görevlerim / Bordrolarım ekranları) */
+  /** personnel: sahadaki personelin hesabı (yalnızca Görevlerim / Hesabım ekranları; bordro görmez) */
   kind: "staff" | "customer" | "personnel";
   organization_id: string | null;
   staff_role_id: string | null;

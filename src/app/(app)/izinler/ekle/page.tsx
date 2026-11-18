@@ -3,7 +3,7 @@ import { Card, CardHeader } from "@/components/ui";
 import { LeaveRecordForm, type LeaveBalanceInfo } from "@/components/forms/leave-forms";
 import { requireStaff } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { LEAVE_TYPE_INFO, legalAnnualLeaveDays } from "@/lib/leave-law";
+import { LEAVE_TYPE_INFO, accruedAnnualLeave, legalAnnualLeaveDays } from "@/lib/leave-law";
 import type { Holiday } from "@/lib/leave-days";
 
 export const metadata: Metadata = { title: "İzin evrakı ekle" };
@@ -51,7 +51,12 @@ export default async function LeaveAddPage() {
     const rec = usedByRecords.get(p.id) ?? 0;
     balances[p.id] = b
       ? { year, total: Number(b.entitled_days) + Number(b.carried_days), used: Number(b.used_days) + rec, left: Number(b.remaining_days) - rec }
-      : { year, legal: legalAnnualLeaveDays(p.hire_date, birthOf.get(p.id) ?? null), hasHireDate: Boolean(p.hire_date) };
+      : {
+          year,
+          legal: legalAnnualLeaveDays(p.hire_date, birthOf.get(p.id) ?? null),
+          accrued: accruedAnnualLeave(p.hire_date, birthOf.get(p.id) ?? null),
+          hasHireDate: Boolean(p.hire_date),
+        };
   }
 
   return (

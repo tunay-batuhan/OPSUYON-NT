@@ -45,6 +45,43 @@ export function legalAnnualLeaveDays(hireDate: string | null | undefined, birthD
 }
 
 /**
+ * İşe girişten `at` tarihine kadar BİRİKEN yasal yıllık izin: her kıdem yıldönümünde o günkü kıdem ve yaşa göre hak
+ * eklenir (İş K. md. 53; kullanılmayan yıllık izin yanmaz, sonraki yıla devreder). 2022'de işe giren biri 2026'da
+ * 4 yıldönümü × 14 = 56 gün hak etmiştir.
+ *  - total: toplam biriken hak
+ *  - current: son yıldönümünde eklenen hak (bakiyenin "hak edilen" sütunu; legalAnnualLeaveDays ile aynı)
+ *  - carried: önceki yıldönümlerinde biriken hak (bakiyenin "devreden" sütunu) = total − current
+ * Personelin geçmişte kullandığı izin sistemde yoksa düşülmez; merkez bakiyeyi elle düzeltir.
+ */
+export function accruedAnnualLeave(
+  hireDate: string | null | undefined, birthDate: string | null | undefined, at: Date = new Date(),
+): { total: number; current: number; carried: number; years: number; detail: string } {
+  if (!hireDate) return { total: 0, current: 0, carried: 0, years: 0, detail: "İşe giriş tarihi girilmedi" };
+  const years = yearsBetween(hireDate, at);
+  const hire = new Date(hireDate);
+  const grants: number[] = [];
+  for (let k = 1; k <= years && k <= 80; k++) {
+    const anniversary = new Date(hire);
+    anniversary.setFullYear(hire.getFullYear() + k);
+    grants.push(legalAnnualLeaveDays(hireDate, birthDate, anniversary).days);
+  }
+  // içinde bulunulan yılın hakkı, diğer ekranlarla aynı: bugünkü kıdem ve yaşa göre (ör. son yıldönümünden sonra
+  // 50 yaşını dolduran personel 20 gün alır)
+  if (grants.length) grants[grants.length - 1] = legalAnnualLeaveDays(hireDate, birthDate, at).days;
+  const total = grants.reduce((s, d) => s + d, 0);
+  const current = grants.at(-1) ?? 0;
+  // "4 yıl × 14 gün" ya da "5 yıl × 14 + 3 yıl × 20 gün"
+  const groups: [number, number][] = [];
+  for (const d of grants) {
+    const last = groups.at(-1);
+    if (last && last[1] === d) last[0]++;
+    else groups.push([1, d]);
+  }
+  const detail = years < 1 ? "1 yıl dolmadan yıllık izin hak edilmez" : groups.map(([n, d]) => `${n} yıl × ${d}`).join(" + ") + " gün";
+  return { total, current, carried: total - current, years, detail };
+}
+
+/**
  * İzin türleri. `deducts` = yıllık izin bakiyesinden düşer mi? (İş K. md. 55: Ek Madde 2'deki mazeret
  * izinleri ve raporlu/analık süreleri yıllık izinden düşülmez.) `legalDays` = kanundaki ücretli süre (bilgi amaçlı).
  */

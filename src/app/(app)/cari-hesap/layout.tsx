@@ -6,7 +6,7 @@ import { sectionPages } from "@/lib/menu";
 
 /**
  * Cari Hesap: sabit başlık + sekmeler; sekme değişince yalnızca içerik yüklenir.
- * Merkez: Cari Hesap / Fatura girişi / Tahsilat girişi · Müşteri: Cari Hesap / Faturalar.
+ * Merkez: Cari Hesap / Fatura girişi / Tahsilat girişi · Müşteri: Cari Hesap.
  */
 export default async function LedgerLayout({ children }: { children: ReactNode }) {
   const [user, on] = await Promise.all([getCurrentUser(), getEnabledModules()]);
