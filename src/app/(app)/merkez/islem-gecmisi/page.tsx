@@ -37,6 +37,7 @@ const tableNames: Record<string, string> = {
   patrol_points: "Devriye noktası",
   form_templates: "Form şablonu",
   work_tasks: "Görev (İş Planlama)",
+  visitor_logs: "Ziyaretçi / kargo kaydı",
   pay_rates: "Ücret tanımı",
   pay_advances: "Avans",
   payroll_runs: "Maaş dönemi (bordro)",

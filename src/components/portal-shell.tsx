@@ -3,22 +3,23 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
-import { ClipboardList, LogOut, UserRound } from "lucide-react";
+import { ClipboardList, DoorOpen, LogOut, UserRound } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { logoutAction } from "@/app/actions/auth";
 import { cn } from "@/components/ui";
 
-const TABS = [
-  { href: "/gorevlerim", label: "Görevlerim", Icon: ClipboardList },
-  { href: "/hesabim", label: "Hesabım", Icon: UserRound },
-];
+const TASKS = { href: "/gorevlerim", label: "Görevlerim", Icon: ClipboardList };
+const VISITORS = { href: "/ziyaretci-defteri", label: "Ziyaretçi", Icon: DoorOpen };
+const ACCOUNT = { href: "/hesabim", label: "Hesabım", Icon: UserRound };
 
 /**
- * Personelin telefon ekranı: lacivert üst çubuk (logo, ad, çıkış) + alttaki 2 sekme (Görevlerim, Hesabım; personel bordro görmez). Masaüstünde ortada dar sütun.
+ * Personelin telefon ekranı: lacivert üst çubuk (logo, ad, çıkış) + alttaki sekmeler (Görevlerim, güvenlik / danışmada Ziyaretçi, Hesabım; personel bordro görmez). Masaüstünde ortada dar sütun.
  * `locked`: parola değiştirilene kadar sekmeler gizlenir (yalnızca Hesabım açılır).
  */
-export function PortalShell({ fullName, locked, children }: { fullName: string; locked: boolean; children: ReactNode }) {
+export function PortalShell({ fullName, locked, visitorTab = false, children }: { fullName: string; locked: boolean; visitorTab?: boolean; children: ReactNode }) {
   const pathname = usePathname();
+  // güvenlik / danışma personeline "Ziyaretçi" sekmesi (ziyaretçi ve kargo defteri)
+  const tabs = visitorTab ? [TASKS, VISITORS, ACCOUNT] : [TASKS, ACCOUNT];
   return (
     <div className="flex min-h-screen flex-col bg-bg">
       <header className="sticky top-0 z-30 bg-[var(--side-bg)] text-white shadow-md">
@@ -41,8 +42,8 @@ export function PortalShell({ fullName, locked, children }: { fullName: string; 
 
       {!locked && (
         <nav aria-label="Personel menüsü" className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
-          <div className="mx-auto grid max-w-xl grid-cols-3">
-            {TABS.map(({ href, label, Icon }) => {
+          <div className="mx-auto grid max-w-xl" style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}>
+            {tabs.map(({ href, label, Icon }) => {
               const active = pathname === href || pathname.startsWith(href + "/");
               return (
                 <Link

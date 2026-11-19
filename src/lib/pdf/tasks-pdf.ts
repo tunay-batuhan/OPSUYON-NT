@@ -29,10 +29,10 @@ const fmtNow = () =>
 const fmtDT = (iso: string | null) =>
   iso ? new Intl.DateTimeFormat("tr-TR", { timeZone: "Europe/Istanbul", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(iso)) : "—";
 
-type Col = { label: string; width: number; align?: "left" | "right" | "center"; wrap?: boolean };
+export type Col = { label: string; width: number; align?: "left" | "right" | "center"; wrap?: boolean };
 
 /** Ortak çizim aracı: sayfa ekleme, sığdırma, satır kaydırma, tablo. */
-async function makeDoc(title: string, landscape: boolean) {
+export async function makeDoc(title: string, landscape: boolean) {
   const doc = await PDFDocument.create();
   doc.registerFontkit(fontkit);
   doc.setTitle(title);

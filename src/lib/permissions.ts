@@ -9,6 +9,7 @@ export const PERMISSION_GROUPS: { module: string; label: string; hint: string }[
   { module: "belgeler", label: "Belgeler", hint: "Genel belgeler, denetim, risk analizi, formlar" },
   { module: "finans", label: "Finans ve cari hesap", hint: "Faturalar, tahsilatlar, cari hesap" },
   { module: "devriye", label: "Devriye", hint: "Devriye kayıtları, noktalar ve etiketler" },
+  { module: "ziyaretci", label: "Ziyaretçi Takip", hint: "Ziyaretçi ve kargo defteri, günlük rapor" },
   { module: "iletisim", label: "Mesajlar", hint: "Merkez ile müşteri arasındaki yazışmalar" },
   { module: "teklif", label: "Teklifler", hint: "Satış teklifleri ve teklif raporları (yalnızca merkez)" },
   { module: "yonetim", label: "Yönetim", hint: "Firmalar, kullanıcılar, işlem geçmişi, içe aktarma (yalnızca merkez)" },

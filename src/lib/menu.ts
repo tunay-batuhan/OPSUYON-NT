@@ -91,6 +91,7 @@ function customerMenu(user: CurrentUser, on: Set<string>, extra: MenuExtras): Na
   if (on.has("denetimler") && can("inspections.read")) items.push({ href: "/denetimler", label: "Denetimler", icon: "inspections" });
   const patrol = sectionPages("devriye", user, on);
   if (patrol.length) items.push({ href: patrol[0].href, label: "Devriye Sistemi", icon: "patrol", match: ["/devriye"] });
+  if (on.has("ziyaretci") && can("visitors.read")) items.push({ href: "/ziyaretciler", label: "Ziyaretçi Takip", icon: "visitors" });
 
   if (on.has("risk_analizi") && can("risk.read")) items.push({ href: "/risk-analizi", label: "Risk Analizi", icon: "risk" });
 
@@ -119,6 +120,7 @@ function staffMenu(user: CurrentUser, extra: MenuExtras): NavItem[] {
     { href: "/formlar", label: "Formlar", icon: "forms", anyOf: ["forms.read"] },
     { href: "/denetimler", label: "Denetimler", icon: "inspections", anyOf: ["inspections.read"] },
     { href: "/devriye/rapor", label: "Devriye Sistemi", icon: "patrol", anyOf: ["patrol.read", "patrol.manage"], match: ["/devriye"] },
+    { href: "/ziyaretciler", label: "Ziyaretçi Takip", icon: "visitors", anyOf: ["visitors.read"] },
     { href: "/risk-analizi", label: "Risk Analizi", icon: "risk", anyOf: ["risk.read"] },
     { href: "/cari-hesap", label: "Cari Hesap", icon: "ledger", anyOf: ["ledger.read"], match: ["/cari-hesap"] },
     { href: "/mesajlar", label: "Mesajlar", icon: "messages", anyOf: ["messages.use", "messages.manage"] },
