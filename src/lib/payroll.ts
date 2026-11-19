@@ -5,7 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { canAnywhere, getCurrentUser, type CurrentUser } from "@/lib/auth";
 import { getEnabledModules } from "@/lib/modules";
-import { DEFAULT_TEMPLATE, computeRow, normalizeTemplate, sumRows, validateTemplate, type Cells, type PayCol, type RateVars } from "@/lib/payroll-engine";
+import { DEFAULT_TEMPLATE, computeRow, normalizeTemplate, round2, sumRows, validateTemplate, type Cells, type PayCol, type RateVars } from "@/lib/payroll-engine";
 import type { PayrollLineView, PayrollRunView } from "@/lib/payroll-shared";
 
 /**
@@ -102,7 +102,27 @@ type RunRow = {
   id: string; project_id: string; period_year: number; period_month: number; status: "draft" | "approved";
   approved_at: string | null; approved_by: string | null; template: unknown;
 };
-type LineRow = { id: string; personnel_id: string; cells: Cells | null; vars: RateVars | null };
+type LineRow = { id: string; personnel_id: string; cells: Cells | null; vars: RateVars | null } & Partial<Record<LegacyKey, number | string | null>>;
+
+/** Şablonlu bordrodan ÖNCE (19 Kasım 2026 öncesi) açılmış dönemlerin satırlarındaki dondurulmuş tutar sütunları. */
+const LEGACY_KEYS = [
+  "net_salary", "worked_days", "normal_pay", "transport_pay", "meal_pay", "extra_pay", "overtime_days", "overtime_pay",
+  "advance_total", "bes_deduction", "ihbar_deduction", "other_deduction",
+] as const;
+type LegacyKey = (typeof LEGACY_KEYS)[number];
+
+/**
+ * Eski düzende açılmış dönemin satırı: hücreler boş, tutarlar eski sütunlarda. O tutarlar hücre olarak okunur,
+ * böylece eski bordro (özellikle onaylı olan) açıldığında bugünkü ücret tanımıyla yeniden hesaplanmaz, aynı kalır.
+ */
+function legacyCells(l: LineRow): Cells {
+  const n = (k: LegacyKey) => Number(l[k] ?? 0) || 0;
+  return {
+    net_maas: n("net_salary"), gun: n("worked_days"), normal: n("normal_pay"), yol: n("transport_pay"), destek: 0,
+    ticket: n("meal_pay"), emekli: n("extra_pay"), bayram: 0, fmesai_gun: n("overtime_days"), fmesai: n("overtime_pay"),
+    avans: n("advance_total"), ceza: 0, bes: n("bes_deduction"), diger: round2(n("ihbar_deduction") + n("other_deduction")),
+  };
+}
 
 /**
  * Bir dönemi (proje + ay) ve satırlarını okur. Dönemin GÖRÜNÜRLÜĞÜ `db` ile (kullanıcı oturumu → RLS) belirlenir.
@@ -117,8 +137,13 @@ export async function loadPayrollRun(db: SupabaseClient, runId: string): Promise
     .maybeSingle();
   const run = runData as RunRow | null;
   if (!run) return null;
-  const { data: lineRows } = await db.from("payroll_lines").select("id, personnel_id, cells, vars").eq("run_id", runId).limit(2000);
-  const rows = (lineRows ?? []) as LineRow[];
+  const legacy = !usable(run.template);
+  const { data: lineRows } = await db
+    .from("payroll_lines")
+    .select(`id, personnel_id, cells, vars${legacy ? ", " + LEGACY_KEYS.join(", ") : ""}`)
+    .eq("run_id", runId)
+    .limit(2000);
+  const rows = (lineRows ?? []) as unknown as LineRow[];
   const ids = [...new Set(rows.map((l) => l.personnel_id))];
   const columns = usable(run.template) ?? (await loadTemplate(run.project_id)).columns;
 
@@ -134,7 +159,8 @@ export async function loadPayrollRun(db: SupabaseClient, runId: string): Promise
     .map((l) => {
       const lv = live.get(l.personnel_id);
       const vars = run.status === "approved" && l.vars ? l.vars : (lv?.vars ?? {});
-      const cells = l.cells ?? {};
+      const own = l.cells ?? {};
+      const cells = legacy && Object.keys(own).length === 0 ? legacyCells(l) : own;
       const r = computeRow(columns, cells, vars);
       return {
         id: l.id, personnel_id: l.personnel_id,
