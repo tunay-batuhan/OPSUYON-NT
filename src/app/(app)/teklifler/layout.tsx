@@ -17,14 +17,16 @@ export default async function OffersLayout({ children }: { children: ReactNode }
         title="Teklifler"
         description="Müşteriye verilen teklifler ve teklif raporu. Bir teklife tıklayınca hesap tablosu, PDF ve durum açılır."
         descriptions={{
-          "/teklifler/yeni": "Müşterinin bugün aldığı hizmetleri ve aylık tutarlarını girin; kâr tablosu yazdıkça güncellenir. Tablette kullanmak için tasarlandı.",
-          "/teklifler/ayarlar": "Yeni tekliflerin varsayılan kişi başı tutarı, KDV oranı, geçerlilik süresi, hizmet satırları ve teklif PDF'inin antetli kağıdı.",
+          "/teklifler/yeni": "Müşterinin bugün aldığı hizmetleri, kişi sayısını ve kişi başı bedeli girin; kazanç (KDV farkı + şirket kâr payı) yazdıkça güncellenir. Tablette kullanmak için tasarlandı.",
+          "/teklifler/maliyet": "Maliyet tablosu: brüt maaş, yol, giderler ve şirket kâr payından kişi başı bedeli hesaplayın; bugünkü maliyetle OPSUYON'u karşılaştırın. Brütten nete maaş hesabı da buradadır.",
+          "/teklifler/ayarlar": "Yeni tekliflerin varsayılanları (kişi başı tutar, KDV, şirket kâr payı, hizmet satırları), maliyet tablosu oranları ve teklif PDF'inin antetli kağıdı.",
         }}
         tabs={
           manage
             ? [
                 { href: "/teklifler", label: "Teklifler", exact: true },
                 { href: "/teklifler/yeni", label: "Yeni teklif" },
+                { href: "/teklifler/maliyet", label: "Maliyet karşılaştırma" },
                 { href: "/teklifler/ayarlar", label: "Ayarlar" },
               ]
             : []

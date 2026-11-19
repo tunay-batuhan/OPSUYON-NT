@@ -10,9 +10,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { supabasePublicKey } from "@/lib/supabase/env";
 import { guard, nul, pgMessage, str, validate } from "@/lib/form";
 import { toMoney, toNumber } from "@/lib/parse";
-import { calcOffer, isOfferStatus } from "@/lib/offer-calc";
+import { calcOffer, isOfferStatus, normalizeCostParams } from "@/lib/offer-calc";
 import {
-  LETTERHEAD_MAX, letterheadKind, letterheadMarginsSchema, offerLines, offerNumbers, offerSchema, offerSettingsSchema, serviceList,
+  LETTERHEAD_MAX, letterheadKind, letterheadMarginsSchema, offerLines, offerNumbers, offerSchema, offerSettingsSchema, paramsFromForm, serviceList,
   type LetterheadMarginsValues, type OfferSettingsValues, type OfferValues,
 } from "@/lib/schemas-offers";
 import type { ActionState } from "@/lib/action-types";
@@ -31,9 +31,14 @@ export async function saveOffer(values: OfferValues): Promise<ActionState> {
     const v = validate(offerSchema, values);
     if (!v.ok) return v.state;
     const d = v.data;
-    const lines = offerLines(d.lines).filter((l) => l.service);
-    const { vat, fee } = offerNumbers(d);
-    const c = calcOffer(lines, vat, fee);
+    const supabase = await createClient();
+    const lines = offerLines(d.lines, d.kind).filter((l) => l.service);
+    const { vat, fee, pct } = offerNumbers(d);
+    // maliyet oranları: düzenlemede teklifle saklanan, yeni teklifte ayarlardaki güncel oranlar
+    const { data: stored } = d.id ? await supabase.from("offers").select("cost_params").eq("id", d.id).maybeSingle() : { data: null };
+    const { data: settings } = stored?.cost_params ? { data: null } : await supabase.from("offer_settings").select("cost_params").eq("id", true).maybeSingle();
+    const params = normalizeCostParams(stored?.cost_params ?? settings?.cost_params);
+    const c = calcOffer(lines, vat, fee, pct, params);
 
     const row = {
       customer_name: d.customer_name,
@@ -42,8 +47,13 @@ export async function saveOffer(values: OfferValues): Promise<ActionState> {
       email: nul(d.email),
       address: nul(d.address),
       notes: nul(d.notes),
+      kind: d.kind,
       vat_rate: vat,
       fee_per_person: fee,
+      profit_pct: pct,
+      cost_params: params,
+      vat_saving: c.vat_saving,
+      profit_share_total: c.profit_share_total,
       valid_until: nul(d.valid_until),
       total_people: c.total_people,
       monthly_base: c.monthly_base,
@@ -53,9 +63,11 @@ export async function saveOffer(values: OfferValues): Promise<ActionState> {
       yearly_profit: c.yearly_profit,
     };
     const lineRows = (offerId: string) =>
-      c.lines.map((l, i) => ({ offer_id: offerId, service: l.service, people: l.people, monthly_total: l.monthly_total, sort_order: i }));
+      c.lines.map((l, i) => ({
+        offer_id: offerId, service: l.service, people: l.people, monthly_total: l.monthly_total, unit_price: l.unit_price, profit_unit: l.profit_unit,
+        cost: d.kind === "maliyet" ? (lines[i].cost ?? null) : null, sort_order: i,
+      }));
 
-    const supabase = await createClient();
     if (d.id) {
       const { data: upd, error } = await supabase.from("offers").update(row).eq("id", d.id).select("id").maybeSingle();
       if (error) return { error: pgMessage(error) };
@@ -229,6 +241,8 @@ export async function saveOfferSettings(values: OfferSettingsValues): Promise<Ac
         vat_rate: toNumber(d.vat_rate) ?? 20,
         validity_days: toNumber(d.validity_days) ?? 30,
         services: serviceList(d.services),
+        profit_pct: toNumber(d.profit_pct) ?? 5,
+        cost_params: paramsFromForm(d.params),
         updated_by: user.id,
       })
       .eq("id", true)

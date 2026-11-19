@@ -50,7 +50,7 @@ export default async function PayRatesPage({ searchParams }: PageProps<"/bordrol
   // ücretler kullanıcı oturumuyla (RLS: payroll.read / payroll.manage)
   const db = await createClient();
   const { data: rateRows } = ids.length
-    ? await db.from("pay_rates").select("personnel_id, net_salary, transport_monthly, overtime_monthly, meal_monthly, extra_monthly, extra_label, updated_at").in("personnel_id", ids)
+    ? await db.from("pay_rates").select("personnel_id, net_salary, transport_monthly, support_monthly, overtime_monthly, meal_monthly, bes_monthly, extra_monthly, extra_label, updated_at").in("personnel_id", ids)
     : { data: [] };
   const rateOf = new Map(((rateRows ?? []) as (NonNullable<RatesRowData["rates"]> & { personnel_id: string })[]).map((r) => [r.personnel_id, r]));
   const projectName = new Map(projects.map((p) => [p.id, p.name]));
@@ -65,8 +65,8 @@ export default async function PayRatesPage({ searchParams }: PageProps<"/bordrol
         project: projectName.get(a.project_id) ?? "",
         rates: r
           ? {
-              net_salary: Number(r.net_salary), transport_monthly: Number(r.transport_monthly), overtime_monthly: Number(r.overtime_monthly),
-              meal_monthly: Number(r.meal_monthly), extra_monthly: Number(r.extra_monthly),
+              net_salary: Number(r.net_salary), transport_monthly: Number(r.transport_monthly), support_monthly: Number(r.support_monthly),
+              overtime_monthly: Number(r.overtime_monthly), meal_monthly: Number(r.meal_monthly), bes_monthly: Number(r.bes_monthly), extra_monthly: Number(r.extra_monthly),
               extra_label: r.extra_label, updated_at: r.updated_at,
             }
           : null,
@@ -93,7 +93,7 @@ export default async function PayRatesPage({ searchParams }: PageProps<"/bordrol
         <Card>
           <CardHeader
             title={`${rows.length} personel`}
-            description={missing ? `${missing} personelin ücret tanımı yok; bordroda tutarları 0 hesaplanır.` : "Tutarların hepsi nettir. Değişiklik taslak bordrolara hemen yansır; onaylı bordrolar değişmez."}
+            description={missing ? `${missing} personelin ücret tanımı yok; bordroda tutarları 0 hesaplanır.` : "Tutarların hepsi aylık ve nettir. Değişiklik taslak bordrolara hemen yansır; onaylı bordrolar değişmez."}
           />
           {rows.length === 0 ? (
             <EmptyState title="Personel bulunamadı" description="Seçilen projelerde görevli (aktif) personel yok ya da filtreye uyan yok." />
@@ -105,9 +105,11 @@ export default async function PayRatesPage({ searchParams }: PageProps<"/bordrol
                     <th className="px-4 py-3 text-left font-medium">Personel</th>
                     <th className="whitespace-nowrap px-4 py-3 text-right font-medium">Net maaş</th>
                     <th className="whitespace-nowrap px-4 py-3 text-right font-medium">Yol (aylık)</th>
-                    <th className="whitespace-nowrap px-4 py-3 text-right font-medium">F. mesai (aylık)</th>
-                    <th className="whitespace-nowrap px-4 py-3 text-right font-medium">Yemek kartı (aylık)</th>
+                    <th className="whitespace-nowrap px-4 py-3 text-right font-medium">Destek</th>
+                    <th className="whitespace-nowrap px-4 py-3 text-right font-medium">Ticket</th>
+                    <th className="whitespace-nowrap px-4 py-3 text-right font-medium">F. mesai</th>
                     <th className="whitespace-nowrap px-4 py-3 text-right font-medium">Ek ödeme</th>
+                    <th className="whitespace-nowrap px-4 py-3 text-right font-medium">BES</th>
                     {editable && <th className="px-4 py-3"><span className="sr-only">Düzenle</span></th>}
                   </tr>
                 </thead>

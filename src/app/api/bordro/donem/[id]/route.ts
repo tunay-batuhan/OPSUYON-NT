@@ -8,7 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 
 /**
  * Dönemin toplu bordrosu: ?format=pdf (A4 yatay liste, varsayılan) | xlsx (müşterinin Excel düzeni).
- * Dönem ve satırlar kullanıcı oturumuyla okunur → RLS (payroll.read / payroll.run).
+ * Dönem ve satırlar kullanıcı oturumuyla okunur → RLS (payroll.read / payroll.run). Müşteri yalnızca onaylı dönemi alır.
  */
 export async function GET(req: NextRequest, ctx: RouteContext<"/api/bordro/donem/[id]">) {
   const { id } = await ctx.params;
@@ -17,7 +17,8 @@ export async function GET(req: NextRequest, ctx: RouteContext<"/api/bordro/donem
   if (!user || user.kind === "personnel") return new NextResponse("Not found", { status: 404 });
 
   const run = await loadPayrollRun(await createClient(), id);
-  if (!run) return new NextResponse("Not found", { status: 404 });
+  // site yönetimi yalnızca onaylanmış (kilitli) bordroyu alır
+  if (!run || (user.kind !== "staff" && run.status !== "approved")) return new NextResponse("Not found", { status: 404 });
 
   const base = `maas-bordrosu-${fileSafe(run.org || run.project)}-${fileSafe(periodLabel(run.year, run.month))}`;
   if (req.nextUrl.searchParams.get("format") === "xlsx") {

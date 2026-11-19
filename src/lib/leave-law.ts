@@ -45,40 +45,48 @@ export function legalAnnualLeaveDays(hireDate: string | null | undefined, birthD
 }
 
 /**
- * İşe girişten `at` tarihine kadar BİRİKEN yasal yıllık izin: her kıdem yıldönümünde o günkü kıdem ve yaşa göre hak
+ * İşe girişten `at` tarihine kadar BİRİKEN yasal yıllık izin: her kıdem yıldönümünde, o günkü kıdem ve yaşa göre hak
  * eklenir (İş K. md. 53; kullanılmayan yıllık izin yanmaz, sonraki yıla devreder). 2022'de işe giren biri 2026'da
- * 4 yıldönümü × 14 = 56 gün hak etmiştir.
+ * 4 yıldönümü × 14 = 56 gün hak etmiştir. 49 yaşında işe giren biri ilk yıldönümünde 50 yaşındaysa 20 gün alır.
+ *  - grants: her yıldönümünün takvim yılı ve o gün kazanılan gün
  *  - total: toplam biriken hak
- *  - current: son yıldönümünde eklenen hak (bakiyenin "hak edilen" sütunu; legalAnnualLeaveDays ile aynı)
- *  - carried: önceki yıldönümlerinde biriken hak (bakiyenin "devreden" sütunu) = total − current
  * Personelin geçmişte kullandığı izin sistemde yoksa düşülmez; merkez bakiyeyi elle düzeltir.
  */
 export function accruedAnnualLeave(
   hireDate: string | null | undefined, birthDate: string | null | undefined, at: Date = new Date(),
-): { total: number; current: number; carried: number; years: number; detail: string } {
-  if (!hireDate) return { total: 0, current: 0, carried: 0, years: 0, detail: "İşe giriş tarihi girilmedi" };
+): { total: number; grants: { year: number; days: number }[]; years: number; detail: string } {
+  if (!hireDate) return { total: 0, grants: [], years: 0, detail: "İşe giriş tarihi girilmedi" };
   const years = yearsBetween(hireDate, at);
   const hire = new Date(hireDate);
-  const grants: number[] = [];
+  const grants: { year: number; days: number }[] = [];
   for (let k = 1; k <= years && k <= 80; k++) {
     const anniversary = new Date(hire);
     anniversary.setFullYear(hire.getFullYear() + k);
-    grants.push(legalAnnualLeaveDays(hireDate, birthDate, anniversary).days);
+    grants.push({ year: anniversary.getFullYear(), days: legalAnnualLeaveDays(hireDate, birthDate, anniversary).days });
   }
-  // içinde bulunulan yılın hakkı, diğer ekranlarla aynı: bugünkü kıdem ve yaşa göre (ör. son yıldönümünden sonra
-  // 50 yaşını dolduran personel 20 gün alır)
-  if (grants.length) grants[grants.length - 1] = legalAnnualLeaveDays(hireDate, birthDate, at).days;
-  const total = grants.reduce((s, d) => s + d, 0);
-  const current = grants.at(-1) ?? 0;
+  const total = grants.reduce((s, g) => s + g.days, 0);
   // "4 yıl × 14 gün" ya da "5 yıl × 14 + 3 yıl × 20 gün"
   const groups: [number, number][] = [];
-  for (const d of grants) {
+  for (const g of grants) {
     const last = groups.at(-1);
-    if (last && last[1] === d) last[0]++;
-    else groups.push([1, d]);
+    if (last && last[1] === g.days) last[0]++;
+    else groups.push([1, g.days]);
   }
   const detail = years < 1 ? "1 yıl dolmadan yıllık izin hak edilmez" : groups.map(([n, d]) => `${n} yıl × ${d}`).join(" + ") + " gün";
-  return { total, current, carried: total - current, years, detail };
+  return { total, grants, years, detail };
+}
+
+/**
+ * Biriken hakkı bir takvim yılının bakiye satırına böler: "hak edilen" = o yıl içindeki yıldönümünde kazanılan,
+ * "devreden" = önceki yıllarda kazanılanların toplamı. Yıldönümü henüz gelmediyse o yılın hakkı 0'dır; gelince eklenir.
+ */
+export function splitAccrual(acc: { grants: { year: number; days: number }[] }, year: number): { entitled: number; carried: number } {
+  let entitled = 0, carried = 0;
+  for (const g of acc.grants) {
+    if (g.year === year) entitled += g.days;
+    else if (g.year < year) carried += g.days;
+  }
+  return { entitled, carried };
 }
 
 /**

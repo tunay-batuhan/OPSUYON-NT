@@ -1,7 +1,7 @@
 // Operasyon ekranlarının (Puantaj ekle, Yeni denetim ekle, İzin evrakı ekle) form şemaları.
 // schemas.ts ile aynı kural: tüm alanlar string/boolean, böylece form girdisi ve çıktısı aynı tiptedir.
 import { z } from "zod";
-import { LEAVE_TYPES, date, decimal, month, opt, str, uuid, year } from "@/lib/schemas";
+import { LEAVE_TYPES, date, decimal, month, opt, uuid, year } from "@/lib/schemas";
 
 /** Tarayıcıdan Storage'a yüklenmiş dosyanın gizli alanları (FileArea doldurur). */
 const fileFields = {
@@ -54,11 +54,3 @@ export const leaveRecordDocSchema = z
 export type TimesheetDocValues = z.infer<typeof timesheetDocSchema>;
 export type InspectionDocValues = z.infer<typeof inspectionDocSchema>;
 export type LeaveRecordDocValues = z.infer<typeof leaveRecordDocSchema>;
-
-/** Resmi tatil ekle (İzin Yönetimi > Resmi tatiller). */
-export const holidaySchema = z.object({
-  day: date("Tarih", true),
-  name: str("Tatilin adı", 80),
-  half: z.boolean(),
-});
-export type HolidayValues = z.infer<typeof holidaySchema>;

@@ -247,7 +247,7 @@ function DayBreakdown() {
               {c.calendar} takvim günü → {fmtDays(c.days)} izin
             </p>
             <p className="mt-0.5 text-muted">
-              {skipped.length ? `Sayılmayan: ${skipped.join(" · ")}` : "Bu aralıkta hafta tatili veya resmi tatil yok."}
+              {skipped.length ? `Sayılmayan: ${skipped.join(" · ")}` : "Bu aralıkta hafta tatili yok."}
             </p>
             {differs && c && (
               <p className="mt-2 rounded-md bg-warning-soft px-2.5 py-1.5 text-warning">
@@ -268,7 +268,7 @@ function DayBreakdown() {
           <p className="text-muted">Gün ve başlangıç girilince hangi günlerin izinden sayılmadığı burada görünür.</p>
         )}
         <p className="mt-2 text-xs text-muted">
-          Bu bir öneridir (İş K. md. 56: hafta tatili ve resmi tatiller yıllık izinden sayılmaz). Gün sayısını elle değiştirebilirsiniz; bakiyeden Gün alanındaki sayı düşer.
+          Bu bir öneridir (hafta tatili yıllık izinden sayılmaz). Resmi tatile denk gelen günler için gün sayısını elle değiştirebilirsiniz; bakiyeden Gün alanındaki sayı düşer.
         </p>
       </div>
     </>

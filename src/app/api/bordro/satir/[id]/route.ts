@@ -22,6 +22,7 @@ export async function GET(req: NextRequest, ctx: RouteContext<"/api/bordro/satir
   const db = await createClient();
   const { data: row } = await db.from("payroll_lines").select("run_id").eq("id", id).maybeSingle();
   let run = row ? await loadPayrollRun(db, row.run_id) : null;
+  if (run && user.kind !== "staff" && run.status !== "approved") run = null; // site yönetimi: yalnızca onaylı bordro
   if (run) run = { ...run, lines: run.lines.filter((l) => l.id === id) };
   const line = run?.lines[0];
   if (!run || !line) return new NextResponse("Not found", { status: 404 });

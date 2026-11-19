@@ -52,7 +52,7 @@ const features = [
   {
     icon: CalendarOff,
     title: "İzin yönetimi",
-    text: "Yasal yıllık izin hakkı işe giriş ve doğum tarihinden hesaplanır; hafta tatili ve resmi tatiller düşülür, kalan izin bakiyesi izlenir.",
+    text: "Yasal yıllık izin hakkı işe giriş ve doğum tarihinden hesaplanır; hafta tatili düşülür, kalan izin bakiyesi izlenir.",
   },
   {
     icon: BookOpen,
@@ -120,7 +120,7 @@ const faq = [
   },
   {
     q: "Yıllık izin hakları nasıl hesaplanır?",
-    a: "Yasal yıllık izin hakkı personelin işe giriş ve doğum tarihinden hesaplanır. Yıllık izinde hafta tatili ve resmi tatiller izin gününden sayılmaz; sistem önerir, gerekirse yönetici düzeltir. Mazeret ve raporlu izinler yıllık izin bakiyesinden düşmez.",
+    a: "Yasal yıllık izin hakkı personelin işe giriş ve doğum tarihinden hesaplanır. Yıllık izinde hafta tatili izin gününden sayılmaz; sistem önerir, gerekirse yönetici düzeltir. Mazeret ve raporlu izinler yıllık izin bakiyesinden düşmez.",
   },
   {
     q: "Verilerimiz nasıl korunuyor?",

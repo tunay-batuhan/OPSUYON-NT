@@ -1,7 +1,7 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { isOfferStatus, type OfferStatus } from "@/lib/offer-calc";
+import { isOfferStatus, normalizeCostParams, type CostInput, type CostParams, type OfferStatus } from "@/lib/offer-calc";
 import type { OfferLetterhead } from "@/lib/pdf/offer-pdf";
 
 /**
@@ -23,17 +23,22 @@ export type OfferRow = {
   id: string; offer_no: string; customer_name: string; contact_name: string | null; status: OfferStatus;
   total_people: number; monthly_base: number; monthly_vat: number; offer_total: number; monthly_profit: number; yearly_profit: number;
   valid_until: string | null; created_at: string; created_by: string | null; decided_at: string | null;
+  kind: "teklif" | "maliyet"; vat_saving: number; profit_share_total: number;
 };
 
-export type OfferLine = { id: string; service: string; people: number; monthly_total: number; sort_order: number };
+export type OfferLine = { id: string; service: string; people: number; monthly_total: number; unit_price: number; cost: CostInput | null; sort_order: number };
 
 export type OfferDetail = OfferRow & {
   phone: string | null; email: string | null; address: string | null; notes: string | null;
   vat_rate: number; fee_per_person: number; updated_at: string;
+  /** şirket kâr payı % ve teklifle saklanan maliyet oranları */
+  profit_pct: number; cost_params: CostParams;
 };
 
 export type OfferSettings = {
   fee_per_person: number; vat_rate: number; validity_days: number; services: string[];
+  /** şirket kâr payı % (varsayılan) ve maliyet tablosu oranları */
+  profit_pct: number; cost_params: CostParams;
   /** merkezin yüklediği antetli kağıt (Storage yolu, dosya adı, türü) */
   letterhead: { path: string; name: string; mime: string } | null;
   letterhead_top_mm: number; letterhead_bottom_mm: number; updated_at: string | null;
@@ -42,7 +47,7 @@ export type OfferSettings = {
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const UUID = /^[0-9a-f-]{36}$/i;
 const ROW_COLS =
-  "id, offer_no, customer_name, contact_name, status, total_people, monthly_base, monthly_vat, offer_total, monthly_profit, yearly_profit, valid_until, created_at, created_by, decided_at";
+  "id, offer_no, customer_name, contact_name, status, total_people, monthly_base, monthly_vat, offer_total, monthly_profit, yearly_profit, valid_until, created_at, created_by, decided_at, kind, vat_saving, profit_share_total";
 
 const one = (v: string | string[] | null | undefined) => (typeof v === "string" && v !== "" ? v : undefined);
 
@@ -102,6 +107,9 @@ const toRow = (r: Record<string, unknown>): OfferRow =>
     offer_total: Number(r.offer_total),
     monthly_profit: Number(r.monthly_profit),
     yearly_profit: Number(r.yearly_profit),
+    vat_saving: Number(r.vat_saving ?? 0),
+    profit_share_total: Number(r.profit_share_total ?? 0),
+    kind: r.kind === "maliyet" ? "maliyet" : "teklif",
   }) as OfferRow;
 
 export async function loadOffers(f: OfferFilters, range?: { from: number; to: number }): Promise<{ rows: OfferRow[]; total: number }> {
@@ -164,12 +172,18 @@ export async function loadOffer(id: string): Promise<{ offer: OfferDetail; lines
   if (!UUID.test(id)) return null;
   const supabase = await createClient();
   const [{ data: o }, { data: l }] = await Promise.all([
-    supabase.from("offers").select(`${ROW_COLS}, phone, email, address, notes, vat_rate, fee_per_person, updated_at`).eq("id", id).maybeSingle(),
-    supabase.from("offer_lines").select("id, service, people, monthly_total, sort_order").eq("offer_id", id).order("sort_order"),
+    supabase.from("offers").select(`${ROW_COLS}, phone, email, address, notes, vat_rate, fee_per_person, updated_at, profit_pct, cost_params`).eq("id", id).maybeSingle(),
+    supabase.from("offer_lines").select("id, service, people, monthly_total, unit_price, cost, sort_order").eq("offer_id", id).order("sort_order"),
   ]);
   if (!o) return null;
-  const offer = { ...toRow(o as Record<string, unknown>), vat_rate: Number(o.vat_rate), fee_per_person: Number(o.fee_per_person) } as OfferDetail;
-  const lines = ((l ?? []) as OfferLine[]).map((x) => ({ ...x, people: Number(x.people), monthly_total: Number(x.monthly_total) }));
+  const offer = {
+    ...toRow(o as Record<string, unknown>), vat_rate: Number(o.vat_rate), fee_per_person: Number(o.fee_per_person),
+    profit_pct: Number(o.profit_pct ?? 0), cost_params: normalizeCostParams(o.cost_params),
+  } as OfferDetail;
+  const lines = ((l ?? []) as OfferLine[]).map((x) => {
+    const people = Number(x.people), monthly_total = Number(x.monthly_total);
+    return { ...x, people, monthly_total, unit_price: x.unit_price === null || x.unit_price === undefined ? (people > 0 ? monthly_total / people : 0) : Number(x.unit_price), cost: (x.cost as CostInput | null) ?? null };
+  });
   const creator = offer.created_by ? ((await loadCreatorNames([offer.created_by])).get(offer.created_by) ?? null) : null;
   return { offer, lines, creator };
 }
@@ -178,7 +192,7 @@ export async function loadOfferSettings(): Promise<OfferSettings> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("offer_settings")
-    .select("fee_per_person, vat_rate, validity_days, services, letterhead_path, letterhead_name, letterhead_mime, letterhead_top_mm, letterhead_bottom_mm, updated_at")
+    .select("fee_per_person, vat_rate, validity_days, services, profit_pct, cost_params, letterhead_path, letterhead_name, letterhead_mime, letterhead_top_mm, letterhead_bottom_mm, updated_at")
     .eq("id", true)
     .maybeSingle();
   return {
@@ -186,6 +200,8 @@ export async function loadOfferSettings(): Promise<OfferSettings> {
     vat_rate: Number(data?.vat_rate ?? 20),
     validity_days: Number(data?.validity_days ?? 30),
     services: (data?.services as string[] | null)?.length ? (data!.services as string[]) : ["Güvenlik", "Temizlik", "Teknik Personel", "Bahçıvan"],
+    profit_pct: Number(data?.profit_pct ?? 5),
+    cost_params: normalizeCostParams(data?.cost_params),
     letterhead: data?.letterhead_path
       ? { path: data.letterhead_path as string, name: (data.letterhead_name as string | null) ?? "antet", mime: data.letterhead_mime as string }
       : null,

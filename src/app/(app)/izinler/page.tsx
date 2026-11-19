@@ -16,6 +16,7 @@ import { createClient } from "@/lib/supabase/server";
 import { LEAVE_TYPE_LABELS, formatDate, formatNumber } from "@/lib/format";
 import { LEAVE_TYPE_INFO, leaveDeducts } from "@/lib/leave-law";
 import { deleteLeaveRecord } from "@/app/actions/leaves";
+import { syncLeaveBalances } from "@/lib/leave-balance";
 
 export const metadata: Metadata = { title: "İzin Yönetimi" };
 
@@ -37,6 +38,8 @@ const B_SIZE = 20;
 export default async function LeavesAllPage({ searchParams }: PageProps<"/izinler">) {
   const user = await requireUser();
   if (user.kind === "customer" && !(await getEnabledModules()).has("izin_yonetimi")) redirect("/personel/izinler");
+  // otomatik bakiyeler bugünkü kıdem / yaşa göre güncel olsun (yıldönümü, 50 yaş kuralı); elle düzeltilenlere dokunmaz
+  await syncLeaveBalances();
   const sp = await searchParams;
   const year = Number(str1(sp.yil) ?? new Date().getFullYear());
   const projectId = str1(sp.proje);

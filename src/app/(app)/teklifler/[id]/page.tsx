@@ -5,7 +5,7 @@ import { notFound, redirect } from "next/navigation";
 import { ChevronLeft, Eye, FileDown, Pencil, Trash2 } from "lucide-react";
 import { Badge, Card, CardHeader, btn, cn } from "@/components/ui";
 import { ConfirmSubmit } from "@/components/confirm-dialog";
-import { OfferResult } from "@/components/offers/offer-result";
+import { CostTable, OfferResult } from "@/components/offers/offer-result";
 import { deleteOffer, setOfferStatus } from "@/app/actions/offers";
 import { hasPermission, requireStaff } from "@/lib/auth";
 import { formatDate, formatDateTime, formatMoney } from "@/lib/format";
@@ -35,7 +35,8 @@ export default async function OfferPage({ params }: PageProps<"/teklifler/[id]">
   if (!data) notFound();
   const { offer: o, lines, creator } = data;
   // tablo, kayıtlı satırlarla yeniden çizilir (tutarlar kayıtla aynı fonksiyondan)
-  const calc = calcOffer(lines, o.vat_rate, o.fee_per_person);
+  const calc = calcOffer(lines, o.vat_rate, o.fee_per_person, o.profit_pct, o.cost_params);
+  const costLines = calc.lines.filter((l) => l.cost);
   const s = OFFER_STATUS[o.status];
 
   const info: [string, ReactNode][] = [
@@ -60,7 +61,7 @@ export default async function OfferPage({ params }: PageProps<"/teklifler/[id]">
           <Card>
             <CardHeader
               title={`${o.offer_no} · ${o.customer_name}`}
-              description={`${calc.total_people} kişi · aylık matrah ${formatMoney(calc.monthly_base)} · yıllık net kâr ${formatMoney(calc.yearly_profit)}`}
+              description={`${o.kind === "maliyet" ? "Maliyet karşılaştırma · " : ""}${calc.total_people} kişi · aylık matrah ${formatMoney(calc.monthly_base)} · yıllık net kâr ${formatMoney(calc.yearly_profit)}`}
               action={<Badge tone={s.tone}>{s.label}</Badge>}
             />
             <dl className="grid gap-x-6 gap-y-4 p-5 text-sm sm:grid-cols-2">
@@ -123,7 +124,15 @@ export default async function OfferPage({ params }: PageProps<"/teklifler/[id]">
           )}
         </div>
 
-        <OfferResult calc={calc} vatRate={o.vat_rate} fee={o.fee_per_person} className="xl:sticky xl:top-20 xl:self-start" />
+        <div className="space-y-4 xl:sticky xl:top-20 xl:self-start">
+          <OfferResult calc={calc} vatRate={o.vat_rate} fee={o.fee_per_person} profitPct={o.profit_pct} />
+          {costLines.map((l, i) => (
+            <details key={`${l.service}-${i}`} className="rounded-xl border border-border bg-surface p-3">
+              <summary className="cursor-pointer text-sm font-semibold">{l.service} · maliyet analiz tablosu</summary>
+              <CostTable title={l.service} cost={l.cost!} className="mt-3" />
+            </details>
+          ))}
+        </div>
       </div>
     </>
   );

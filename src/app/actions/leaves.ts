@@ -229,28 +229,3 @@ export async function updateLeaveBalance(input: {
     return { ok: true, message: "Bakiye güncellendi." };
   });
 }
-
-/** Resmi tatil ekle (İzin Yönetimi > Resmi tatiller): yıllık izin günü önerisinde bu günler sayılmaz. */
-export async function addHoliday(input: { day: string; name: string; half: boolean }): Promise<ActionState> {
-  return guard(async (): Promise<ActionState> => {
-    await assertStaff("leaves.manage");
-    const day = String(input.day ?? "");
-    const name = String(input.name ?? "").trim();
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return { error: "Tarih seçin.", fieldErrors: { day: "Tarih seçin" } };
-    if (name.length < 2 || name.length > 80) return { error: "Tatilin adını yazın (en fazla 80 karakter).", fieldErrors: { name: "Ad yazın" } };
-    const supabase = await createClient();
-    const { error } = await supabase.from("public_holidays").insert({ day, name, half: Boolean(input.half) });
-    if (error) return { error: error.code === "23505" ? "Bu tarih zaten listede. Değiştirmek için önce silin." : pgMessage(error) };
-    revalidatePath("/izinler", "layout");
-    return { ok: true, message: "Resmi tatil eklendi." };
-  });
-}
-
-export async function deleteHoliday(fd: FormData): Promise<void> {
-  await assertStaff("leaves.manage");
-  const id = str(fd, "id");
-  if (!id || !UUID.test(id)) return;
-  const supabase = await createClient();
-  await supabase.from("public_holidays").delete().eq("id", id);
-  revalidatePath("/izinler", "layout");
-}

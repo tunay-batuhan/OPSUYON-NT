@@ -1,7 +1,7 @@
 "use client";
 
-import { FileDown, FileSpreadsheet, Loader2, Lock, LockOpen, PlayCircle, Trash2, UserPlus } from "lucide-react";
-import { approvePayrollRun, deletePayrollRun, startPayrollRun, syncPayrollRun, unlockPayrollRun } from "@/app/actions/payroll";
+import { FileDown, FileSpreadsheet, Loader2, Lock, LockOpen, PlayCircle, RefreshCw, Trash2, UserPlus } from "lucide-react";
+import { approvePayrollRun, deletePayrollRun, refreshRunTemplate, startPayrollRun, syncPayrollRun, unlockPayrollRun } from "@/app/actions/payroll";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { btn } from "@/components/ui";
 import { ActionResult } from "./action-result";
@@ -22,7 +22,7 @@ export function StartRunButton({ projectId, year, month, label }: { projectId: s
 }
 
 /**
- * Dönemin düğmeleri: indirme (Toplu PDF, Excel), eksik personeli ekle, onayla ve kilitle, kilidi aç (merkez),
+ * Dönemin düğmeleri: indirme (Toplu PDF, Excel), eksik personeli ekle, şablonu yenile, onayla ve kilitle, kilidi aç (merkez),
  * dönemi sil (taslak).
  */
 export function RunToolbar({
@@ -44,10 +44,13 @@ export function RunToolbar({
             <button type="button" disabled={pending} onClick={() => run(() => syncPayrollRun(runId))} className={sec}>
               <UserPlus className="size-4" aria-hidden /> Eksik personeli ekle
             </button>
+            <button type="button" disabled={pending} onClick={() => run(() => refreshRunTemplate(runId))} className={sec} title="Bordro şablonundaki güncel sütun ve formülleri bu döneme uygular">
+              <RefreshCw className="size-4" aria-hidden /> Şablonu yenile
+            </button>
             <ConfirmDialog
               tone="warning"
               title={`${title} onaylansın mı?`}
-              description="Tüm satırlar güncel ücret tanımı ve avanslarla son kez hesaplanır, sonra dönem kilitlenir. Kilitli dönemde gün, avans ve kesinti değiştirilemez. Kilidi yalnızca merkez açabilir."
+              description="Tüm satırlar güncel ücret tanımı ve avanslarla son kez hesaplanır, sonra dönem kilitlenir. Kilitli bordroyu site yönetimi görür; değerler ve avanslar değiştirilemez. Kilidi yalnızca merkez açabilir."
               items={[`${count} personel`]}
               confirmLabel="Onayla ve kilitle"
               onConfirm={() => run(() => approvePayrollRun(runId))}
@@ -58,7 +61,7 @@ export function RunToolbar({
             </ConfirmDialog>
             <ConfirmDialog
               title={`${title} silinsin mi?`}
-              description="Dönemin tüm satırları (eksik gün, fazla mesai, kesintiler) silinir. Avanslar ve ücret tanımları silinmez."
+              description="Dönemin tüm satırları (girilen günler, tutarlar, kesintiler) silinir. Avanslar ve ücret tanımları silinmez."
               confirmLabel="Dönemi sil"
               onConfirm={() => run(() => deletePayrollRun(runId))}
             >
@@ -72,7 +75,7 @@ export function RunToolbar({
           <ConfirmDialog
             tone="warning"
             title={`${title} kilidi açılsın mı?`}
-            description="Dönem yeniden taslak olur; gün, avans ve kesintiler değiştirilebilir. Personel düzeltilen bordroyu ancak yeniden onaylanınca görür. İşlem geçmişine yazılır."
+            description="Dönem yeniden taslak olur; değerler ve avanslar değiştirilebilir. Site yönetimi bordroyu yeniden onaylanana kadar göremez. İşlem geçmişine yazılır."
             confirmLabel="Kilidi aç"
             onConfirm={() => run(() => unlockPayrollRun(runId))}
           >

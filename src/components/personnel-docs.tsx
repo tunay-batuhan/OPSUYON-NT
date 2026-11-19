@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatNumber } from "@/lib/format";
 import { pageCount, pagingFrom } from "@/lib/paging";
 import { matches } from "@/lib/text";
+import { syncLeaveBalances } from "@/lib/leave-balance";
 
 type Person = { id: string; full_name: string; title: string | null; hire_date: string | null; lines: Set<string>; projects: Set<string> };
 type Doc = { id: string; personnel_id: string; title: string; file_name: string; created_at: string };
@@ -69,6 +70,7 @@ export async function PersonnelDocs({
   const docs = new Map<string, Doc[]>();
   const balances = new Map<string, Balance>();
   const recordDays = new Map<string, number>();
+  if (leave) await syncLeaveBalances(); // müşterinin Yıllık İzinler sekmesi de güncel hakkı görsün
   await Promise.all(
     chunk(ids, 100).flatMap((part) => [
       supabase.from("documents").select("id, personnel_id, title, file_name, created_at").in("category_code", categories).in("personnel_id", part).order("created_at", { ascending: false })

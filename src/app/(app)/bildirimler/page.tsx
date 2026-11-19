@@ -1,8 +1,8 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { CalendarClock, FileText, Inbox, MessageSquare } from "lucide-react";
+import { AlertTriangle, CalendarClock, CheckCircle2, FileText, Inbox, MessageSquare } from "lucide-react";
 import { Card, CardHeader, EmptyState, PageHeader } from "@/components/ui";
-import { isSuperAdmin, requireUser } from "@/lib/auth";
+import { canAnywhere, isSuperAdmin, requireUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { CONTACT_TOPICS, type ContactTopic } from "@/lib/schemas-contact";
 import { getEnabledModules } from "@/lib/modules";
@@ -36,6 +36,21 @@ export default async function NotificationsPage() {
     : { data: [] };
   const contactRows = (contactData ?? []) as { id: string; full_name: string; company: string | null; topic: ContactTopic; created_at: string }[];
 
+  // İş Planlama: personelin sorun bildirdiği ve "İşi bitirdim" dediği görevler (RLS yalnızca görebildiklerini döndürür)
+  const seesTasks = user.kind !== "personnel" && canAnywhere(user, "tasks.read") && (user.kind === "staff" || (await getEnabledModules()).has("is_planlama"));
+  const { data: taskData } = seesTasks
+    ? await supabase
+        .from("work_tasks")
+        .select("id, title, status, issue_note, issue_at, finished_by_personnel_at, personnel(full_name), projects(name)")
+        .or("status.eq.issue,and(status.eq.accepted,finished_by_personnel_at.not.is.null)")
+        .order("updated_at", { ascending: false })
+        .limit(30)
+    : { data: [] };
+  const taskRows = (taskData ?? []) as unknown as {
+    id: string; title: string; status: string; issue_note: string | null; issue_at: string | null; finished_by_personnel_at: string | null;
+    personnel: { full_name: string } | null; projects: { name: string } | null;
+  }[];
+
   const readMap = new Map((reads ?? []).map((r) => [r.thread_id as string, new Date(r.last_read_at as string).getTime()]));
   const unread = new Map<string, Msg>();
   for (const m of (msgs ?? []) as unknown as Msg[]) {
@@ -44,7 +59,7 @@ export default async function NotificationsPage() {
   const threads = [...unread.values()];
   const contractRows = !showContracts ? [] : (contracts ?? []) as unknown as { id: string; name: string; end_date: string; organizations: { name: string } | null }[];
   const docRows = (docs ?? []) as unknown as { id: string; title: string; created_at: string; project_id: string; projects: { name: string } | null }[];
-  const nothing = threads.length + contractRows.length + docRows.length + contactRows.length === 0;
+  const nothing = threads.length + contractRows.length + docRows.length + contactRows.length + taskRows.length === 0;
 
   return (
     <>
@@ -64,6 +79,31 @@ export default async function NotificationsPage() {
                   </Link>
                 </li>
               ))}
+            </ul>
+          </Card>
+        )}
+        {taskRows.length > 0 && (
+          <Card>
+            <CardHeader title="İş Planlama: ilgilenmeniz gereken görevler" description="Personelin sorun bildirdiği ya da bitirdiğini söylediği görevler" />
+            <ul className="divide-y divide-border">
+              {taskRows.map((t) => {
+                const issue = t.status === "issue";
+                return (
+                  <li key={t.id}>
+                    <Link href={`/is-planlama/${t.id}`} className="flex items-start gap-3 px-5 py-3 hover:bg-surface-2">
+                      {issue ? <AlertTriangle className="mt-0.5 size-5 shrink-0 text-danger" aria-hidden /> : <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-success" aria-hidden />}
+                      <span className="min-w-0 flex-1">
+                        <span className="block font-medium">
+                          {issue ? "Sorun bildirildi" : "Personel işi bitirdi"}: {t.title}{" "}
+                          <span className="font-normal text-muted">· {t.personnel?.full_name}{t.projects?.name ? ` · ${t.projects.name}` : ""}</span>
+                        </span>
+                        {issue && t.issue_note && <span className="block truncate text-sm text-muted">“{t.issue_note}”</span>}
+                      </span>
+                      <span className="shrink-0 text-xs text-muted">{formatDateTime((issue ? t.issue_at : t.finished_by_personnel_at) ?? new Date(0).toISOString())}</span>
+                    </Link>
+                  </li>
+                );
+              })}
             </ul>
           </Card>
         )}

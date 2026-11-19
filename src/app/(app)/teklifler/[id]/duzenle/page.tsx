@@ -20,7 +20,7 @@ export default async function EditOfferPage({ params }: PageProps<"/teklifler/[i
       <Link href={`/teklifler/${id}`} className="mb-4 inline-flex items-center gap-1 text-sm text-muted hover:text-fg">
         <ChevronLeft className="size-4" aria-hidden /> {data.offer.offer_no} · {data.offer.customer_name}
       </Link>
-      <OfferForm defaults={editOfferDefaults(data.offer, data.lines)} />
+      <OfferForm defaults={editOfferDefaults(data.offer, data.lines)} params={data.offer.cost_params} />
     </>
   );
 }

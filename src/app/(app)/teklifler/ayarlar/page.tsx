@@ -16,13 +16,15 @@ export default async function OfferSettingsPage() {
   return (
     <div className="max-w-3xl space-y-6">
       <Card>
-        <CardHeader title="Yeni teklif varsayılanları" description="Her teklifte ayrıca değiştirilebilir. Kayıtlı teklifler bu ayardan etkilenmez." />
+        <CardHeader title="Yeni teklif varsayılanları ve maliyet oranları" description="Her teklifte ayrıca değiştirilebilir. Kayıtlı teklifler bu ayardan etkilenmez." />
         <OfferSettingsForm
           defaults={{
             fee_per_person: formatNumber(s.fee_per_person),
             vat_rate: formatNumber(s.vat_rate),
             validity_days: String(s.validity_days),
             services: s.services.join("\n"),
+            profit_pct: formatNumber(s.profit_pct),
+            params: Object.fromEntries(Object.entries(s.cost_params).map(([k, v]) => [k, new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 4, useGrouping: false }).format(v)])),
           }}
         />
       </Card>

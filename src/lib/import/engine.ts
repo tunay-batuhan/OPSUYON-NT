@@ -226,7 +226,7 @@ async function prepareLeave(rows: Parsed["rows"], ctx: Ctx): Promise<Prepared[]>
       summary: `${yearN ?? "?"} · hak ${entitled} · devreden ${carried} · kullanılan ${used} · kalan ${entitled + carried - used}`,
       apply: async () => {
         const { error: e } = await ctx.supabase.from("leave_balances").upsert(
-          { personnel_id: person!.id, year: yearN, entitled_days: entitled, carried_days: carried, used_days: used },
+          { personnel_id: person!.id, year: yearN, entitled_days: entitled, carried_days: carried, used_days: used, metadata: { manual: true, source: "excel" } },
           { onConflict: "personnel_id,year" },
         );
         return e ? e.message : null;
