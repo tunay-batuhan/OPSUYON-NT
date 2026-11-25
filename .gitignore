@@ -49,3 +49,8 @@ supabase/.branches
 authadmin*.txt
 *.docx
 *.tsbuildinfo
+
+# yerel notlar, giris bilgileri ve tarayici test kayitlari (depoya girmez)
+auth.txt
+todo.md
+.playwright-mcp/
