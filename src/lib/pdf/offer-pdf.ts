@@ -87,10 +87,6 @@ export type OfferPdfData = {
   lines: OfferLineInput[];
 };
 
-/** Merkezin yüklediği antetli kağıt: A4 PDF (ilk sayfa) ya da PNG/JPG. Üst/alt boşluk mm. */
-export type OfferLetterhead = { bytes: Uint8Array; mime: string; topMm: number; bottomMm: number };
-
-const MM = 72 / 25.4;
 
 /** Köşeleri yuvarlatılmış dikdörtgen (yalnızca üst, yalnızca alt ya da hepsi). yTop: üst kenarın y'si. */
 function roundRect(
@@ -105,9 +101,7 @@ function roundRect(
 
 /**
  * Tek teklif (A4 dikey).
- *  - Antet yüklüyse: her sayfanın zemini antettir (tam sayfa PDF/görsel) ya da yatay antet görseli sayfanın üstüne
- *    oturur; içerik antetin üst ve alt boşluğu arasına yazılır.
- *  - Antet yoksa: OPSUYON logolu başlık, lacivert/turuncu şerit.
+ *  - Her sayfada OPSUYON logolu başlık, lacivert/turuncu şerit.
  * Yalnızca teklif: başlık + künye, müşteri kartı, teklif tablosu (hizmetler, toplam, KDV, genel toplam), not ve imza.
  * Maliyet karşılaştırmalı, sırasıyla: "OPSUYON'dan hizmet alırsanız" aylık / yıllık net kâr kartları; OPSUYON FİYAT
  * TEKLİFİ (seçilen personel × kişi başı OPSUYON bedeli, KDV, genel toplam); MALİYET ANALİZ TABLOSU ("Bu hizmeti dışarıdan
@@ -116,7 +110,7 @@ function roundRect(
  * Son sayfa her zaman "OPSUYON'un avantajları" sayfasıdır (maddi kazanç + operasyonel avantajlar; karşılaştırmalı teklifte
  * o teklifin kazanç tutarlarıyla). Tutarlar ekrandaki hesapla aynı fonksiyondan.
  */
-export async function buildOfferPdf(o: OfferPdfData, letterhead?: OfferLetterhead | null): Promise<Uint8Array> {
+export async function buildOfferPdf(o: OfferPdfData): Promise<Uint8Array> {
   const W = 595.28;
   const H = 841.89;
   const M = 48; // yatay kenar boşluğu
@@ -133,40 +127,23 @@ export async function buildOfferPdf(o: OfferPdfData, letterhead?: OfferLetterhea
   const dense = tight && shown.length > 5;
   const ry = dense ? 10.5 : tight ? 11.5 : 13; // satır içi yazı taban çizgisi
 
-  /* ---- zemin: antet ya da OPSUYON başlığı ---- */
-  let paintBackground: (p: PDFPage) => void;
-  let top: number; // içeriğin başladığı y
-  let bottom: number; // içeriğin inebileceği en alt y (altında sayfa bilgisi)
-  let usesLetterhead = false;
-  const lh = letterhead ? await embedLetterhead(doc, letterhead).catch(() => null) : null;
-  if (lh && lh.kind === "page") {
-    usesLetterhead = true;
-    paintBackground = lh.draw;
-    top = H - Math.max(letterhead!.topMm * MM, 24);
-    bottom = Math.max(letterhead!.bottomMm * MM, 18) + 16;
-  } else if (lh && lh.kind === "banner") {
-    usesLetterhead = true;
-    paintBackground = lh.draw;
-    top = H - lh.height - 22;
-    bottom = Math.max(letterhead!.bottomMm * MM, 18) + 16;
-  } else {
-    const logo = await doc.embedPng(Buffer.from(LOGO_PNG_B64, "base64"));
-    paintBackground = (p) => {
-      p.drawRectangle({ x: 0, y: H - 7, width: W, height: 7, color: NAVY });
-      p.drawRectangle({ x: 0, y: H - 9.5, width: W, height: 2.5, color: ORANGE });
-      const lw = 128;
-      p.drawImage(logo, { x: M, y: H - 34 - lw * LOGO_RATIO, width: lw, height: lw * LOGO_RATIO });
-      const site = "opsuyon.com";
-      p.drawText(site, { x: W - M - regular.widthOfTextAtSize(site, 9), y: H - 44, size: 9, font: regular, color: MUTED });
-      const tag = BRAND_TAGLINE;
-      p.drawText(tag, { x: W - M - regular.widthOfTextAtSize(tag, 8), y: H - 56, size: 8, font: regular, color: MUTED });
-      p.drawLine({ start: { x: M, y: H - 80 }, end: { x: W - M, y: H - 80 }, thickness: 0.6, color: LINE });
-      // alt şerit
-      p.drawRectangle({ x: 0, y: 0, width: W, height: 4, color: NAVY });
-    };
-    top = H - 102;
-    bottom = 64;
-  }
+  /* ---- zemin: OPSUYON başlığı ---- */
+  const logo = await doc.embedPng(Buffer.from(LOGO_PNG_B64, "base64"));
+  const paintBackground = (p: PDFPage) => {
+    p.drawRectangle({ x: 0, y: H - 7, width: W, height: 7, color: NAVY });
+    p.drawRectangle({ x: 0, y: H - 9.5, width: W, height: 2.5, color: ORANGE });
+    const lw = 128;
+    p.drawImage(logo, { x: M, y: H - 34 - lw * LOGO_RATIO, width: lw, height: lw * LOGO_RATIO });
+    const site = "opsuyon.com";
+    p.drawText(site, { x: W - M - regular.widthOfTextAtSize(site, 9), y: H - 44, size: 9, font: regular, color: MUTED });
+    const tag = BRAND_TAGLINE;
+    p.drawText(tag, { x: W - M - regular.widthOfTextAtSize(tag, 8), y: H - 56, size: 8, font: regular, color: MUTED });
+    p.drawLine({ start: { x: M, y: H - 80 }, end: { x: W - M, y: H - 80 }, thickness: 0.6, color: LINE });
+    // alt şerit
+    p.drawRectangle({ x: 0, y: 0, width: W, height: 4, color: NAVY });
+  };
+  const top = H - 102; // içeriğin başladığı y
+  const bottom = 64; // içeriğin inebileceği en alt y (altında sayfa bilgisi)
 
   let page: PDFPage = doc.addPage([W, H]);
   paintBackground(page);
@@ -477,7 +454,7 @@ export async function buildOfferPdf(o: OfferPdfData, letterhead?: OfferLetterhea
   const pages = doc.getPages();
   const fy = bottom - 16;
   pages.forEach((pg, i) => {
-    const note = `Teklif no ${o.offer_no}${usesLetterhead ? "" : " · opsuyon.com"} · ${fmtNow()}`;
+    const note = `Teklif no ${o.offer_no} · opsuyon.com · ${fmtNow()}`;
     pg.drawText(note, { x: M, y: fy, size: 7.5, font: regular, color: MUTED });
     const label = `Sayfa ${i + 1} / ${pages.length + 1}`;
     pg.drawText(label, { x: W - M - regular.widthOfTextAtSize(label, 7.5), y: fy, size: 7.5, font: regular, color: MUTED });
@@ -505,7 +482,7 @@ const BENEFITS: [string, string, RGB][] = [
 ];
 
 /**
- * Teklifin son sayfası: OPSUYON'u kullanmanın avantajları (antet kullanılmaz). Üstte lacivert bant; karşılaştırmalı
+ * Teklifin son sayfası: OPSUYON'u kullanmanın avantajları. Üstte lacivert bant; karşılaştırmalı
  * teklifte "bu teklifle kazancınız" şeridi (aylık / yıllık); MADDİ KAZANÇ (3 kart) ve OPERASYONEL AVANTAJLAR (6 madde).
  */
 async function advantagesPage(doc: PDFDocument, regular: PDFFont, bold: PDFFont, gain: { monthly: number; yearly: number; vat: number; share: number } | null) {
@@ -604,52 +581,6 @@ async function advantagesPage(doc: PDFDocument, regular: PDFFont, bold: PDFFont,
   const tag = BRAND_TAGLINE;
   text(tag, W - M - regular.widthOfTextAtSize(tag, 9), 30, 9, regular, MUTED);
   text("OPSUYON", M, 30, 9, bold, NAVY);
-}
-
-/**
- * Anteti belgeye gömer. PDF → ilk sayfası tam sayfa zemin. Görsel → A4'e yakın oranda (dikey) ise tam sayfa zemin,
- * yatay bir şeritse sayfanın üstüne tam genişlikte oturur ("banner"; içerik altından başlar).
- */
-async function embedLetterhead(doc: PDFDocument, lh: OfferLetterhead):
-  Promise<{ kind: "page"; draw: (p: PDFPage) => void } | { kind: "banner"; height: number; draw: (p: PDFPage) => void }> {
-  const W = 595.28;
-  const H = 841.89;
-  if (lh.mime === "application/pdf") {
-    const [emb] = await doc.embedPdf(lh.bytes, [0]);
-    return { kind: "page", draw: (p) => p.drawPage(emb, { x: 0, y: 0, width: W, height: H }) };
-  }
-  const img = lh.mime === "image/png" ? await doc.embedPng(lh.bytes) : await doc.embedJpg(lh.bytes);
-  const ratio = img.height / img.width;
-  if (ratio >= 1.2) return { kind: "page", draw: (p) => p.drawImage(img, { x: 0, y: 0, width: W, height: H }) };
-  const h = W * ratio;
-  return { kind: "banner", height: h, draw: (p) => p.drawImage(img, { x: 0, y: H - h, width: W, height: h }) };
-}
-
-/** Ayarlardaki "Örnek PDF" için örnek teklif (antetin ve boşlukların nasıl durduğunu görmek için). */
-export function sampleOfferPdfData(creator: string | null): OfferPdfData {
-  const now = new Date();
-  const valid = new Date(now.getTime() + 30 * 86400000);
-  return {
-    offer_no: "OPS-ÖRNEK",
-    customer_name: "Örnek Sitesi Yönetimi",
-    contact_name: "Ahmet Yılmaz",
-    phone: "0532 123 45 67",
-    email: "yonetim@ornek.com",
-    address: "Örnek Mah. Deneme Cad. No: 1, İstanbul",
-    notes: null,
-    vat_rate: 20,
-    fee_per_person: 7500,
-    profit_pct: 5,
-    compare: true,
-    valid_until: valid.toISOString().slice(0, 10),
-    created_at: now.toISOString(),
-    creator,
-    lines: [
-      { service: "Güvenlik", people: 10, unit_price: 65000 },
-      { service: "Temizlik", people: 4, unit_price: 0, cost: { gross: 33030, net_transport: 3628, ot_hours: 0, clothing: 650, equipment: 0, ohs: 210, training: 500, insurance: 0, card: 7900, extra: 4700 } },
-      { service: "Teknik Personel", people: 2, unit_price: 70000 },
-    ],
-  };
 }
 
 export type OfferReportRow = {

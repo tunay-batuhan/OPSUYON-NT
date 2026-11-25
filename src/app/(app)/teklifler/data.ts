@@ -2,7 +2,6 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { LEGACY_OFFER_PARAMS, isOfferStatus, normalizeCostParams, type CostInput, type CostParams, type OfferStatus } from "@/lib/offer-calc";
-import type { OfferLetterhead } from "@/lib/pdf/offer-pdf";
 
 /**
  * Teklif listesi ve raporu (ekran + PDF aynı süzgeçler). Okuma kullanıcının oturumuyla: RLS yalnızca
@@ -40,9 +39,7 @@ export type OfferSettings = {
   fee_per_person: number; vat_rate: number; validity_days: number; services: string[];
   /** şirket kâr payı % (varsayılan) ve maliyet tablosu oranları */
   profit_pct: number; cost_params: CostParams;
-  /** merkezin yüklediği antetli kağıt (Storage yolu, dosya adı, türü) */
-  letterhead: { path: string; name: string; mime: string } | null;
-  letterhead_top_mm: number; letterhead_bottom_mm: number; updated_at: string | null;
+  updated_at: string | null;
 };
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
@@ -193,7 +190,7 @@ export async function loadOfferSettings(): Promise<OfferSettings> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("offer_settings")
-    .select("fee_per_person, vat_rate, validity_days, services, profit_pct, cost_params, letterhead_path, letterhead_name, letterhead_mime, letterhead_top_mm, letterhead_bottom_mm, updated_at")
+    .select("fee_per_person, vat_rate, validity_days, services, profit_pct, cost_params, updated_at")
     .eq("id", true)
     .maybeSingle();
   return {
@@ -203,28 +200,6 @@ export async function loadOfferSettings(): Promise<OfferSettings> {
     services: (data?.services as string[] | null)?.length ? (data!.services as string[]) : ["Güvenlik", "Temizlik", "Teknik Personel", "Bahçıvan"],
     profit_pct: Number(data?.profit_pct ?? 5),
     cost_params: normalizeCostParams(data?.cost_params),
-    letterhead: data?.letterhead_path
-      ? { path: data.letterhead_path as string, name: (data.letterhead_name as string | null) ?? "antet", mime: data.letterhead_mime as string }
-      : null,
-    letterhead_top_mm: Number(data?.letterhead_top_mm ?? 45),
-    letterhead_bottom_mm: Number(data?.letterhead_bottom_mm ?? 25),
     updated_at: (data?.updated_at as string | null) ?? null,
-  };
-}
-
-/**
- * Teklif PDF'i için antet dosyası (yoksa null). Çağıran yetkiyi denetlemiş olmalı: dosya yönetici istemciyle indirilir.
- * İndirme başarısız olursa PDF antetsiz (OPSUYON başlığıyla) çıkar.
- */
-export async function loadOfferLetterhead(s?: OfferSettings): Promise<OfferLetterhead | null> {
-  const settings = s ?? (await loadOfferSettings());
-  if (!settings.letterhead) return null;
-  const { data } = await createAdminClient().storage.from("documents").download(settings.letterhead.path);
-  if (!data) return null;
-  return {
-    bytes: new Uint8Array(await data.arrayBuffer()),
-    mime: settings.letterhead.mime,
-    topMm: settings.letterhead_top_mm,
-    bottomMm: settings.letterhead_bottom_mm,
   };
 }

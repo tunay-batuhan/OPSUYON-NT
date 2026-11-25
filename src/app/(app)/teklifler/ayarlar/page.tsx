@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Card, CardHeader } from "@/components/ui";
 import { OfferSettingsForm } from "@/components/offers/offer-settings-form";
-import { LetterheadCard } from "@/components/offers/letterhead-card";
 import { hasPermission, requireStaff } from "@/lib/auth";
 import { formatNumber } from "@/lib/format";
 import { COST_PARAM_FLAGS } from "@/lib/offer-calc";
@@ -34,15 +33,6 @@ export default async function OfferSettingsPage() {
             fund_leave: s.cost_params.leave > 0,
             fund_holiday: s.cost_params.holiday > 0,
           }}
-        />
-      </Card>
-      <Card>
-        <CardHeader title="Antetli kağıt" description="Teklif PDF'lerinin zemini: üstte antetiniz, altında teklif detayları. Kayıtlı teklifler de yeni antetle açılır." />
-        <LetterheadCard
-          letterhead={s.letterhead ? { name: s.letterhead.name, mime: s.letterhead.mime } : null}
-          top={s.letterhead_top_mm}
-          bottom={s.letterhead_bottom_mm}
-          version={s.updated_at ?? ""}
         />
       </Card>
     </div>
