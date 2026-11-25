@@ -100,7 +100,7 @@ export function OfferResult({
             <thead>
               <tr className={navy}>
                 <th scope="col" className="px-3 py-2.5 text-left font-semibold">Aylık maliyet karşılaştırması</th>
-                <th scope="col" className="px-3 py-2.5 text-right font-semibold">Bugün</th>
+                <th scope="col" className="px-3 py-2.5 text-right font-semibold">Hizmet satın alma</th>
                 <th scope="col" className="px-3 py-2.5 text-right font-semibold">OPSUYON ile</th>
               </tr>
             </thead>
@@ -136,6 +136,12 @@ export function OfferResult({
                 <td className="px-3 py-2.5">Aylık toplam</td>
                 <td className="px-3 py-2.5 text-right">{formatMoney(calc.current_total)}</td>
                 <td className="px-3 py-2.5 text-right">{formatMoney(calc.opsuyon_total)}</td>
+              </tr>
+              <tr className={cn("font-bold text-white", loss ? "bg-danger" : "bg-[var(--tone-amber)]")}>
+                <td className="px-3 py-2.5" colSpan={2}>
+                  Aylık net kâr <span className="text-xs font-normal text-white/85">(hizmet satın alma − OPSUYON ile)</span>
+                </td>
+                <td className="px-3 py-2.5 text-right text-base">{formatMoney(calc.monthly_profit)}</td>
               </tr>
             </tbody>
           </table>

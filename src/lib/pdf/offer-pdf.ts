@@ -4,6 +4,7 @@ import { ROBOTO_MEDIUM_B64, ROBOTO_REGULAR_B64 } from "@/lib/pdf/roboto";
 import { LOGO_PNG_B64, LOGO_RATIO } from "@/lib/pdf/logo";
 import { BRAND_TAGLINE } from "@/lib/brand";
 import { formatDate, formatMoney, formatNumber } from "@/lib/format";
+import { addressFilled, addressLine } from "@/lib/site";
 import { DEFAULT_COST_PARAMS, OFFER_STATUS, calcOffer, costTerms, formatRate, r2, type CostParams, type OfferLineInput, type OfferStatus } from "@/lib/offer-calc";
 
 // Cari ekstre ve devriye raporuyla aynı görünüm: lacivert başlık bandı, künye, tablo, alt bilgi.
@@ -84,6 +85,8 @@ export type OfferPdfData = {
   valid_until: string | null;
   created_at: string;
   creator: string | null;
+  /** hazırlayanın telefonu (profilinde yazılıysa imza alanında adının altına basılır) */
+  creator_phone?: string | null;
   lines: OfferLineInput[];
 };
 
@@ -106,9 +109,9 @@ function roundRect(
  * Maliyet karşılaştırmalı, sırasıyla: "OPSUYON'dan hizmet alırsanız" aylık / yıllık net kâr kartları; OPSUYON FİYAT
  * TEKLİFİ (seçilen personel × kişi başı OPSUYON bedeli, KDV, genel toplam); MALİYET ANALİZ TABLOSU ("Bu hizmeti dışarıdan
  * satın alırsanız": maliyet kalemi girilmeyen hizmet varsa dışarıdan alınan bedeller tablosu, girilenler için Excel'deki
- * dökümün tamamı ve şartlar). 1. sayfanın altında sabit imza alanı. Son sayfa "OPSUYON ile kazancınız": "Hizmet satın
+ * dökümün tamamı ve şartlar). 1. sayfanın altında sabit imza alanı. Son sayfa "OPSUYON ile kazan": "Hizmet satın
  * alma / OPSUYON ile" karşılaştırması ve operasyonel avantajlar.
- * Yalnızca teklifte de son sayfa "OPSUYON ile kazancınız" (yalnızca operasyonel avantajlar). Tablolar sayfa arasında
+ * Yalnızca teklifte de son sayfa "OPSUYON ile kazan" (yalnızca operasyonel avantajlar). Tablolar sayfa arasında
  * bölünmez. Tutarlar ekrandaki hesapla aynı fonksiyondan.
  */
 export async function buildOfferPdf(o: OfferPdfData): Promise<Uint8Array> {
@@ -133,12 +136,14 @@ export async function buildOfferPdf(o: OfferPdfData): Promise<Uint8Array> {
   const paintBackground = (p: PDFPage) => {
     p.drawRectangle({ x: 0, y: H - 7, width: W, height: 7, color: NAVY });
     p.drawRectangle({ x: 0, y: H - 9.5, width: W, height: 2.5, color: ORANGE });
-    const lw = 128;
-    p.drawImage(logo, { x: M, y: H - 34 - lw * LOGO_RATIO, width: lw, height: lw * LOGO_RATIO });
+    // sol: logo, altında slogan · sağ: site adresi, altında ofis adresi
+    const lw = 124;
+    p.drawImage(logo, { x: M, y: H - 23 - lw * LOGO_RATIO, width: lw, height: lw * LOGO_RATIO });
+    p.drawText(BRAND_TAGLINE, { x: M + 1, y: H - 69, size: 8, font: regular, color: MUTED });
     const site = "opsuyon.com";
     p.drawText(site, { x: W - M - regular.widthOfTextAtSize(site, 9), y: H - 44, size: 9, font: regular, color: MUTED });
-    const tag = BRAND_TAGLINE;
-    p.drawText(tag, { x: W - M - regular.widthOfTextAtSize(tag, 8), y: H - 56, size: 8, font: regular, color: MUTED });
+    const addr = addressFilled() ? fit(addressLine(), TW - lw - 40, 8, regular) : "";
+    if (addr) p.drawText(addr, { x: W - M - regular.widthOfTextAtSize(addr, 8), y: H - 56, size: 8, font: regular, color: MUTED });
     p.drawLine({ start: { x: M, y: H - 80 }, end: { x: W - M, y: H - 80 }, thickness: 0.6, color: LINE });
     // alt şerit
     p.drawRectangle({ x: 0, y: 0, width: W, height: 4, color: NAVY });
@@ -152,7 +157,7 @@ export async function buildOfferPdf(o: OfferPdfData): Promise<Uint8Array> {
   const text = (s: string, x: number, yy: number, size = 9.5, font = regular, color: RGB = INK) => page.drawText(s, { x, y: yy, size, font, color });
   const right = (s: string, xr: number, yy: number, size = 9.5, font = regular, color: RGB = INK) => text(s, xr - font.widthOfTextAtSize(s, size), yy, size, font, color);
   /* ---- 1. sayfanın altı (alt bilginin hemen üstü), sabit: imza alanı ---- */
-  const sigH = 50; // imza çizgisinin başlıktan uzaklığı
+  const sigH = 108; // imza çizgisinin başlıktan uzaklığı (imza + kaşe rahat sığsın: yazı ile çizgi arası ~3 cm)
   const footH = sigH + 4;
   {
     const fy = bottom + footH; // alanın üstü
@@ -165,6 +170,7 @@ export async function buildOfferPdf(o: OfferPdfData): Promise<Uint8Array> {
     text("Saygılarımızla,", sx, fy - 10, 9, regular, MUTED);
     text("OPSUYON", sx, fy - 24, 11, bold, NAVY);
     if (o.creator) text(fit(o.creator, sigW, 9, regular), sx, fy - 37, 9, regular, INK);
+    if (o.creator && o.creator_phone) text(fit(o.creator_phone, sigW, 8.5, regular), sx, fy - 49, 8.5, regular, MUTED);
     page.drawLine({ start: { x: sx, y: fy - sigH }, end: { x: W - M, y: fy - sigH }, thickness: 0.6, color: MUTED, dashArray: [3, 2] });
   }
   /** İçeriğin inebileceği en alt y: 1. sayfada imza alanının üstü, sonraki sayfalarda alt bilginin üstü. */
@@ -367,7 +373,7 @@ export async function buildOfferPdf(o: OfferPdfData): Promise<Uint8Array> {
     // başlık, altındaki ilk tabloyla aynı sayfada (özet tablo ya da ilk döküm); sığmıyorsa birlikte yeni sayfaya
     const firstH = summary
       ? 26 + 22 + rowH * (shown.length + 3) + 2
-      : costLines.length ? 10 + dumpLayout(costLines.slice(0, PER_TABLE)).height : 0;
+      : costLines.length ? dumpLayout(costLines.slice(0, PER_TABLE)).height : 0;
     keepTogether(46 + firstH, 170);
     text("MALİYET ANALİZ TABLOSU", M, y - 14, 15, bold, NAVY);
     text("Bu hizmeti dışarıdan satın alırsanız", M, y - 29, 10.5, bold, ORANGE);
@@ -381,11 +387,7 @@ export async function buildOfferPdf(o: OfferPdfData): Promise<Uint8Array> {
     for (let t = 0; t < costLines.length; t += PER_TABLE) {
       const group = costLines.slice(t, t + PER_TABLE);
       const { lw, vw, names, headH, height } = dumpLayout(group);
-      keepTogether((t === 0 ? 10 : 0) + height, 130);
-      if (t === 0) {
-        text("Kişi başı aylık maliyet dökümü. Soluk satırlar çalışanın ücretinden kesilen tutarlardır; işveren maliyetine ayrıca eklenmez.", M, y, 7.6, regular, MUTED);
-        y -= 10;
-      }
+      keepTogether(height, 130);
       const lh = DUMP_LH;
       const fs = 7.5;
       const colHead = () => {
@@ -463,8 +465,8 @@ export async function buildOfferPdf(o: OfferPdfData): Promise<Uint8Array> {
       [`OPSUYON hizmet bedeli (${formatNumber(calc.total_people)} kişi × ${formatMoney(o.fee_per_person)})`, "—", formatMoney(calc.offer_net)],
       ...(calc.offer_vat > 0 ? [[`OPSUYON hizmet bedeli KDV (%${formatRate(calc.fee_vat)})`, "—", formatMoney(calc.offer_vat)] as [string, string, string]] : []),
     ];
-    // tablo son sayfada (OPSUYON ile kazancınız), operasyonel avantajların üstünde çizilir
-    comparison = { rows: cmpRows, current: formatMoney(calc.current_total), opsuyon: formatMoney(calc.opsuyon_total), loss };
+    // tablo son sayfada (OPSUYON ile kazan), operasyonel avantajların üstünde çizilir
+    comparison = { rows: cmpRows, current: formatMoney(calc.current_total), opsuyon: formatMoney(calc.opsuyon_total), net: formatMoney(calc.monthly_profit), loss };
   }
 
   /* ---- sayfa bilgisi (tanıtım sayfası hariç) ---- */
@@ -481,23 +483,28 @@ export async function buildOfferPdf(o: OfferPdfData): Promise<Uint8Array> {
   return doc.save();
 }
 
-/** Son sayfa, maddi kazanç kartları: [başlık, açıklama]. Metinler teklif hesabındaki iki kazanç kalemiyle aynı dili konuşur. */
-/** Son sayfa, operasyonel avantajlar: [başlık, açıklama, renk]. Özelliklerin ayrıntısı ayrı katalogdadır; burada FAYDA anlatılır. */
+/**
+ * Son sayfa, operasyonel avantajlar: [başlık, açıklama, renk]. "Biz yapalım, siz izleyin": OPSUYON'un üstlendiği işler
+ * ve müşterinin süreci nasıl izlediği. Kart sayısı serbesttir; advantagesPage düzeni ve yazı boyutunu buna göre ayarlar.
+ */
 const BENEFITS: [string, string, RGB][] = [
-  ["Tek ekrandan yönetim", "Personel, puantaj, izin, bordro ve evraklar tek panelde. Bilgi almak için kimseyi aramanız gerekmez.", rgb(0.122, 0.435, 0.898)],
-  ["Anlık denetim", "Devriye turları, verilen görevler ve ziyaretçi kayıtları anında ekranınızda; aksama olduğunda hemen görürsünüz.", rgb(0.05, 0.58, 0.53)],
-  ["Kâğıtsız, düzenli arşiv", "Defter, dosya ve dağınık tablolar biter. Her belge proje ve döneme göre saklanır, tek tıkla bulunur.", rgb(0.49, 0.23, 0.93)],
-  ["Denetime hazır kayıtlar", "Özlük evrakları, eğitimler ve yıllık izin hakları güncel tutulur; denetimde belge aramakla vakit kaybetmezsiniz.", rgb(0.07, 0.55, 0.3)],
-  ["Hızlı çözüm", "Sahadaki sorun fotoğrafıyla anında yöneticiye ulaşır; işler kanıtıyla kapanır, takipsiz kalmaz.", rgb(0.86, 0.2, 0.35)],
-  ["Her yerden erişim", "Bilgisayar, tablet ve telefondan çalışır; kurulum gerektirmez. Yönetim nerede olursa olsun sahayı görür.", rgb(0.71, 0.33, 0.04)],
+  ["Personel temini ve işbaşı eğitimi", "Personeli biz temin eder, işbaşı eğitimlerini biz veririz.", rgb(0.122, 0.435, 0.898)],
+  ["İşe giriş ve resmi evrak takibi", "Personelin işe giriş evraklarını ve resmi evrak süreçlerini sizin yerinize biz takip ederiz.", rgb(0.49, 0.23, 0.93)],
+  ["Çalışma planı ve puantaj", "Çalışma planlarını ve puantajları biz oluştururuz; siz ekranınızdan izlersiniz.", rgb(0.05, 0.58, 0.53)],
+  ["Gece-gündüz denetim, anlık rapor", "İşleyişi biz kontrol eder, gece ve gündüz denetimlerini biz yaparız; sonuçları size anlık olarak raporlarız.", rgb(0.86, 0.2, 0.35)],
+  ["Devriye sistemi", "Kontrol noktalarındaki QR etiketleri telefonla okutulur, turlar saat ve konumuyla kaydedilir; kayıtları ekranınızdan izler, PDF rapor alırsınız.", rgb(0.071, 0.239, 0.522)],
+  ["İzin, devamsızlık ve bordro", "Ay içindeki izin, işe gelmeme ve rapor durumlarını biz takip ederiz; ay sonunda bordroları hazırlayıp size iletiriz.", rgb(0.07, 0.55, 0.3)],
+  ["KDV cebinizde kalır", "Personel sizin bünyenizde olduğu için, hizmet satın alırken faturada ödediğiniz KDV tutarı ve hizmet bedeli cebinizde kalır.", rgb(0.961, 0.541, 0.122)],
+  ["OPSUYON ile her yerden takip", "Size özel kullanıcı adı ve parolayla web tabanlı OPSUYON yazılımından tüm süreci anlık izler, rapor çekersiniz; iş yerinize gelmeden, telefon ve tabletinizden de.", rgb(0.71, 0.33, 0.04)],
 ];
 
 /** Aylık maliyet karşılaştırması (hizmet satın alma / OPSUYON ile): satırlar [kalem, hizmet satın alma, OPSUYON ile]. */
-type OfferComparison = { rows: [string, string, string][]; current: string; opsuyon: string; loss: boolean };
+type OfferComparison = { rows: [string, string, string][]; current: string; opsuyon: string; net: string; loss: boolean };
 
 /**
- * Teklifin son sayfası: "OPSUYON ile kazancınız". Üstte lacivert bant; karşılaştırmalı teklifte AYLIK MALİYET
- * KARŞILAŞTIRMASI tablosu; OPERASYONEL AVANTAJLAR (6 madde) ve alt bant. Karşılaştırma varken kartlar sığması için kısalır.
+ * Teklifin son sayfası: "OPSUYON ile kazan". Üstte lacivert bant; karşılaştırmalı teklifte AYLIK MALİYET
+ * KARŞILAŞTIRMASI tablosu; OPERASYONEL AVANTAJLAR (BENEFITS kartları, 2 sütun) ve alt bant. Kartların yazı boyutu, sayfa
+ * tek parça kalacak ve hiçbir satır kesilmeyecek biçimde kalan yüksekliğe göre seçilir (karşılaştırma varken küçülür).
  */
 async function advantagesPage(doc: PDFDocument, regular: PDFFont, bold: PDFFont, comparison: OfferComparison | null) {
   const W = 595.28;
@@ -528,7 +535,7 @@ async function advantagesPage(doc: PDFDocument, regular: PDFFont, bold: PDFFont,
   page.drawImage(logo, { x: M + 11, y: H - 41 - lw * LOGO_RATIO, width: lw, height: lw * LOGO_RATIO });
   const site = "www.opsuyon.com";
   text(site, W - M - bold.widthOfTextAtSize(site, 10.5), H - 56, 10.5, bold, WHITE);
-  text("OPSUYON ile kazancınız", M, H - 118, 25, bold, WHITE);
+  text("OPSUYON ile kazan", M, H - 118, 25, bold, WHITE);
   text("Aynı personel, aynı hizmet; daha düşük maliyet ve sahada tam kontrol.", M, H - 140, 11, regular, LIGHT);
   let y = H - bandH - 4 - 20;
 
@@ -559,32 +566,66 @@ async function advantagesPage(doc: PDFDocument, regular: PDFFont, bold: PDFFont,
       right(ops, W - M - 10, y - 13, 9.5, regular, ops === "—" ? MUTED : INK);
       y -= rh;
     });
-    roundRect(page, M, y, TW, rh + 4, 8, { color: SOFT, borderColor: LINE, borderWidth: 0.6 }, "bottom");
+    page.drawRectangle({ x: M, y: y - rh - 4, width: TW, height: rh + 4, color: SOFT });
+    page.drawLine({ start: { x: M, y: y - rh - 4 }, end: { x: W - M, y: y - rh - 4 }, thickness: 0.5, color: LINE });
     text("Aylık toplam", M + 12, y - 15, 10.5, bold, NAVY);
     right(comparison.current, W - M - cw - 10, y - 15, 10.5, bold, INK);
-    right(comparison.opsuyon, W - M - 10, y - 15, 10.5, bold, comparison.loss ? BAD : rgb(0.07, 0.55, 0.3));
-    y -= rh + 4 + 20;
+    right(comparison.opsuyon, W - M - 10, y - 15, 10.5, bold, INK);
+    y -= rh + 4;
+    // net kâr = hizmet satın alma − OPSUYON ile
+    const nh = rh + 8;
+    roundRect(page, M, y, TW, nh, 8, { color: comparison.loss ? BAD : ORANGE }, "bottom");
+    text("Aylık net kâr", M + 12, y - 17, 11, bold, WHITE);
+    text("(hizmet satın alma − OPSUYON ile)", M + 12 + bold.widthOfTextAtSize("Aylık net kâr", 11) + 6, y - 17, 8.5, regular, WHITE);
+    right(comparison.net, W - M - 10, y - 17.5, 12.5, bold, WHITE);
+    y -= nh + 18;
   }
 
   const gap = 14;
 
-  /* operasyonel avantajlar: 2 sütun × 3 satır */
+  /* operasyonel avantajlar: 2 sütun; satır sayısı kart sayısından çıkar, tek kalan son kart tam genişlikte çizilir */
   section("OPERASYONEL AVANTAJLAR");
   const bw = (TW - gap) / 2;
-  // karşılaştırma varken kartlar kısalır (sayfa tek parça kalsın)
-  const c = comparison ? { bh: 76, rg: 10, ts: 11.5, ty: 22, ds: 8.8, dy: 38, dl: 11.6, n: 3 } : { bh: 118, rg: 14, ts: 13, ty: 28, ds: 9.6, dy: 48, dl: 13, n: 5 };
-  BENEFITS.forEach(([title, desc, color], i) => {
+  const count = BENEFITS.length;
+  const rowsN = Math.ceil(count / 2);
+  const cardW = (i: number) => (i % 2 === 0 && i === count - 1 ? TW : bw);
+  const padL = 20; // renkli şeritten sonra yazının başladığı yer
+  const padR = 14;
+  const footH = 52; // alt bant
+  const footGap = comparison ? 14 : 26;
+  // kartlara kalan yükseklik: alt bant, en alttaki marka satırının (y = 30) üstünde kalmalı
+  const avail = y - 54 - footH - footGap;
+  // yazı boyutuna (ds) göre kart ölçüleri; kart yüksekliği en uzun açıklamaya göre, tüm kartlarda aynı
+  const measure = (ds: number) => {
+    const ts = ds * 1.3;
+    const ty = ds * 0.9 + ts; // başlık satırı
+    const dy = ty + ds * 1.7; // açıklamanın ilk satırı
+    const dl = ds * 1.3;
+    const rg = ds;
+    const wrapped = BENEFITS.map(([, desc], i) => lines(desc, cardW(i) - padL - padR, ds, regular));
+    const bh = dy + (Math.max(...wrapped.map((w) => w.length)) - 1) * dl + ds * 1.15;
+    const titlesFit = BENEFITS.every(([title], i) => bold.widthOfTextAtSize(title, ts) <= cardW(i) - padL - padR);
+    return { ds, ts, ty, dy, dl, rg, bh, wrapped, total: rowsN * bh + (rowsN - 1) * rg, titlesFit };
+  };
+  // sığan en büyük yazı boyutu (hiçbir satır kesilmez); hiçbiri sığmazsa en küçüğü
+  const sizes = Array.from({ length: 17 }, (_, k) => ((comparison ? 92 : 102) - k * 2) / 10);
+  const c = sizes.map(measure).find((m) => m.titlesFit && m.total <= avail) ?? measure(sizes[sizes.length - 1]);
+  // artan yükseklik kartlara ferahlık olarak dağıtılır (yazı kartın içinde aynı oranda aşağı kayar)
+  const air = Math.max(0, Math.min((avail - c.total) / rowsN, c.ds * 1.2));
+  const bh = c.bh + air;
+  BENEFITS.forEach(([title, , color], i) => {
     const x = M + (i % 2) * (bw + gap);
-    if (i % 2 === 0 && i > 0) y -= c.bh + c.rg;
-    roundRect(page, x, y, bw, c.bh, 10, { color: WHITE, borderColor: LINE, borderWidth: 0.8 });
-    roundRect(page, x, y, 5, c.bh, 2, { color });
-    text(title, x + 20, y - c.ty, c.ts, bold, NAVY);
-    lines(desc, bw - 38, c.ds, regular).slice(0, c.n).forEach((l, li) => text(l, x + 20, y - c.dy - li * c.dl, c.ds, regular, INK));
+    const w = cardW(i);
+    if (i % 2 === 0 && i > 0) y -= bh + c.rg;
+    roundRect(page, x, y, w, bh, 10, { color: WHITE, borderColor: LINE, borderWidth: 0.8 });
+    roundRect(page, x, y, 5, bh, 2, { color });
+    text(fit(title, w - padL - padR, c.ts, bold), x + padL, y - c.ty - air / 2, c.ts, bold, NAVY);
+    c.wrapped[i].forEach((l, li) => text(l, x + padL, y - c.dy - air / 2 - li * c.dl, c.ds, regular, INK));
   });
-  y -= c.bh + (comparison ? 18 : 28);
+  y -= bh + footGap;
 
   /* alt bant */
-  roundRect(page, M, y, TW, 52, 10, { color: NAVY });
+  roundRect(page, M, y, TW, footH, 10, { color: NAVY });
   text("Daha Güvenli, Daha Düzenli, Daha Verimli…", M + 18, y - 23, 13.5, bold, WHITE);
   text("Sistemin tüm özellikleri için kataloğumuzu isteyin · www.opsuyon.com", M + 18, y - 40, 9.5, regular, LIGHT);
   const tag = BRAND_TAGLINE;

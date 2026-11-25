@@ -233,7 +233,6 @@ export function costTerms(p: CostParams): string[] {
       : fund(p.severance, "Kıdem tazminatı fonu"),
     fund(p.holiday, "Resmi tatil mesaisi fonu"),
     fund(p.leave, "Yıllık izin fonu"),
-    "Malzeme ve ekipman fiyata dahil değildir.",
   ];
 }
 

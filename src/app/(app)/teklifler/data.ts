@@ -166,7 +166,13 @@ export async function loadCreatorOptions(): Promise<{ value: string; label: stri
   return [...names].map(([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label, "tr"));
 }
 
-export async function loadOffer(id: string): Promise<{ offer: OfferDetail; lines: OfferLine[]; creator: string | null } | null> {
+/** Teklifi hazırlayanın adı ve telefonu (PDF'teki imza alanı için; profilinde telefon yoksa null). */
+async function loadCreatorContact(id: string): Promise<{ name: string | null; phone: string | null }> {
+  const { data } = await createAdminClient().from("profiles").select("full_name, phone").eq("id", id).maybeSingle();
+  return { name: (data?.full_name as string | null) ?? null, phone: ((data?.phone as string | null) ?? "").trim() || null };
+}
+
+export async function loadOffer(id: string): Promise<{ offer: OfferDetail; lines: OfferLine[]; creator: string | null; creatorPhone: string | null } | null> {
   if (!UUID.test(id)) return null;
   const supabase = await createClient();
   const [{ data: o }, { data: l }] = await Promise.all([
@@ -182,8 +188,8 @@ export async function loadOffer(id: string): Promise<{ offer: OfferDetail; lines
     const people = Number(x.people), monthly_total = Number(x.monthly_total);
     return { ...x, people, monthly_total, unit_price: x.unit_price === null || x.unit_price === undefined ? (people > 0 ? monthly_total / people : 0) : Number(x.unit_price), cost: (x.cost as CostInput | null) ?? null };
   });
-  const creator = offer.created_by ? ((await loadCreatorNames([offer.created_by])).get(offer.created_by) ?? null) : null;
-  return { offer, lines, creator };
+  const contact = offer.created_by ? await loadCreatorContact(offer.created_by) : { name: null, phone: null };
+  return { offer, lines, creator: contact.name, creatorPhone: contact.phone };
 }
 
 export async function loadOfferSettings(): Promise<OfferSettings> {

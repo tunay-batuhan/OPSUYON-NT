@@ -14,7 +14,7 @@ export async function GET(req: NextRequest, ctx: RouteContext<"/api/teklifler/[i
   const { id } = await ctx.params;
   const data = await loadOffer(id);
   if (!data) return new NextResponse("Not found", { status: 404 });
-  const { offer: o, lines, creator } = data;
+  const { offer: o, lines, creator, creatorPhone } = data;
 
   const pdf = await buildOfferPdf({
     offer_no: o.offer_no,
@@ -32,6 +32,7 @@ export async function GET(req: NextRequest, ctx: RouteContext<"/api/teklifler/[i
     valid_until: o.valid_until,
     created_at: o.created_at,
     creator,
+    creator_phone: creatorPhone,
     lines,
   });
   const fileName = `teklif-${o.offer_no}-${slugify(o.customer_name).slice(0, 40) || "musteri"}.pdf`;
