@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useFieldArray, useFormContext, useWatch, type FieldArrayWithId, type FieldErrors } from "react-hook-form";
-import { ArrowLeft, ArrowRight, Loader2, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Loader2, Plus, SlidersHorizontal, Trash2 } from "lucide-react";
 import { saveOffer } from "@/app/actions/offers";
-import { COST_INPUT_LABELS, calcCost, calcOffer, formatRate, type CostParams, type OfferCalc } from "@/lib/offer-calc";
+import { COST_INPUT_LABELS, COST_PARAM_LABELS, COST_RATE_KEYS, calcCost, calcOffer, formatRate, type CostParams, type OfferCalc } from "@/lib/offer-calc";
 import {
-  COST_FIELDS, EMPTY_LINE, STEP1_FIELDS, hasCost, lineCost, offerLines, offerNumbers, offerSchema, withFunds, type OfferValues,
+  COST_FIELDS, EMPTY_LINE, STEP1_FIELDS, hasCost, lineCost, offerLines, offerNumbers, offerParams, offerSchema, paramsToForm, type OfferValues,
 } from "@/lib/schemas-offers";
 import { formatMoney } from "@/lib/format";
 import { CheckboxField, Form, FormGrid, TextField, TextareaField, control } from "@/components/forms/form";
@@ -21,15 +21,15 @@ const card = "rounded-2xl border border-border bg-surface p-5 shadow-card";
 
 type Rows = FieldArrayWithId<OfferValues, "lines", "id">[];
 
-/** Formdaki güncel değerlerle canlı hesap (her tuşta): satırlar, oranlar ve "fiyata dahil fonlar" işaretleri. */
-function useLive(base: CostParams) {
+/** Formdaki güncel değerlerle canlı hesap (her tuşta): satırlar, teklife özel oranlar ve "fiyata dahil fonlar" işaretleri. */
+function useLive() {
   const { control: ctl } = useFormContext<OfferValues>();
-  const [lines, vat_rate, fee_per_person, profit_pct, compare, fs, fl, fh] = useWatch({
+  const [lines, vat_rate, fee_per_person, profit_pct, compare, fs, fl, fh, rates] = useWatch({
     control: ctl,
-    name: ["lines", "vat_rate", "fee_per_person", "profit_pct", "compare", "fund_severance", "fund_leave", "fund_holiday"],
+    name: ["lines", "vat_rate", "fee_per_person", "profit_pct", "compare", "fund_severance", "fund_leave", "fund_holiday", "params"],
   });
   const n = offerNumbers({ vat_rate: vat_rate ?? "", fee_per_person: fee_per_person ?? "", profit_pct: profit_pct ?? "" });
-  const params = withFunds(base, { fund_severance: Boolean(fs), fund_leave: Boolean(fl), fund_holiday: Boolean(fh) });
+  const params = offerParams({ params: rates ?? {}, fund_severance: Boolean(fs), fund_leave: Boolean(fl), fund_holiday: Boolean(fh) });
   const on = Boolean(compare);
   const rows = lines ?? [];
   const calc: OfferCalc = calcOffer(offerLines(rows, on), n.vat, n.fee, n.pct, params);
@@ -40,9 +40,9 @@ function useLive(base: CostParams) {
  * 1. adım: müşterinin bugün satın aldığı hizmetler. Hizmet, kişi sayısı, KİŞİ BAŞI BEDEL (yazılır) → aylık bedel.
  * 2. adımda brüt maaşı girilen hizmetin bedeli maliyet tablosundan hesaplanır; burada salt okunur görünür.
  */
-function ServiceRows({ fields, append, remove, base }: { fields: Rows; append: () => void; remove: (i: number) => void; base: CostParams }) {
+function ServiceRows({ fields, append, remove }: { fields: Rows; append: () => void; remove: (i: number) => void }) {
   const { register, formState } = useFormContext<OfferValues>();
-  const { lines, compare, calc } = useLive(base);
+  const { lines, compare, calc } = useLive();
   const errs = formState.errors.lines;
   const rootError = (errs as { root?: { message?: string }; message?: string } | undefined)?.root?.message ?? (errs as { message?: string } | undefined)?.message;
 
@@ -65,12 +65,12 @@ function ServiceRows({ fields, append, remove, base }: { fields: Rows; append: (
             <div key={f.id} className={cn("grid grid-cols-2 gap-3 rounded-xl border border-border bg-surface-2/40 p-3 md:items-start md:border-0 md:bg-transparent md:p-0", GRID)}>
               <label className="col-span-2 md:col-span-1">
                 <span className="mb-1 block text-xs font-medium text-muted md:sr-only">Hizmet</span>
-                <input {...register(`lines.${i}.service`)} aria-invalid={e?.service ? true : undefined} placeholder="Örn. Güvenlik" className={big} />
+                <input {...register(`lines.${i}.service`)} autoComplete="off" aria-invalid={e?.service ? true : undefined} placeholder="Örn. Güvenlik" className={big} />
                 {e?.service && <span role="alert" className="mt-1 block text-xs text-danger">{e.service.message}</span>}
               </label>
               <label>
                 <span className="mb-1 block text-xs font-medium text-muted md:sr-only">Kişi sayısı</span>
-                <input {...register(`lines.${i}.people`)} inputMode="numeric" placeholder="0" aria-invalid={e?.people ? true : undefined} className={cn(big, "text-center")} />
+                <input {...register(`lines.${i}.people`)} autoComplete="off" inputMode="numeric" placeholder="0" aria-invalid={e?.people ? true : undefined} className={cn(big, "text-center")} />
                 {e?.people && <span role="alert" className="mt-1 block text-xs text-danger">{e.people.message}</span>}
               </label>
               {fromCost ? (
@@ -85,7 +85,7 @@ function ServiceRows({ fields, append, remove, base }: { fields: Rows; append: (
                 <label>
                   <span className="mb-1 block text-xs font-medium text-muted md:sr-only">Kişi başı bedel (KDV hariç)</span>
                   <span className="relative block">
-                    <input {...register(`lines.${i}.unit_price`)} inputMode="decimal" placeholder="0" aria-invalid={e?.unit_price ? true : undefined} className={cn(big, "pr-8 text-right")} />
+                    <input {...register(`lines.${i}.unit_price`)} autoComplete="off" inputMode="decimal" placeholder="0" aria-invalid={e?.unit_price ? true : undefined} className={cn(big, "pr-8 text-right")} />
                     <span className="pointer-events-none absolute inset-y-0 right-3 grid place-items-center text-muted">₺</span>
                   </span>
                   {e?.unit_price && <span role="alert" className="mt-1 block text-xs text-danger">{e.unit_price.message}</span>}
@@ -123,9 +123,9 @@ function ServiceRows({ fields, append, remove, base }: { fields: Rows; append: (
  * 2. adım: her hizmetin maliyet kalemleri (kişi başı, aylık). Brüt maaş yazılan hizmetin kişi başı bedeli maliyet
  * tablosundan hesaplanır ve tablonun tamamı (Excel'deki "MALİYET ANALİZ TABLOSU") altında gösterilir.
  */
-function CostCards({ fields, base }: { fields: Rows; base: CostParams }) {
+function CostCards({ fields }: { fields: Rows }) {
   const { register, formState } = useFormContext<OfferValues>();
-  const { lines, params, pct, calc } = useLive(base);
+  const { lines, params, pct, calc } = useLive();
   const errs = formState.errors.lines;
   const shown = fields.map((f, i) => ({ f, i })).filter(({ i }) => (lines[i]?.service ?? "").trim() !== "" && Number(lines[i]?.people || 0) > 0);
 
@@ -156,6 +156,7 @@ function CostCards({ fields, base }: { fields: Rows; base: CostParams }) {
                     <span className="relative block">
                       <input
                         {...register(`lines.${i}.${k}`)}
+                        autoComplete="off"
                         inputMode="decimal"
                         placeholder="0"
                         aria-label={`${line.service}: ${COST_INPUT_LABELS[k]}`}
@@ -193,6 +194,83 @@ function CostCards({ fields, base }: { fields: Rows; base: CostParams }) {
   );
 }
 
+/**
+ * "Oranlar" penceresi: bu teklifin maliyet oranları (OPSUYON KDV'si, kıdem fon oranı, SGK / vergi / asgari ücret / mesai).
+ * Varsayılanı Ayarlar'dan gelir; burada değiştirilen yalnızca bu teklife kaydedilir. Pencere formun içindedir
+ * (alanlar formla birlikte gönderilir); kaydetmede oranlarda hata varsa kendiliğinden açılır.
+ */
+function RatesDialog({ settings }: { settings: CostParams }) {
+  const ref = useRef<HTMLDialogElement>(null);
+  const { control: ctl, setValue, formState } = useFormContext<OfferValues>();
+  const rates = (useWatch({ control: ctl, name: "params" }) ?? {}) as Record<string, string>;
+  const base = paramsToForm(settings);
+  const changed = Object.keys(base).filter((k) => (rates[k] ?? "") !== base[k]).length;
+  const hasError = Boolean(formState.errors.params);
+
+  useEffect(() => {
+    if (formState.submitCount > 0 && formState.errors.params && !ref.current?.open) ref.current?.showModal();
+  }, [formState.submitCount, formState.errors.params]);
+
+  const field = (k: keyof CostParams, suffix?: string) => (
+    <TextField key={k} name={`params.${k}`} label={COST_PARAM_LABELS[k]} required inputMode="decimal" suffix={suffix} />
+  );
+
+  return (
+    <>
+      <button type="button" onClick={() => ref.current?.showModal()} className={btn("secondary", "sm", cn(hasError && "border-danger text-danger"))}>
+        <SlidersHorizontal className="size-4" aria-hidden /> Oranlar
+        {hasError ? (
+          <span className="rounded-full bg-danger-soft px-2 py-0.5 text-xs font-semibold text-danger">hata</span>
+        ) : changed > 0 ? (
+          <span className="rounded-full bg-brand-soft px-2 py-0.5 text-xs font-semibold text-brand">{changed} değişti</span>
+        ) : null}
+      </button>
+      <dialog
+        ref={ref}
+        aria-labelledby="rates-title"
+        // dışına tıklayınca kapanır; içindeki Enter formu (teklifi) göndermesin
+        onClick={(e) => e.target === ref.current && ref.current.close()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && (e.target as HTMLElement).tagName === "INPUT") e.preventDefault();
+        }}
+        className="m-auto max-h-[88vh] w-[min(56rem,calc(100vw-2rem))] overflow-hidden rounded-2xl bg-surface p-0 text-fg shadow-[0_24px_64px_rgb(12_31_69/0.28)] ring-1 ring-border backdrop:bg-slate-950/45 backdrop:backdrop-blur-[2px]"
+      >
+        <div className="flex max-h-[88vh] flex-col">
+          <div className="border-b border-border px-5 py-4">
+            <h2 id="rates-title" className="text-lg font-semibold">Bu teklifin oranları</h2>
+            <p className="mt-1 text-sm text-muted">
+              Varsayılanlar Teklifler → Ayarlar&apos;dan gelir. Burada değiştirdikleriniz yalnızca bu teklife uygulanır ve teklifle kaydedilir; Ayarlar değişmez.
+            </p>
+          </div>
+          <div className="space-y-5 overflow-y-auto px-5 py-4">
+            <FormGrid cols={3}>
+              {field("fee_vat", "%")}
+              {field("severance_pct", "%")}
+            </FormGrid>
+            <fieldset>
+              <legend className="mb-2 text-sm font-semibold">Maliyet tablosu oranları</legend>
+              <FormGrid cols={3}>{COST_RATE_KEYS.map((k) => field(k))}</FormGrid>
+            </fieldset>
+          </div>
+          <div className="flex flex-col-reverse gap-2 border-t border-border px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <button
+              type="button"
+              disabled={changed === 0}
+              onClick={() => setValue("params", base, { shouldDirty: true, shouldValidate: true })}
+              className={btn("ghost", "md")}
+            >
+              Ayarlardaki varsayılanlara dön
+            </button>
+            <button type="button" onClick={() => ref.current?.close()} className={btn("primary", "md", "sm:min-w-28")}>
+              Tamam
+            </button>
+          </div>
+        </div>
+      </dialog>
+    </>
+  );
+}
+
 /** Hata hangi adımın alanlarında? (kaydetmeye basınca form o adıma döner) */
 function stepOfErrors(errors: FieldErrors<OfferValues>): 1 | 2 | null {
   const keys = Object.keys(errors);
@@ -207,10 +285,10 @@ function stepOfErrors(errors: FieldErrors<OfferValues>): 1 | 2 | null {
   return 2;
 }
 
-function Steps({ base, editing }: { base: CostParams; editing: boolean }) {
+function Steps({ settings, editing }: { settings: CostParams; editing: boolean }) {
   const { control: ctl, setValue, formState } = useFormContext<OfferValues>();
   const { fields, append, remove } = useFieldArray({ control: ctl, name: "lines" });
-  const { compare, calc, vat, fee, pct } = useLive(base);
+  const { compare, calc, vat, fee, pct, params } = useLive();
   const [step, setStep] = useState<1 | 2>(1);
   // kaydet denemesinde hata varsa hatanın olduğu adıma dön (render sırasında durum düzeltme: effect gerekmez)
   const [seen, setSeen] = useState(0);
@@ -270,7 +348,7 @@ function Steps({ base, editing }: { base: CostParams; editing: boolean }) {
             </FormGrid>
           </section>
           <section className={card}>
-            <ServiceRows fields={fields} append={() => append({ ...EMPTY_LINE })} remove={remove} base={base} />
+            <ServiceRows fields={fields} append={() => append({ ...EMPTY_LINE })} remove={remove} />
           </section>
         </div>
 
@@ -284,24 +362,27 @@ function Steps({ base, editing }: { base: CostParams; editing: boolean }) {
           </section>
           <div className={cn("space-y-6", !compare && "opacity-55")}>
             <section className={card}>
-              <h2 className="mb-4 text-base font-semibold">OPSUYON teklifi ve oranlar</h2>
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <h2 className="text-base font-semibold">OPSUYON teklifi ve oranlar</h2>
+                <RatesDialog settings={settings} />
+              </div>
               <FormGrid cols={3}>
-                <TextField name="fee_per_person" label="OPSUYON kişi başı tutar (aylık)" required large inputMode="decimal" suffix="₺" hint={`KDV hariç. Toplam teklif = toplam kişi × bu tutar + %${formatRate(base.fee_vat)} KDV`} />
+                <TextField name="fee_per_person" label="OPSUYON kişi başı tutar (aylık)" required large inputMode="decimal" suffix="₺" hint={`KDV hariç. Toplam teklif = toplam kişi × bu tutar + %${formatRate(params.fee_vat)} KDV`} />
                 <TextField name="profit_pct" label="Şirket kâr payı" required large inputMode="decimal" suffix="%" hint="Maliyetin üstüne eklenen kâr; maliyet kalemi girilmeyen hizmette bedelin içinden ayrılır" />
                 <TextField name="vat_rate" label="KDV oranı" required large inputMode="decimal" suffix="%" hint="Hizmet faturasındaki KDV" />
               </FormGrid>
               <fieldset className="mt-5">
                 <legend className="mb-2 text-sm font-medium">Fiyata dahil fonlar</legend>
                 <div className="grid gap-2 sm:grid-cols-3">
-                  <CheckboxField name="fund_severance" label={base.severance_pct < 100 ? `Kıdem tazminatı fonu (%${formatRate(base.severance_pct)})` : "Kıdem tazminatı fonu"} />
+                  <CheckboxField name="fund_severance" label={params.severance_pct < 100 ? `Kıdem tazminatı fonu (%${formatRate(params.severance_pct)})` : "Kıdem tazminatı fonu"} />
                   <CheckboxField name="fund_leave" label="Yıllık izin fonu" />
                   <CheckboxField name="fund_holiday" label="Resmi tatil mesaisi fonu" />
                 </div>
-                <p className="mt-2 text-xs text-muted">İşaretlenen fon kişi başı maliyete eklenir; işaretlenmeyen PDF&apos;teki şartlarda “fiyata dahil değildir” olarak yazılır. SGK ve vergi oranları Ayarlar&apos;dan değiştirilir.</p>
+                <p className="mt-2 text-xs text-muted">İşaretlenen fon kişi başı maliyete eklenir; işaretlenmeyen PDF&apos;teki şartlarda “fiyata dahil değildir” olarak yazılır. SGK, vergi ve fon oranları yukarıdaki <strong>Oranlar</strong> düğmesinden bu teklife özel değiştirilir.</p>
               </fieldset>
             </section>
             <section className={card}>
-              <CostCards fields={fields} base={base} />
+              <CostCards fields={fields} />
             </section>
           </div>
         </div>
@@ -332,12 +413,13 @@ function Steps({ base, editing }: { base: CostParams; editing: boolean }) {
  *  1. Teklif: müşteri ve bugün satın aldığı hizmetler (kişi sayısı, kişi başı bedel). Bu haliyle kaydedilip gönderilebilir.
  *  2. Maliyet karşılaştırma (isteğe bağlı): OPSUYON tutarı, KDV, şirket kâr payı, fonlar ve hizmet başına maliyet kalemleri.
  * Sonuç yazdıkça güncellenir; kaydedince teklifin sayfası açılır (tutarları sunucu aynı fonksiyonla yeniden hesaplar).
- * `params`: SGK / vergi oranları (yeni teklifte Ayarlar'dakiler, düzenlemede teklifle saklananlar).
+ * Teklifin oranları formun `params` alanındadır (yeni teklifte Ayarlar'dakiler, düzenlemede teklifle saklananlar);
+ * "Oranlar" penceresinde bu teklife özel değiştirilir. `settings`: Ayarlar'daki varsayılanlar ("varsayılanlara dön" için).
  */
-export function OfferForm({ defaults, params }: { defaults: OfferValues; params: CostParams }) {
+export function OfferForm({ defaults, settings }: { defaults: OfferValues; settings: CostParams }) {
   return (
-    <Form<OfferValues> schema={offerSchema} defaultValues={defaults} action={saveOffer} resetOnSuccess={false}>
-      <Steps base={params} editing={Boolean(defaults.id)} />
+    <Form<OfferValues> schema={offerSchema} defaultValues={defaults} action={saveOffer} resetOnSuccess={false} autoComplete="off">
+      <Steps settings={settings} editing={Boolean(defaults.id)} />
     </Form>
   );
 }

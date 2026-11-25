@@ -2,7 +2,14 @@
 import { z } from "zod";
 import { date, decimal, email, money, opt, phone } from "@/lib/schemas";
 import { toMoney, toNumber } from "@/lib/parse";
-import { DEFAULT_COST_PARAMS, type CostInput, type CostParams, type OfferLineInput } from "@/lib/offer-calc";
+import { COST_PARAM_FLAGS, DEFAULT_COST_PARAMS, normalizeCostParams, type CostInput, type CostParams, type OfferLineInput } from "@/lib/offer-calc";
+
+/** Yüzde oranları (kıdem fon oranı, OPSUYON KDV) %100'ü geçemez. */
+function percentLimits(params: Record<string, string>, ctx: z.RefinementCtx) {
+  for (const k of ["severance_pct", "fee_vat"]) {
+    if ((toNumber(params[k] ?? "") ?? 0) > 100) ctx.addIssue({ code: "custom", path: ["params", k], message: "En fazla %100 olabilir" });
+  }
+}
 
 /** numeric(14,2) üst sınırı */
 const MAX_AMOUNT = 999_999_999_999;
@@ -54,7 +61,10 @@ export const offerSchema = z
     profit_pct: decimal("Şirket kâr payı", { required: true, min: 0, max: 100 }),
     valid_until: date("Geçerlilik tarihi"),
     lines: z.array(offerLineSchema).min(1, "En az bir hizmet satırı girin").max(30, "En fazla 30 hizmet satırı"),
+    /** bu teklife özel maliyet oranları (varsayılanı Ayarlar'dan; "Oranlar" penceresinde değiştirilir) */
+    params: z.record(z.string(), decimal("Oran", { required: true, min: 0, max: 99_999_999 })),
   })
+  .superRefine((v, ctx) => percentLimits(v.params, ctx))
   .refine((v) => offerLines(v.lines, v.compare).some((l) => l.people > 0), { path: ["lines"], message: "En az bir hizmette kişi sayısı girin" })
   .refine((v) => offerLines(v.lines, v.compare).every((l) => l.people === 0 || l.cost || l.unit_price > 0), {
     path: ["lines"],
@@ -121,11 +131,7 @@ export const offerSettingsSchema = z.object({
     .max(2000, "Liste çok uzun")
     .refine((v) => serviceList(v).length > 0, "En az bir hizmet adı yazın")
     .refine((v) => serviceList(v).every((s) => s.length <= 80), "Her hizmet adı en fazla 80 karakter"),
-}).superRefine((v, ctx) => {
-  for (const k of ["severance_pct", "fee_vat"]) {
-    if ((toNumber(v.params[k] ?? "") ?? 0) > 100) ctx.addIssue({ code: "custom", path: ["params", k], message: "En fazla %100 olabilir" });
-  }
-});
+}).superRefine((v, ctx) => percentLimits(v.params, ctx));
 
 export type OfferSettingsValues = z.infer<typeof offerSettingsSchema>;
 
@@ -141,6 +147,18 @@ export function paramsFromForm(form: Record<string, string>, funds: Pick<OfferSe
   }
   return withFunds(out, funds);
 }
+
+/** Oranlar → form alanları ("19,75" gibi; açık/kapalı fonlar hariç: onlar ayrı kutucuk). */
+export function paramsToForm(p: CostParams): Record<string, string> {
+  const fmt = new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 4, useGrouping: false });
+  return Object.fromEntries(
+    (Object.keys(p) as (keyof CostParams)[]).filter((k) => !(COST_PARAM_FLAGS as readonly string[]).includes(k)).map((k) => [k, fmt.format(p[k])]),
+  );
+}
+
+/** Teklif formundaki oranlar + fon kutucukları → hesapta kullanılan oranlar (ekranda canlı hesap ve kayıtta aynı). */
+export const offerParams = (v: Pick<OfferValues, "params" | "fund_severance" | "fund_leave" | "fund_holiday">): CostParams =>
+  normalizeCostParams(paramsFromForm(v.params ?? {}, v));
 
 /** Her satıra bir hizmet adı; boş satırlar ve tekrarlar atılır. */
 export const serviceList = (text: string) => [...new Set(text.split(/\r?\n/).map((s) => s.trim()).filter(Boolean))].slice(0, 30);

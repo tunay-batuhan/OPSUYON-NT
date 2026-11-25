@@ -52,6 +52,11 @@ export const LEGACY_OFFER_PARAMS: Partial<CostParams> = { fee_vat: 0 };
 /** Açık / kapalı (0 / 1) oranlar: Ayarlar'da kutucuk olarak gösterilir. */
 export const COST_PARAM_FLAGS = ["severance", "leave", "holiday"] as const;
 
+/** "Maliyet tablosu oranları" (SGK, vergi, asgari ücret, mesai, fon günleri): fonların açık/kapalı'sı, kıdem fon oranı ve OPSUYON KDV'si hariç. */
+export const COST_RATE_KEYS = (Object.keys(DEFAULT_COST_PARAMS) as (keyof CostParams)[]).filter(
+  (k) => !(COST_PARAM_FLAGS as readonly string[]).includes(k) && k !== "severance_pct" && k !== "fee_vat",
+);
+
 export const COST_PARAM_LABELS: Record<keyof CostParams, string> = {
   sgk_employer: "SGK işveren payı (%)", sgk_employee: "SGK işçi payı (%)", unemp_employer: "İşsizlik fonu işveren (%)", unemp_employee: "İşsizlik fonu işçi (%)",
   income_tax: "Gelir vergisi (%)", stamp: "Damga vergisi (%)", min_gross: "Asgari ücret brüt (₺)", min_net: "Asgari ücret net (₺)",

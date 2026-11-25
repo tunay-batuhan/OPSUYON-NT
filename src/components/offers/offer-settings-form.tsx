@@ -1,13 +1,9 @@
 "use client";
 
 import { saveOfferSettings } from "@/app/actions/offers";
-import { COST_PARAM_FLAGS, COST_PARAM_LABELS, type CostParams } from "@/lib/offer-calc";
+import { COST_PARAM_LABELS, COST_RATE_KEYS } from "@/lib/offer-calc";
 import { offerSettingsSchema, type OfferSettingsValues } from "@/lib/schemas-offers";
 import { CheckboxField, Form, FormGrid, SubmitButton, TextField, TextareaField } from "@/components/forms/form";
-
-/** Ayrı yerde gösterilen oranlar (üstteki teklif alanları ve fon kutusu); geri kalanı "Maliyet tablosu oranları"nda. */
-const PLACED = new Set<string>([...COST_PARAM_FLAGS, "fee_vat", "severance_pct"]);
-const RATE_KEYS = (Object.keys(COST_PARAM_LABELS) as (keyof CostParams)[]).filter((k) => !PLACED.has(k));
 
 /** Yeni tekliflerin varsayılanları ve maliyet tablosu oranları (mevcut teklifler değişmez). */
 export function OfferSettingsForm({ defaults }: { defaults: OfferSettingsValues }) {
@@ -42,7 +38,7 @@ export function OfferSettingsForm({ defaults }: { defaults: OfferSettingsValues 
         <legend className="px-1 text-sm font-semibold">Maliyet tablosu oranları</legend>
         <p className="mb-3 text-xs text-muted">Maliyet karşılaştırma ekranındaki hesap bu oranları kullanır (asgari ücret, SGK, vergi oranları değişince buradan güncelleyin). Kayıtlı teklifler kendi oranlarını korur.</p>
         <FormGrid cols={3}>
-          {RATE_KEYS.map((k) => (
+          {COST_RATE_KEYS.map((k) => (
             <TextField key={k} name={`params.${k}`} label={COST_PARAM_LABELS[k]} required inputMode="decimal" />
           ))}
         </FormGrid>

@@ -11,5 +11,5 @@ export default async function NewOfferPage() {
   const user = await requireStaff();
   if (!hasPermission(user, "offers.manage")) redirect("/teklifler");
   const settings = await loadOfferSettings();
-  return <OfferForm defaults={newOfferDefaults(settings)} params={settings.cost_params} />;
+  return <OfferForm defaults={newOfferDefaults(settings)} settings={settings.cost_params} />;
 }

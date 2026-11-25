@@ -106,9 +106,10 @@ function roundRect(
  * Maliyet karşılaştırmalı, sırasıyla: "OPSUYON'dan hizmet alırsanız" aylık / yıllık net kâr kartları; OPSUYON FİYAT
  * TEKLİFİ (seçilen personel × kişi başı OPSUYON bedeli, KDV, genel toplam); MALİYET ANALİZ TABLOSU ("Bu hizmeti dışarıdan
  * satın alırsanız": maliyet kalemi girilmeyen hizmet varsa dışarıdan alınan bedeller tablosu, girilenler için Excel'deki
- * dökümün tamamı ve şartlar); "Hizmet satın alma / OPSUYON ile" karşılaştırması; açıklama ve imza.
- * Son sayfa her zaman "OPSUYON'un avantajları" sayfasıdır (maddi kazanç + operasyonel avantajlar; karşılaştırmalı teklifte
- * o teklifin kazanç tutarlarıyla). Tutarlar ekrandaki hesapla aynı fonksiyondan.
+ * dökümün tamamı ve şartlar). 1. sayfanın altında sabit imza alanı. Son sayfa "OPSUYON ile kazancınız": "Hizmet satın
+ * alma / OPSUYON ile" karşılaştırması ve operasyonel avantajlar.
+ * Yalnızca teklifte de son sayfa "OPSUYON ile kazancınız" (yalnızca operasyonel avantajlar). Tablolar sayfa arasında
+ * bölünmez. Tutarlar ekrandaki hesapla aynı fonksiyondan.
  */
 export async function buildOfferPdf(o: OfferPdfData): Promise<Uint8Array> {
   const W = 595.28;
@@ -150,15 +151,37 @@ export async function buildOfferPdf(o: OfferPdfData): Promise<Uint8Array> {
   let y = top;
   const text = (s: string, x: number, yy: number, size = 9.5, font = regular, color: RGB = INK) => page.drawText(s, { x, y: yy, size, font, color });
   const right = (s: string, xr: number, yy: number, size = 9.5, font = regular, color: RGB = INK) => text(s, xr - font.widthOfTextAtSize(s, size), yy, size, font, color);
+  /* ---- 1. sayfanın altı (alt bilginin hemen üstü), sabit: imza alanı ---- */
+  const sigH = 50; // imza çizgisinin başlıktan uzaklığı
+  const footH = sigH + 4;
+  {
+    const fy = bottom + footH; // alanın üstü
+    page.drawLine({ start: { x: M, y: fy + 8 }, end: { x: W - M, y: fy + 8 }, thickness: 0.5, color: LINE });
+    const sigW = (TW - 30) / 2;
+    text("Müşteri onayı", M, fy - 10, 9, bold, NAVY);
+    text("Ad soyad · imza · kaşe", M, fy - 22, 8, regular, MUTED);
+    page.drawLine({ start: { x: M, y: fy - sigH }, end: { x: M + sigW, y: fy - sigH }, thickness: 0.6, color: MUTED, dashArray: [3, 2] });
+    const sx = M + sigW + 30;
+    text("Saygılarımızla,", sx, fy - 10, 9, regular, MUTED);
+    text("OPSUYON", sx, fy - 24, 11, bold, NAVY);
+    if (o.creator) text(fit(o.creator, sigW, 9, regular), sx, fy - 37, 9, regular, INK);
+    page.drawLine({ start: { x: sx, y: fy - sigH }, end: { x: W - M, y: fy - sigH }, thickness: 0.6, color: MUTED, dashArray: [3, 2] });
+  }
+  /** İçeriğin inebileceği en alt y: 1. sayfada imza alanının üstü, sonraki sayfalarda alt bilginin üstü. */
+  let limit = bottom + footH + 18;
+
   const newPage = () => {
     page = doc.addPage([W, H]);
     paintBackground(page);
     y = top;
+    limit = bottom;
   };
   /** h kadar yer yoksa yeni sayfa. */
   const ensure = (h: number) => {
-    if (y - h < bottom) newPage();
+    if (y - h < limit) newPage();
   };
+  /** Bir bütün (tablo) bu sayfaya sığmıyorsa yeni sayfada başlasın; tek sayfadan uzunsa ancak o zaman bölünür. */
+  const keepTogether = (h: number, min = 80) => ensure(h <= top - bottom ? h : min);
 
   /* ---- başlık + künye ---- */
   text("HİZMET TEKLİFİ", M, y - 20, 21, bold, NAVY);
@@ -251,13 +274,13 @@ export async function buildOfferPdf(o: OfferPdfData): Promise<Uint8Array> {
       labels.forEach((l, i) => cell(l, i, y - 14.5, bold, WHITE, 8.5));
       y -= 22;
     };
-    ensure(26 + 22 + rowH * 3);
+    keepTogether(26 + 22 + rowH * (rows.length + totals.length) + 2, 26 + 22 + rowH * 3);
     roundRect(page, M, y, TW, 26, 8, { color: ORANGE }, "top");
     text(title, M + (TW - bold.widthOfTextAtSize(title, 13)) / 2, y - 17.5, 13, bold, WHITE);
     y -= 26;
     tableHead();
     rows.forEach((l, i) => {
-      if (y - rowH < bottom) {
+      if (y - rowH < limit) {
         newPage();
         tableHead();
       }
@@ -289,9 +312,30 @@ export async function buildOfferPdf(o: OfferPdfData): Promise<Uint8Array> {
       ["GENEL TOPLAM", calc.current_total],
     ]);
 
+  /** Not: ilk tablonun hemen altından başlar (teklife yazılan not; yalnızca teklifte tutarların aylık ve KDV hariç olduğu). */
+  const drawNotes = () => {
+    const notes = [
+      ...(cmp ? [] : ["Tutarlar aylıktır; kişi başı bedeller KDV hariçtir."]),
+      ...(o.notes ? [`Not: ${o.notes}`] : []),
+    ];
+    if (!notes.length) return;
+    y += tight ? 4 : 6; // tablonun alt boşluğundan biraz geri: not tabloya yakın dursun
+    for (const n of notes) {
+      for (const line of wrap(n, TW, 8.5, regular)) {
+        ensure(12);
+        text(line, M, y - 8.5, 8.5, regular, MUTED);
+        y -= 11.5;
+      }
+      y -= 3;
+    }
+    y -= 12;
+  };
+
+  let comparison: OfferComparison | null = null;
   if (!cmp) {
     /* ---- yalnızca teklif: teklif edilen hizmetler ---- */
     outsideTable("TEKLİF EDİLEN HİZMETLER");
+    drawNotes();
   } else {
     /* ---- 1) OPSUYON fiyat teklifi: seçilen personel × kişi başı OPSUYON bedeli ---- */
     priceTable(
@@ -305,34 +349,45 @@ export async function buildOfferPdf(o: OfferPdfData): Promise<Uint8Array> {
         ["GENEL TOPLAM", calc.offer_total],
       ],
     );
+    drawNotes();
 
     /* ---- 2) maliyet analiz tablosu: bu hizmeti dışarıdan satın alırsanız ---- */
     const costLines = calc.lines.filter((l) => l.cost && l.service);
-    ensure(shown.every((l) => l.cost) ? 170 : 38 + 26 + 22 + rowH * (shown.length + 3));
+    const PER_TABLE = 4; // Excel'deki gibi tabloda en çok 4 görevli sütunu
+    const DUMP_LH = 10.4;
+    /** Döküm tablosunun ölçüleri (görevli adı sütuna sığmıyorsa iki satıra bölünür, kesilmez). */
+    const dumpLayout = (group: typeof costLines) => {
+      const lw = group.length >= 3 ? 205 : 250; // kalem sütunu
+      const vw = (TW - lw) / group.length;
+      const names = group.map((l) => wrap(l.service, vw - 12, 8.5, bold).slice(0, 2));
+      const headH = 16 + Math.max(...names.map((n) => n.length)) * 10;
+      return { lw, vw, names, headH, height: headH + group[0].cost!.rows.length * DUMP_LH + 12 };
+    };
+    const summary = !shown.every((l) => l.cost);
+    // başlık, altındaki ilk tabloyla aynı sayfada (özet tablo ya da ilk döküm); sığmıyorsa birlikte yeni sayfaya
+    const firstH = summary
+      ? 26 + 22 + rowH * (shown.length + 3) + 2
+      : costLines.length ? 10 + dumpLayout(costLines.slice(0, PER_TABLE)).height : 0;
+    keepTogether(46 + firstH, 170);
     text("MALİYET ANALİZ TABLOSU", M, y - 14, 15, bold, NAVY);
     text("Bu hizmeti dışarıdan satın alırsanız", M, y - 29, 10.5, bold, ORANGE);
     y -= 46;
-    if (!shown.every((l) => l.cost)) {
+    if (summary) {
       // maliyet kalemi girilmemiş hizmet var: dışarıdan alınan bedeller (tümü) özet tabloda
       outsideTable("DIŞARIDAN SATIN ALINAN HİZMETLER");
     }
-    // maliyet kalemi girilen hizmetler: Excel'deki "TEKLİF DETAYI"nın tamamı; görevliler yan yana sütun
-    const PER_TABLE = 4; // Excel'deki gibi tabloda en çok 4 görevli sütunu
+    // maliyet kalemi girilen hizmetler: Excel'deki "TEKLİF DETAYI"nın tamamı; görevliler yan yana sütun.
+    // Her döküm tablosu bütün halinde bir sayfada (sığmıyorsa yeni sayfada başlar).
     for (let t = 0; t < costLines.length; t += PER_TABLE) {
       const group = costLines.slice(t, t + PER_TABLE);
-      ensure(130); // döküm başlığı + birkaç satır aynı sayfada başlasın
+      const { lw, vw, names, headH, height } = dumpLayout(group);
+      keepTogether((t === 0 ? 10 : 0) + height, 130);
       if (t === 0) {
         text("Kişi başı aylık maliyet dökümü. Soluk satırlar çalışanın ücretinden kesilen tutarlardır; işveren maliyetine ayrıca eklenmez.", M, y, 7.6, regular, MUTED);
         y -= 10;
       }
-      const lw = group.length >= 3 ? 205 : 250; // kalem sütunu
-      const vw = (TW - lw) / group.length;
-      const lh = 10.4;
+      const lh = DUMP_LH;
       const fs = 7.5;
-      // görevli adı sütuna sığmıyorsa iki satıra bölünür (kesilmez)
-      const names = group.map((l) => wrap(l.service, vw - 12, 8.5, bold).slice(0, 2));
-      const nameRows = Math.max(...names.map((n) => n.length));
-      const headH = 16 + nameRows * 10;
       const colHead = () => {
         roundRect(page, M, y, TW, headH, 7, { color: NAVY }, "top");
         text("Kalem", M + 8, y - headH / 2 - 3, 8.5, bold, WHITE);
@@ -349,7 +404,7 @@ export async function buildOfferPdf(o: OfferPdfData): Promise<Uint8Array> {
       const frame = () => page.drawRectangle({ x: M, y, width: TW, height: segTop - y, borderColor: LINE, borderWidth: 0.6 });
       const base = group[0].cost!.rows;
       base.forEach((r, ri) => {
-        if (y - lh < bottom) {
+        if (y - lh < limit) {
           frame();
           newPage();
           colHead();
@@ -376,21 +431,31 @@ export async function buildOfferPdf(o: OfferPdfData): Promise<Uint8Array> {
       frame();
       y -= 12;
     }
+    /* ---- şartlar ve koşullar: maliyet analiz tablosunun hemen altında; sığmazsa yazı küçülür (en küçüğünde de sığmazsa yeni sayfa) ---- */
     if (costLines.length) {
-      /* şartlar ve koşullar */
       const terms = costTerms(o.cost_params ?? DEFAULT_COST_PARAMS);
-      // başlık + tüm maddeler birlikte sığmıyorsa hepsi sonraki sayfaya
-      const termLines = terms.map((term) => wrap(term, TW - 12, 7.6, regular));
-      ensure(16 + termLines.reduce((p, ls) => p + ls.length * 9.5 + 2, 0));
-      text("ŞARTLAR VE KOŞULLAR", M, y - 7, 8.5, bold, NAVY);
-      y -= 17;
-      for (const ls of termLines) {
-        text("•", M, y, 7.6, bold, ORANGE);
-        ls.forEach((l, li) => text(l, M + 10, y - li * 9.5, 7.6, regular, INK));
-        y -= ls.length * 9.5 + 2;
+      const sizes = [
+        { fs: 7.6, lh: 9.5, head: 17 },
+        { fs: 7, lh: 8.6, head: 15 },
+        { fs: 6.4, lh: 7.7, head: 13 },
+        { fs: 5.8, lh: 6.9, head: 12 },
+      ];
+      const measure = (z: (typeof sizes)[number]) => {
+        const ls = terms.map((term) => wrap(term, TW - 12, z.fs, regular));
+        return { z, ls, h: z.head + ls.reduce((p, l) => p + l.length * z.lh + 2, 0) };
+      };
+      const fit_ = sizes.map(measure).find((m) => y - m.h >= limit);
+      const { z, ls } = fit_ ?? measure(sizes[0]);
+      if (!fit_) newPage();
+      text("ŞARTLAR VE KOŞULLAR", M, y - 7, z.fs + 0.9, bold, NAVY);
+      y -= z.head;
+      for (const lines of ls) {
+        text("•", M, y, z.fs, bold, ORANGE);
+        lines.forEach((l, li) => text(l, M + 10, y - li * z.lh, z.fs, regular, INK));
+        y -= lines.length * z.lh + 2;
       }
     }
-    /* ---- 3) karşılaştırma: hizmet satın alma vs OPSUYON ile ---- */
+    /* ---- 3) karşılaştırma: hizmet satın alma vs OPSUYON ile (son sayfada) ---- */
     const cmpRows: [string, string, string][] = [
       ["Personel maliyeti", formatMoney(calc.monthly_base - calc.profit_share_total), formatMoney(calc.monthly_base - calc.profit_share_total)],
       [`Şirket kâr payı (%${formatRate(o.profit_pct)})`, formatMoney(calc.profit_share_total), "—"],
@@ -398,57 +463,9 @@ export async function buildOfferPdf(o: OfferPdfData): Promise<Uint8Array> {
       [`OPSUYON hizmet bedeli (${formatNumber(calc.total_people)} kişi × ${formatMoney(o.fee_per_person)})`, "—", formatMoney(calc.offer_net)],
       ...(calc.offer_vat > 0 ? [[`OPSUYON hizmet bedeli KDV (%${formatRate(calc.fee_vat)})`, "—", formatMoney(calc.offer_vat)] as [string, string, string]] : []),
     ];
-    const cw = 118;
-    ensure(22 + rowH * (cmpRows.length + 1) + 6);
-    roundRect(page, M, y, TW, 22, 8, { color: NAVY }, "top");
-    text("Aylık maliyet karşılaştırması", M + 10, y - 14.5, 9, bold, WHITE);
-    right("Hizmet satın alma", W - M - cw - 8, y - 14.5, 9, bold, WHITE);
-    right("OPSUYON ile", W - M - 8, y - 14.5, 9, bold, WHITE);
-    y -= 22;
-    for (const [k, cur, ops] of cmpRows) {
-      page.drawLine({ start: { x: M, y: y - rowH }, end: { x: W - M, y: y - rowH }, thickness: 0.5, color: LINE });
-      text(fit(k, TW - 2 * cw - 20, 9.5, regular), M + 10, y - ry, 9.5, regular, INK);
-      right(cur, W - M - cw - 8, y - ry, 9.5, regular, cur === "—" ? MUTED : INK);
-      right(ops, W - M - 8, y - ry, 9.5, regular, ops === "—" ? MUTED : INK);
-      y -= rowH;
-    }
-    roundRect(page, M, y, TW, rowH + 2, 8, { color: SOFT, borderColor: LINE, borderWidth: 0.6 }, "bottom");
-    text("Aylık toplam", M + 10, y - 14, 10, bold, INK);
-    right(formatMoney(calc.current_total), W - M - cw - 8, y - 14, 10, bold, INK);
-    right(formatMoney(calc.opsuyon_total), W - M - 8, y - 14, 10, bold, loss ? BAD : OK);
-    y -= rowH + 2 + 16;
+    // tablo son sayfada (OPSUYON ile kazancınız), operasyonel avantajların üstünde çizilir
+    comparison = { rows: cmpRows, current: formatMoney(calc.current_total), opsuyon: formatMoney(calc.opsuyon_total), loss };
   }
-
-  /* ---- açıklama + not ---- */
-  const notes = [
-    cmp
-      ? `Hesap: aylık net kâr = KDV farkı (KDV − OPSUYON hizmet bedeli${calc.offer_vat > 0 ? `, %${formatRate(calc.fee_vat)} KDV dahil` : ""}) + şirket kâr payı × personel sayısı; yıllık net kâr = aylık × 12. Tutarlar müşterinin beyan ettiği aylık, KDV hariç bedellerdir.`
-      : "Tutarlar aylıktır; kişi başı bedeller KDV hariçtir.",
-    ...(o.notes ? [`Not: ${o.notes}`] : []),
-  ];
-  for (const n of notes) {
-    for (const line of wrap(n, TW, 8.5, regular)) {
-      ensure(12);
-      text(line, M, y, 8.5, regular, MUTED);
-      y -= 11.5;
-    }
-    y -= 3;
-  }
-  y -= 6;
-
-  /* ---- imza alanı ---- */
-  const sigH = tight ? 44 : 52; // imza çizgisinin başlıktan uzaklığı
-  ensure(sigH + 2);
-  const sigW = (TW - 30) / 2;
-  text("Müşteri onayı", M, y - 10, 9, bold, NAVY);
-  text("Ad soyad · imza · kaşe", M, y - 22, 8, regular, MUTED);
-  page.drawLine({ start: { x: M, y: y - sigH }, end: { x: M + sigW, y: y - sigH }, thickness: 0.6, color: MUTED, dashArray: [3, 2] });
-  const sx = M + sigW + 30;
-  text("Saygılarımızla,", sx, y - 10, 9, regular, MUTED);
-  text("OPSUYON", sx, y - 24, 11, bold, NAVY);
-  if (o.creator) text(fit(o.creator, sigW, 9, regular), sx, y - 37, 9, regular, INK);
-  page.drawLine({ start: { x: sx, y: y - sigH }, end: { x: W - M, y: y - sigH }, thickness: 0.6, color: MUTED, dashArray: [3, 2] });
-  y -= sigH + 2;
 
   /* ---- sayfa bilgisi (tanıtım sayfası hariç) ---- */
   const pages = doc.getPages();
@@ -460,17 +477,11 @@ export async function buildOfferPdf(o: OfferPdfData): Promise<Uint8Array> {
     pg.drawText(label, { x: W - M - regular.widthOfTextAtSize(label, 7.5), y: fy, size: 7.5, font: regular, color: MUTED });
   });
 
-  await advantagesPage(doc, regular, bold, cmp ? { monthly: calc.monthly_profit, yearly: calc.yearly_profit, vat: calc.vat_saving, share: calc.profit_share_total } : null);
+  await advantagesPage(doc, regular, bold, comparison);
   return doc.save();
 }
 
 /** Son sayfa, maddi kazanç kartları: [başlık, açıklama]. Metinler teklif hesabındaki iki kazanç kalemiyle aynı dili konuşur. */
-const GAINS: [string, string][] = [
-  ["KDV avantajı", "Hizmet faturasına eklenen KDV yükü kalkar. Yerine yalnızca kişi başı sabit OPSUYON hizmet bedelini ödersiniz."],
-  ["Şirket kâr payı sizde kalır", "Hizmet firmasının personel maliyetinin üstüne eklediği kâr payını ödemezsiniz; bu tutar bütçenizde kalır."],
-  ["Şeffaf maliyet", "Maaş, SGK, yol ve tüm giderleri kalem kalem görürsünüz. Neye ne ödediğinizi bilir, bütçenizi önceden planlarsınız."],
-];
-
 /** Son sayfa, operasyonel avantajlar: [başlık, açıklama, renk]. Özelliklerin ayrıntısı ayrı katalogdadır; burada FAYDA anlatılır. */
 const BENEFITS: [string, string, RGB][] = [
   ["Tek ekrandan yönetim", "Personel, puantaj, izin, bordro ve evraklar tek panelde. Bilgi almak için kimseyi aramanız gerekmez.", rgb(0.122, 0.435, 0.898)],
@@ -481,11 +492,14 @@ const BENEFITS: [string, string, RGB][] = [
   ["Her yerden erişim", "Bilgisayar, tablet ve telefondan çalışır; kurulum gerektirmez. Yönetim nerede olursa olsun sahayı görür.", rgb(0.71, 0.33, 0.04)],
 ];
 
+/** Aylık maliyet karşılaştırması (hizmet satın alma / OPSUYON ile): satırlar [kalem, hizmet satın alma, OPSUYON ile]. */
+type OfferComparison = { rows: [string, string, string][]; current: string; opsuyon: string; loss: boolean };
+
 /**
- * Teklifin son sayfası: OPSUYON'u kullanmanın avantajları. Üstte lacivert bant; karşılaştırmalı
- * teklifte "bu teklifle kazancınız" şeridi (aylık / yıllık); MADDİ KAZANÇ (3 kart) ve OPERASYONEL AVANTAJLAR (6 madde).
+ * Teklifin son sayfası: "OPSUYON ile kazancınız". Üstte lacivert bant; karşılaştırmalı teklifte AYLIK MALİYET
+ * KARŞILAŞTIRMASI tablosu; OPERASYONEL AVANTAJLAR (6 madde) ve alt bant. Karşılaştırma varken kartlar sığması için kısalır.
  */
-async function advantagesPage(doc: PDFDocument, regular: PDFFont, bold: PDFFont, gain: { monthly: number; yearly: number; vat: number; share: number } | null) {
+async function advantagesPage(doc: PDFDocument, regular: PDFFont, bold: PDFFont, comparison: OfferComparison | null) {
   const W = 595.28;
   const H = 841.89;
   const M = 44;
@@ -503,9 +517,6 @@ async function advantagesPage(doc: PDFDocument, regular: PDFFont, bold: PDFFont,
     return out;
   };
   const LIGHT = rgb(0.78, 0.85, 0.97);
-  // kazanç tutarı yalnızca müşteri kârdaysa gösterilir
-  const show = gain && gain.monthly > 0 ? gain : null;
-  const roomy = show ? 0 : 1; // şerit yoksa boşalan yer kartlara dağıtılır
 
   /* üst bant */
   const bandH = 172;
@@ -521,58 +532,56 @@ async function advantagesPage(doc: PDFDocument, regular: PDFFont, bold: PDFFont,
   text("Aynı personel, aynı hizmet; daha düşük maliyet ve sahada tam kontrol.", M, H - 140, 11, regular, LIGHT);
   let y = H - bandH - 4 - 20;
 
-  /* bu teklifle kazancınız */
-  if (show) {
-    const h = 58;
-    roundRect(page, M, y, TW, h, 10, { color: ORANGE });
-    text("BU TEKLİFLE KAZANCINIZ", M + 18, y - 24, 9.5, bold, WHITE);
-    text("KDV farkı + şirket kâr payı", M + 18, y - 40, 8.5, regular, WHITE);
-    const col = (label: string, value: string, xr: number) => {
-      text(value, xr - bold.widthOfTextAtSize(value, 19), y - 31, 19, bold, WHITE);
-      text(label, xr - regular.widthOfTextAtSize(label, 8.5), y - 46, 8.5, regular, WHITE);
-    };
-    col("yıllık net kâr", formatMoney(show.yearly), W - M - 18);
-    col("aylık net kâr", formatMoney(show.monthly), W - M - 18 - 178);
-    y -= h + 18;
-  } else y -= 6;
+  y -= comparison ? 2 : 10;
 
   const section = (title: string) => {
     page.drawRectangle({ x: M, y: y - 13, width: 4, height: 15, color: ORANGE });
     text(title, M + 12, y - 11, 12.5, bold, NAVY);
     y -= 26;
   };
+  const right = (s: string, xr: number, yy: number, size: number, font: PDFFont, color: RGB) => text(s, xr - font.widthOfTextAtSize(s, size), yy, size, font, color);
 
-  /* maddi kazanç: 3 kart */
-  section("MADDİ KAZANÇ");
-  const gap = 12;
-  const cw = (TW - 2 * gap) / 3;
-  const ch = 118 + roomy * 16;
-  const amounts = show ? [show.vat > 0 ? `${formatMoney(show.vat)} / ay` : null, show.share > 0 ? `${formatMoney(show.share)} / ay` : null, null] : [null, null, null];
-  GAINS.forEach(([title, desc], i) => {
-    const x = M + i * (cw + gap);
-    roundRect(page, x, y, cw, ch, 10, { color: SOFT, borderColor: LINE, borderWidth: 0.7 });
-    page.drawRectangle({ x: x + 14, y: y - 15, width: 26, height: 3, color: ORANGE });
-    lines(title, cw - 28, 11.5, bold).slice(0, 2).forEach((l, li) => text(l, x + 14, y - 33 - li * 13.5, 11.5, bold, NAVY));
-    const ty = y - 33 - (lines(title, cw - 28, 11.5, bold).slice(0, 2).length - 1) * 13.5 - 17;
-    lines(desc, cw - 28, 8.8, regular).slice(0, 6).forEach((l, li) => text(l, x + 14, ty - li * 11.8, 8.8, regular, INK));
-    const amt = amounts[i];
-    if (amt) text(amt, x + 14, y - ch + 13, 11, bold, rgb(0.07, 0.55, 0.3));
-  });
-  y -= ch + 22;
+  /* aylık maliyet karşılaştırması */
+  if (comparison) {
+    section("AYLIK MALİYET KARŞILAŞTIRMASI");
+    const rh = 19;
+    const cw = 118;
+    roundRect(page, M, y, TW, 22, 8, { color: NAVY }, "top");
+    text("Kalem", M + 12, y - 14.5, 9, bold, WHITE);
+    right("Hizmet satın alma", W - M - cw - 10, y - 14.5, 9, bold, WHITE);
+    right("OPSUYON ile", W - M - 10, y - 14.5, 9, bold, WHITE);
+    y -= 22;
+    comparison.rows.forEach(([k, cur, ops], i) => {
+      page.drawRectangle({ x: M, y: y - rh, width: TW, height: rh, color: i % 2 ? rgb(0.975, 0.98, 0.99) : WHITE });
+      page.drawLine({ start: { x: M, y: y - rh }, end: { x: W - M, y: y - rh }, thickness: 0.5, color: LINE });
+      text(fit(k, TW - 2 * cw - 24, 9.5, regular), M + 12, y - 13, 9.5, regular, INK);
+      right(cur, W - M - cw - 10, y - 13, 9.5, regular, cur === "—" ? MUTED : INK);
+      right(ops, W - M - 10, y - 13, 9.5, regular, ops === "—" ? MUTED : INK);
+      y -= rh;
+    });
+    roundRect(page, M, y, TW, rh + 4, 8, { color: SOFT, borderColor: LINE, borderWidth: 0.6 }, "bottom");
+    text("Aylık toplam", M + 12, y - 15, 10.5, bold, NAVY);
+    right(comparison.current, W - M - cw - 10, y - 15, 10.5, bold, INK);
+    right(comparison.opsuyon, W - M - 10, y - 15, 10.5, bold, comparison.loss ? BAD : rgb(0.07, 0.55, 0.3));
+    y -= rh + 4 + 20;
+  }
+
+  const gap = 14;
 
   /* operasyonel avantajlar: 2 sütun × 3 satır */
   section("OPERASYONEL AVANTAJLAR");
   const bw = (TW - gap) / 2;
-  const bh = 72 + roomy * 12;
+  // karşılaştırma varken kartlar kısalır (sayfa tek parça kalsın)
+  const c = comparison ? { bh: 76, rg: 10, ts: 11.5, ty: 22, ds: 8.8, dy: 38, dl: 11.6, n: 3 } : { bh: 118, rg: 14, ts: 13, ty: 28, ds: 9.6, dy: 48, dl: 13, n: 5 };
   BENEFITS.forEach(([title, desc, color], i) => {
     const x = M + (i % 2) * (bw + gap);
-    if (i % 2 === 0 && i > 0) y -= bh + 10;
-    roundRect(page, x, y, bw, bh, 9, { color: WHITE, borderColor: LINE, borderWidth: 0.8 });
-    roundRect(page, x, y, 5, bh, 2, { color });
-    text(title, x + 18, y - 22, 11.5, bold, NAVY);
-    lines(desc, bw - 34, 8.8, regular).slice(0, 4).forEach((l, li) => text(l, x + 18, y - 38 - li * 11.8, 8.8, regular, INK));
+    if (i % 2 === 0 && i > 0) y -= c.bh + c.rg;
+    roundRect(page, x, y, bw, c.bh, 10, { color: WHITE, borderColor: LINE, borderWidth: 0.8 });
+    roundRect(page, x, y, 5, c.bh, 2, { color });
+    text(title, x + 20, y - c.ty, c.ts, bold, NAVY);
+    lines(desc, bw - 38, c.ds, regular).slice(0, c.n).forEach((l, li) => text(l, x + 20, y - c.dy - li * c.dl, c.ds, regular, INK));
   });
-  y -= bh + 20;
+  y -= c.bh + (comparison ? 18 : 28);
 
   /* alt bant */
   roundRect(page, M, y, TW, 52, 10, { color: NAVY });

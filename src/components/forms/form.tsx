@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useId, useMemo, useState, type ReactNode } from "react";
 import {
   FormProvider, useController, useForm, useFormContext,
   type DefaultValues, type FieldValues, type Path,
@@ -16,6 +16,16 @@ import { btn, cn } from "@/components/ui";
 /* ------------------------------------------------------------------ */
 /* <Form>: react-hook-form + zod resolver + server action             */
 /* ------------------------------------------------------------------ */
+/**
+ * Formun otomatik tamamlama ayarı. Chrome, formdaki autocomplete="off"u önceki girişler listesi için her zaman
+ * dikkate almıyor; bu yüzden ayar alanlara da tek tek yazılır (alanın kendi değeri varsa o geçerli).
+ */
+const AutoCompleteContext = createContext<"on" | "off" | undefined>(undefined);
+/** Formun otomatik tamamlama ayarı (alan bileşenleri ve formdaki düz <input>'lar için). */
+export function useFormAutoComplete() {
+  return useContext(AutoCompleteContext);
+}
+
 export function Form<V extends FieldValues>({
   schema,
   defaultValues,
@@ -24,6 +34,7 @@ export function Form<V extends FieldValues>({
   className,
   resetOnSuccess = true,
   onSuccess,
+  autoComplete,
 }: {
   schema: z.ZodType<V, V>;
   defaultValues: DefaultValues<V>;
@@ -32,6 +43,8 @@ export function Form<V extends FieldValues>({
   className?: string;
   resetOnSuccess?: boolean;
   onSuccess?: (result: NonNullable<ActionState>) => void;
+  /** "off": tarayıcı önceki girişleri önermez (alanlar kendi değeri yoksa formunkini alır) */
+  autoComplete?: "on" | "off";
 }) {
   const form = useForm<V>({ resolver: zodResolver(schema), defaultValues, mode: "onTouched" });
   const [result, setResult] = useState<ActionState>(null);
@@ -60,7 +73,8 @@ export function Form<V extends FieldValues>({
 
   return (
     <FormProvider {...form}>
-      <form onSubmit={submit} noValidate className={className}>
+      <AutoCompleteContext.Provider value={autoComplete}>
+      <form onSubmit={submit} noValidate autoComplete={autoComplete} className={className}>
         {children}
         {result?.error && (
           <div role="alert" className="mt-4 flex items-start gap-2 rounded-lg bg-danger-soft px-3 py-2.5 text-sm text-danger sm:col-span-full">
@@ -75,6 +89,7 @@ export function Form<V extends FieldValues>({
           </div>
         )}
       </form>
+      </AutoCompleteContext.Provider>
     </FormProvider>
   );
 }
@@ -141,6 +156,7 @@ export function TextField({
 }) {
   const { id, error, register, invalid } = useField(name);
   const { setValue } = useFormContext();
+  const formAutoComplete = useFormAutoComplete();
   const reg = register(name);
   return (
     <Shell id={id} label={label} hint={hint} required={required} error={error} className={className}>
@@ -151,7 +167,7 @@ export function TextField({
           id={id}
           type={type}
           placeholder={placeholder}
-          autoComplete={autoComplete}
+          autoComplete={autoComplete ?? formAutoComplete}
           inputMode={inputMode}
           maxLength={maxLength}
           disabled={disabled}
@@ -440,6 +456,7 @@ function SearchSelect({
 
 export function TextareaField({ name, label, hint, required, className, disabled, placeholder, rows = 3 }: Common & { placeholder?: string; rows?: number }) {
   const { id, error, register, invalid } = useField(name);
+  const formAutoComplete = useFormAutoComplete();
   return (
     <Shell id={id} label={label} hint={hint} required={required} error={error} className={className}>
       <textarea
@@ -447,6 +464,7 @@ export function TextareaField({ name, label, hint, required, className, disabled
         rows={rows}
         placeholder={placeholder}
         disabled={disabled}
+        autoComplete={formAutoComplete}
         aria-invalid={invalid || undefined}
         aria-describedby={error ? `${id}-err` : hint ? `${id}-hint` : undefined}
         className={cn(control, "py-2")}

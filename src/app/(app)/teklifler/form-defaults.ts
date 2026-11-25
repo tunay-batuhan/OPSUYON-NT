@@ -1,6 +1,6 @@
 import "server-only";
 import { formatNumber, isoDayInTurkey } from "@/lib/format";
-import { EMPTY_LINE, type OfferValues } from "@/lib/schemas-offers";
+import { EMPTY_LINE, paramsToForm, type OfferValues } from "@/lib/schemas-offers";
 import type { OfferDetail, OfferLine, OfferSettings } from "./data";
 
 /** Forma yazılacak sayı: 7500 → "7.500", 58333.33 → "58.333,33" (toMoney geri okur); 0 → "". */
@@ -14,6 +14,7 @@ export function newOfferDefaults(s: OfferSettings): OfferValues {
     fund_severance: s.cost_params.severance > 0,
     fund_leave: s.cost_params.leave > 0,
     fund_holiday: s.cost_params.holiday > 0,
+    params: paramsToForm(s.cost_params),
     customer_name: "",
     contact_name: "",
     phone: "",
@@ -35,6 +36,7 @@ export function editOfferDefaults(o: OfferDetail, lines: OfferLine[]): OfferValu
     fund_severance: o.cost_params.severance > 0,
     fund_leave: o.cost_params.leave > 0,
     fund_holiday: o.cost_params.holiday > 0,
+    params: paramsToForm(o.cost_params),
     customer_name: o.customer_name,
     contact_name: o.contact_name ?? "",
     phone: o.phone ?? "",
