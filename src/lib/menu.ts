@@ -1,5 +1,6 @@
 import { canAnywhere, isSuperAdmin, type CurrentUser } from "@/lib/auth";
 import type { NavChild, NavItem } from "@/components/nav";
+import { PAYROLL_CALC_ENABLED } from "@/lib/payroll-shared";
 
 type Def = NavItem & { anyOf?: string[]; staffOnly?: boolean; /** yalnızca Süper Yönetici */ superOnly?: boolean };
 
@@ -46,15 +47,25 @@ export function sectionPages(section: Section, user: CurrentUser, on: Set<string
   return pages.filter((p) => p.ok).map(({ href, label, exact }) => ({ href, label, exact }));
 }
 
-/** Bordrolar bölümünün sekmeleri: maaş bordrosu, avanslar, ücret tanımları ve (merkez) bordro şablonu. "Bordro ekle" kaldırıldı. */
+/**
+ * Bordrolar bölümünün sekmeleri: yüklenen bordrolar ve (merkez) bordro ekle — Puantaj gibi dosya yüklenir.
+ * Sistem içinde maaş hesaplama (maaş bordrosu, avanslar, ücret tanımları, bordro şablonu) 23 Kasım 2026'da
+ * müşteri isteğiyle kapatıldı; ekranları duruyor, PAYROLL_CALC_ENABLED ile yeniden açılır.
+ */
 export function payrollPages(user: CurrentUser): NavChild[] {
   const can = (perm: string) => canAnywhere(user, perm);
   const staff = user.kind === "staff";
   const pages: (NavChild & { ok: boolean })[] = [
-    { href: "/bordrolar/maas", label: "Maaş bordrosu", ok: can("payroll.run") || can("payroll.read") },
-    { href: "/bordrolar/avans", label: "Avanslar", ok: can("payroll.advances") || can("payroll.read") },
-    { href: "/bordrolar/ucretler", label: "Ücret tanımları", ok: can("payroll.manage") || can("payroll.read") },
-    { href: "/bordrolar/sablon", label: "Bordro şablonu", ok: staff && can("payroll.manage") },
+    { href: "/bordrolar", label: "Bordrolar", exact: true, ok: can("payroll.read") || (staff && can("documents.manage")) },
+    { href: "/bordrolar/ekle", label: "Bordro ekle", ok: staff && can("documents.manage") },
+    ...(PAYROLL_CALC_ENABLED
+      ? [
+          { href: "/bordrolar/maas", label: "Maaş bordrosu", ok: can("payroll.run") || can("payroll.read") },
+          { href: "/bordrolar/avans", label: "Avanslar", ok: can("payroll.advances") || can("payroll.read") },
+          { href: "/bordrolar/ucretler", label: "Ücret tanımları", ok: can("payroll.manage") || can("payroll.read") },
+          { href: "/bordrolar/sablon", label: "Bordro şablonu", ok: staff && can("payroll.manage") },
+        ]
+      : []),
   ];
   return pages.filter((p) => p.ok).map(({ href, label, exact }) => ({ href, label, exact }));
 }

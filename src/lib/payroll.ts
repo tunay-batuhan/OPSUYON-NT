@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { canAnywhere, getCurrentUser, type CurrentUser } from "@/lib/auth";
 import { getEnabledModules } from "@/lib/modules";
 import { DEFAULT_TEMPLATE, computeRow, normalizeTemplate, round2, sumRows, validateTemplate, type Cells, type PayCol, type RateVars } from "@/lib/payroll-engine";
-import type { PayrollLineView, PayrollRunView } from "@/lib/payroll-shared";
+import { PAYROLL_CALC_ENABLED, type PayrollLineView, type PayrollRunView } from "@/lib/payroll-shared";
 
 /**
  * Bordro sekmelerinin kapısı: yetkilerden en az biri (herhangi bir projede) gerekir; müşteride "Bordrolar" modülü
@@ -15,6 +15,7 @@ import type { PayrollLineView, PayrollRunView } from "@/lib/payroll-shared";
 export async function requirePayrollAccess(perms: string[]): Promise<CurrentUser> {
   const user = await getCurrentUser();
   if (!user) redirect("/");
+  if (!PAYROLL_CALC_ENABLED) redirect("/bordrolar"); // maaş hesaplama kapalı: bordrolar dosya olarak yüklenir
   if (user.kind === "personnel") redirect("/gorevlerim"); // personel bordro görmez
   if (user.kind === "customer" && !(await getEnabledModules()).has("personel_bordro")) notFound();
   if (!perms.some((p) => canAnywhere(user, p))) notFound();

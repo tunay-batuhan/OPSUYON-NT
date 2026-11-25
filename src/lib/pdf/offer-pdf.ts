@@ -4,7 +4,7 @@ import { ROBOTO_MEDIUM_B64, ROBOTO_REGULAR_B64 } from "@/lib/pdf/roboto";
 import { LOGO_PNG_B64, LOGO_RATIO } from "@/lib/pdf/logo";
 import { BRAND_TAGLINE } from "@/lib/brand";
 import { formatDate, formatMoney, formatNumber } from "@/lib/format";
-import { DEFAULT_COST_PARAMS, OFFER_STATUS, calcOffer, formatRate, type CostParams, type OfferLineInput, type OfferStatus } from "@/lib/offer-calc";
+import { DEFAULT_COST_PARAMS, OFFER_STATUS, calcOffer, costTerms, formatRate, type CostParams, type OfferLineInput, type OfferStatus } from "@/lib/offer-calc";
 
 // Cari ekstre ve devriye raporuyla aynı görünüm: lacivert başlık bandı, künye, tablo, alt bilgi.
 const NAVY = rgb(0.039, 0.165, 0.388);
@@ -79,6 +79,8 @@ export type OfferPdfData = {
   /** şirket kâr payı % ve maliyet tablosu oranları */
   profit_pct: number;
   cost_params?: CostParams;
+  /** maliyet karşılaştırma teklife eklenmiş mi (false → yalnızca teklif: kâr kartları, karşılaştırma ve maliyet dökümü basılmaz) */
+  compare?: boolean;
   valid_until: string | null;
   created_at: string;
   creator: string | null;
@@ -106,8 +108,11 @@ function roundRect(
  *  - Antet yüklüyse: her sayfanın zemini antettir (tam sayfa PDF/görsel) ya da yatay antet görseli sayfanın üstüne
  *    oturur; içerik antetin üst ve alt boşluğu arasına yazılır.
  *  - Antet yoksa: OPSUYON logolu başlık, lacivert/turuncu şerit.
- * İçerik: başlık + teklif künyesi, müşteri kartı, "OPSUYON ile kâra geçin" tablosu (hizmetler, toplam, KDV),
- * OPSUYON teklifi, aylık / yıllık net kâr kutuları, açıklama ve imza alanı. Tutarlar ekrandaki hesapla aynı fonksiyondan.
+ * Yalnızca teklif: başlık + künye, müşteri kartı, teklif tablosu (hizmetler, toplam, KDV, genel toplam), not ve imza.
+ * Maliyet karşılaştırmalı: ayrıca en başta aylık / yıllık net kâr kartları, KDV farkı ve şirket kâr payı, "Bugün / OPSUYON ile"
+ * karşılaştırması ve sonraki sayfalarda maliyet analiz tablosunun TAMAMI (Excel'deki döküm), görevli özeti ve şartlar.
+ * Son sayfa her zaman "OPSUYON'un avantajları" sayfasıdır (maddi kazanç + operasyonel avantajlar; karşılaştırmalı teklifte
+ * o teklifin kazanç tutarlarıyla). Tutarlar ekrandaki hesapla aynı fonksiyondan.
  */
 export async function buildOfferPdf(o: OfferPdfData, letterhead?: OfferLetterhead | null): Promise<Uint8Array> {
   const W = 595.28;
@@ -117,6 +122,14 @@ export async function buildOfferPdf(o: OfferPdfData, letterhead?: OfferLetterhea
   const { doc, regular, bold } = c;
   const calc = calcOffer(o.lines, o.vat_rate, o.fee_per_person, o.profit_pct, o.cost_params ?? DEFAULT_COST_PARAMS);
   const TW = W - 2 * M;
+  const cmp = o.compare !== false;
+  // tabloda kişi sayısı girilmiş hizmetler (hiç yoksa adı yazılanlar)
+  const named = calc.lines.filter((x) => x.service);
+  const shown = named.some((x) => x.people > 0) ? named.filter((x) => x.people > 0) : named;
+  // karşılaştırmalı teklifte 3+ hizmet: ilk sayfaya sığması için satırlar ve kutular biraz sıkışır (6+ hizmette daha da)
+  const tight = cmp && shown.length > 2;
+  const dense = tight && shown.length > 5;
+  const ry = dense ? 10.5 : tight ? 11.5 : 13; // satır içi yazı taban çizgisi
 
   /* ---- zemin: antet ya da OPSUYON başlığı ---- */
   let paintBackground: (p: PDFPage) => void;
@@ -170,7 +183,7 @@ export async function buildOfferPdf(o: OfferPdfData, letterhead?: OfferLetterhea
 
   /* ---- başlık + künye ---- */
   text("HİZMET TEKLİFİ", M, y - 20, 21, bold, NAVY);
-  text("OPSUYON ile fiyat avantajınız", M, y - 36, 10, regular, MUTED);
+  text(cmp ? "OPSUYON ile fiyat avantajınız" : "Hizmet bedeli teklifi", M, y - 36, 10, regular, MUTED);
   const meta: [string, string][] = [
     ["Teklif no", o.offer_no],
     ["Tarih", formatDate(o.created_at)],
@@ -217,29 +230,35 @@ export async function buildOfferPdf(o: OfferPdfData, letterhead?: OfferLetterhea
   y -= cardH + 12;
 
   /* ---- en başta: büyük Aylık / Yıllık net kâr kartları ---- */
-  const loss = calc.monthly_profit < 0;
-  const heroH = 62;
+  const loss = cmp && calc.monthly_profit < 0;
+  const heroH = tight ? 50 : 62;
+  const hl = tight ? 17 : 21; // kart etiketi
+  const hv = tight ? 38 : 47; // kart tutarı
+  const hs = tight ? 19 : 22;
   const gap = 10;
   const half = (TW - gap) / 2;
+  if (cmp) {
   roundRect(page, M, y, half, heroH, 9, { color: loss ? BAD : NAVY });
-  text("AYLIK NET KÂR'INIZ", M + 16, y - 21, 9.5, bold, rgb(0.78, 0.85, 0.97));
-  text(fit(formatMoney(calc.monthly_profit), half - 32, 22, bold), M + 16, y - 47, 22, bold, WHITE);
+  text("AYLIK NET KÂR'INIZ", M + 16, y - hl, 9.5, bold, rgb(0.78, 0.85, 0.97));
+  text(fit(formatMoney(calc.monthly_profit), half - 32, hs, bold), M + 16, y - hv, hs, bold, WHITE);
   roundRect(page, M + half + gap, y, half, heroH, 9, { color: loss ? BAD : ORANGE });
-  text("YILLIK NET KÂR'INIZ", M + half + gap + 16, y - 21, 9.5, bold, WHITE);
-  text(fit(formatMoney(calc.yearly_profit), half - 32, 22, bold), M + half + gap + 16, y - 47, 22, bold, WHITE);
+  text("YILLIK NET KÂR'INIZ", M + half + gap + 16, y - hl, 9.5, bold, WHITE);
+  text(fit(formatMoney(calc.yearly_profit), half - 32, hs, bold), M + half + gap + 16, y - hv, hs, bold, WHITE);
   y -= heroH + 8;
   // iki kazanç kalemi
-  const smallH = 42;
+  const smallH = tight ? 36 : 42;
+  const so = tight ? 3 : 0;
   const small = (x: number, label: string, value: string, sub: string, color: RGB) => {
     roundRect(page, x, y, half, smallH, 7, { color: SOFT, borderColor: LINE, borderWidth: 0.7 });
-    text(label, x + 14, y - 15, 7.5, bold, MUTED);
-    text(fit(value, half * 0.48, 13, bold), x + 14, y - 32, 13, bold, color);
+    text(label, x + 14, y - 15 + so, 7.5, bold, MUTED);
+    text(fit(value, half * 0.48, 13, bold), x + 14, y - 32 + so * 2, 13, bold, color);
     const st = fit(sub, half * 0.5 - 16, 7.5, regular);
-    text(st, x + half - 12 - regular.widthOfTextAtSize(st, 7.5), y - 31, 7.5, regular, MUTED);
+    text(st, x + half - 12 - regular.widthOfTextAtSize(st, 7.5), y - 31 + so * 2, 7.5, regular, MUTED);
   };
   small(M, "KDV FARKI", formatMoney(calc.vat_saving), "KDV − OPSUYON hizmet bedeli", calc.vat_saving < 0 ? BAD : NAVY);
   small(M + half + gap, "ŞİRKET KÂR PAYI", formatMoney(calc.profit_share_total), `%${formatRate(o.profit_pct)} × ${formatNumber(calc.total_people)} personel`, NAVY);
-  y -= smallH + 14;
+  y -= smallH + (tight ? 10 : 14);
+  }
 
   /* ---- teklif tablosu ---- */
   const cols = [
@@ -257,7 +276,7 @@ export async function buildOfferPdf(o: OfferPdfData, letterhead?: OfferLetterhea
     const tx = col.align === "right" ? x + col.w - 8 - tw : col.align === "center" ? x + (col.w - tw) / 2 : x + 10;
     text(t, tx, yy, size, font, color);
   };
-  const rowH = 19;
+  const rowH = dense ? 15.5 : tight ? 17 : 19;
   const tableHead = () => {
     page.drawRectangle({ x: M, y: y - 22, width: TW, height: 22, color: NAVY });
     cols.forEach((col, i) => cell(col.label, i, y - 14.5, bold, WHITE, 8.5));
@@ -265,34 +284,39 @@ export async function buildOfferPdf(o: OfferPdfData, letterhead?: OfferLetterhea
   };
   ensure(26 + 22 + rowH * 3);
   roundRect(page, M, y, TW, 26, 8, { color: ORANGE }, "top");
-  const head = "OPSUYON İLE KÂR'A GEÇİN";
+  const head = cmp ? "OPSUYON İLE KÂR'A GEÇİN" : "TEKLİF EDİLEN HİZMETLER";
   text(head, M + (TW - bold.widthOfTextAtSize(head, 13)) / 2, y - 17.5, 13, bold, WHITE);
   y -= 26;
   tableHead();
-  calc.lines.filter((x) => x.service).forEach((l, i) => {
+  shown.forEach((l, i) => {
     if (y - rowH < bottom) {
       newPage();
       tableHead();
     }
     page.drawRectangle({ x: M, y: y - rowH, width: TW, height: rowH, color: i % 2 ? rgb(0.975, 0.98, 0.99) : WHITE });
     page.drawLine({ start: { x: M, y: y - rowH }, end: { x: W - M, y: y - rowH }, thickness: 0.5, color: LINE });
-    cell(l.service, 0, y - 13, bold, INK);
-    cell(formatNumber(l.people), 1, y - 13, regular, INK);
-    cell(formatMoney(l.unit_price), 2, y - 13, regular, INK);
-    cell(formatMoney(l.monthly_total), 3, y - 13, regular, INK);
+    cell(l.service, 0, y - ry, bold, INK);
+    cell(formatNumber(l.people), 1, y - ry, regular, INK);
+    cell(formatMoney(l.unit_price), 2, y - ry, regular, INK);
+    cell(formatMoney(l.monthly_total), 3, y - ry, regular, INK);
     y -= rowH;
   });
-  ensure(rowH * 2);
-  roundRect(page, M, y, TW, rowH * 2, 8, { color: SOFT, borderColor: LINE, borderWidth: 0.6 }, "bottom");
-  cell(formatNumber(calc.total_people), 1, y - 13, bold, INK);
-  cell("TOPLAM", 2, y - 13, bold, INK);
-  cell(formatMoney(calc.monthly_base), 3, y - 13, bold, INK);
+  const totalRows = 3; // toplam, KDV, genel toplam (KDV dahil)
+  ensure(rowH * totalRows);
+  roundRect(page, M, y, TW, rowH * totalRows, 8, { color: SOFT, borderColor: LINE, borderWidth: 0.6 }, "bottom");
+  cell(formatNumber(calc.total_people), 1, y - ry, bold, INK);
+  cell("TOPLAM", 2, y - ry, bold, INK);
+  cell(formatMoney(calc.monthly_base), 3, y - ry, bold, INK);
   y -= rowH;
-  cell(`KDV %${formatRate(o.vat_rate)}`, 2, y - 13, bold, INK);
-  cell(formatMoney(calc.monthly_vat), 3, y - 13, bold, INK);
-  y -= rowH + 14;
+  cell(`KDV %${formatRate(o.vat_rate)}`, 2, y - ry, bold, INK);
+  cell(formatMoney(calc.monthly_vat), 3, y - ry, bold, INK);
+  y -= rowH;
+  cell("GENEL TOPLAM", 2, y - ry, bold, NAVY, 10);
+  cell(formatMoney(calc.current_total), 3, y - ry, bold, NAVY, 10);
+  y -= rowH + (tight ? 10 : 14);
 
   /* ---- karşılaştırma: bugün vs OPSUYON ile ---- */
+  if (cmp) {
   const cmpRows: [string, string, string][] = [
     ["Personel maliyeti", formatMoney(calc.monthly_base - calc.profit_share_total), formatMoney(calc.monthly_base - calc.profit_share_total)],
     [`Şirket kâr payı (%${formatRate(o.profit_pct)})`, formatMoney(calc.profit_share_total), "—"],
@@ -308,20 +332,23 @@ export async function buildOfferPdf(o: OfferPdfData, letterhead?: OfferLetterhea
   y -= 22;
   for (const [k, cur, ops] of cmpRows) {
     page.drawLine({ start: { x: M, y: y - rowH }, end: { x: W - M, y: y - rowH }, thickness: 0.5, color: LINE });
-    text(fit(k, TW - 2 * cw - 20, 9.5, regular), M + 10, y - 13, 9.5, regular, INK);
-    right(cur, W - M - cw - 8, y - 13, 9.5, regular, cur === "—" ? MUTED : INK);
-    right(ops, W - M - 8, y - 13, 9.5, regular, ops === "—" ? MUTED : INK);
+    text(fit(k, TW - 2 * cw - 20, 9.5, regular), M + 10, y - ry, 9.5, regular, INK);
+    right(cur, W - M - cw - 8, y - ry, 9.5, regular, cur === "—" ? MUTED : INK);
+    right(ops, W - M - 8, y - ry, 9.5, regular, ops === "—" ? MUTED : INK);
     y -= rowH;
   }
   roundRect(page, M, y, TW, rowH + 2, 8, { color: SOFT, borderColor: LINE, borderWidth: 0.6 }, "bottom");
   text("Aylık toplam", M + 10, y - 14, 10, bold, INK);
   right(formatMoney(calc.current_total), W - M - cw - 8, y - 14, 10, bold, INK);
   right(formatMoney(calc.opsuyon_total), W - M - 8, y - 14, 10, bold, loss ? BAD : OK);
-  y -= rowH + 2 + 12;
+  y -= rowH + 2 + 16;
+  }
 
   /* ---- açıklama + not ---- */
   const notes = [
-    `Hesap: aylık net kâr = KDV farkı (KDV − OPSUYON hizmet bedeli) + şirket kâr payı × personel sayısı; yıllık net kâr = aylık × 12. Tutarlar müşterinin beyan ettiği aylık, KDV hariç bedellerdir.`,
+    cmp
+      ? `Hesap: aylık net kâr = KDV farkı (KDV − OPSUYON hizmet bedeli) + şirket kâr payı × personel sayısı; yıllık net kâr = aylık × 12. Tutarlar müşterinin beyan ettiği aylık, KDV hariç bedellerdir.`
+      : "Tutarlar aylıktır; kişi başı bedeller KDV hariçtir.",
     ...(o.notes ? [`Not: ${o.notes}`] : []),
   ];
   for (const n of notes) {
@@ -335,55 +362,91 @@ export async function buildOfferPdf(o: OfferPdfData, letterhead?: OfferLetterhea
   y -= 6;
 
   /* ---- imza alanı ---- */
-  ensure(54);
+  const sigH = tight ? 44 : 52; // imza çizgisinin başlıktan uzaklığı
+  ensure(sigH + 2);
   const sigW = (TW - 30) / 2;
   text("Müşteri onayı", M, y - 10, 9, bold, NAVY);
   text("Ad soyad · imza · kaşe", M, y - 22, 8, regular, MUTED);
-  page.drawLine({ start: { x: M, y: y - 52 }, end: { x: M + sigW, y: y - 52 }, thickness: 0.6, color: MUTED, dashArray: [3, 2] });
+  page.drawLine({ start: { x: M, y: y - sigH }, end: { x: M + sigW, y: y - sigH }, thickness: 0.6, color: MUTED, dashArray: [3, 2] });
   const sx = M + sigW + 30;
   text("Saygılarımızla,", sx, y - 10, 9, regular, MUTED);
   text("OPSUYON", sx, y - 24, 11, bold, NAVY);
   if (o.creator) text(fit(o.creator, sigW, 9, regular), sx, y - 37, 9, regular, INK);
-  page.drawLine({ start: { x: sx, y: y - 52 }, end: { x: W - M, y: y - 52 }, thickness: 0.6, color: MUTED, dashArray: [3, 2] });
-  y -= 54;
+  page.drawLine({ start: { x: sx, y: y - sigH }, end: { x: W - M, y: y - sigH }, thickness: 0.6, color: MUTED, dashArray: [3, 2] });
+  y -= sigH + 2;
 
-  /* ---- maliyet analiz tabloları (Maliyet karşılaştırma tekliflerinde): iki tablo yan yana ---- */
-  const costLines = calc.lines.filter((l) => l.cost && l.service);
-  if (costLines.length) {
+  /* ---- maliyet analiz tablosu (maliyet karşılaştırma): Excel'deki "TEKLİF DETAYI"nın tamamı; görevliler yan yana sütun ---- */
+  const costLines = cmp ? calc.lines.filter((l) => l.cost && l.service) : [];
+  const PER_TABLE = 4; // Excel'deki gibi tabloda en çok 4 görevli sütunu
+  for (let t = 0; t < costLines.length; t += PER_TABLE) {
+    const group = costLines.slice(t, t + PER_TABLE);
     newPage();
     text("MALİYET ANALİZ TABLOSU", M, y - 14, 15, bold, NAVY);
-    text("Kişi başı aylık maliyet: maaş, yasal kesintiler, yol, giderler ve şirket kâr payı", M, y - 29, 9, regular, MUTED);
-    y -= 44;
-    const tw = (TW - 14) / 2;
-    const lh = 13.2;
-    for (let i = 0; i < costLines.length; i += 2) {
-      const pair = costLines.slice(i, i + 2);
-      const height = Math.max(...pair.map((l) => 22 + l.cost!.rows.length * lh)) + 14;
-      ensure(height);
-      pair.forEach((l, pi) => {
-        const x = M + pi * (tw + 14);
-        let yy = y;
-        roundRect(page, x, yy, tw, 22, 7, { color: NAVY }, "top");
-        text(fit(`${l.service} (${formatNumber(l.people)} kişi)`, tw - 20, 9.5, bold), x + 10, yy - 14.5, 9.5, bold, WHITE);
-        yy -= 22;
-        for (const r of l.cost!.rows) {
-          if (r.kind === "section") {
-            page.drawRectangle({ x, y: yy - lh, width: tw, height: lh, color: SOFT });
-            text(r.label, x + 8, yy - 9.3, 6.8, bold, MUTED);
-          } else {
-            const strong = r.kind === "total" || r.kind === "subtotal";
-            if (r.kind === "total") page.drawRectangle({ x, y: yy - lh, width: tw, height: lh, color: rgb(1, 0.95, 0.86) });
-            const color = r.kind === "info" ? MUTED : INK;
-            text(fit(r.label, tw - 90, 8, strong ? bold : regular), x + 8, yy - 9.3, 8, strong ? bold : regular, color);
-            const v = formatMoney(r.value);
-            text(v, x + tw - 8 - (strong ? bold : regular).widthOfTextAtSize(v, 8), yy - 9.3, 8, strong ? bold : regular, color);
-            page.drawLine({ start: { x, y: yy - lh }, end: { x: x + tw, y: yy - lh }, thickness: 0.35, color: LINE });
-          }
-          yy -= lh;
-        }
-        page.drawRectangle({ x, y: yy, width: tw, height: y - 22 - yy, borderColor: LINE, borderWidth: 0.6 });
+    text("Kişi başı aylık maliyet dökümü. Soluk satırlar çalışanın ücretinden kesilen tutarlardır; işveren maliyetine ayrıca eklenmez.", M, y - 27, 7.6, regular, MUTED);
+    y -= 36;
+    const lw = group.length >= 3 ? 205 : 250; // kalem sütunu
+    const vw = (TW - lw) / group.length;
+    const lh = 10.4;
+    const fs = 7.5;
+    // görevli adı sütuna sığmıyorsa iki satıra bölünür (kesilmez)
+    const names = group.map((l) => wrap(l.service, vw - 12, 8.5, bold).slice(0, 2));
+    const nameRows = Math.max(...names.map((n) => n.length));
+    const headH = 16 + nameRows * 10;
+    const colHead = () => {
+      roundRect(page, M, y, TW, headH, 7, { color: NAVY }, "top");
+      text("Kalem", M + 8, y - headH / 2 - 3, 8.5, bold, WHITE);
+      group.forEach((l, gi) => {
+        const xr = M + lw + (gi + 1) * vw - 8;
+        names[gi].forEach((name, ni) => text(name, xr - bold.widthOfTextAtSize(name, 8.5), y - 11.5 - ni * 10, 8.5, bold, WHITE));
+        const ppl = `${formatNumber(l.people)} kişi`;
+        text(ppl, xr - regular.widthOfTextAtSize(ppl, 7), y - headH + 4.5, 7, regular, rgb(0.78, 0.85, 0.97));
       });
-      y -= height;
+      y -= headH;
+    };
+    colHead();
+    let segTop = y; // çerçevesi çizilecek parçanın üstü (sayfa kırılınca yenilenir)
+    const frame = () => page.drawRectangle({ x: M, y, width: TW, height: segTop - y, borderColor: LINE, borderWidth: 0.6 });
+    const base = group[0].cost!.rows;
+    base.forEach((r, ri) => {
+      if (y - lh < bottom) {
+        frame();
+        newPage();
+        colHead();
+        segTop = y;
+      }
+      if (r.kind === "section") {
+        page.drawRectangle({ x: M, y: y - lh, width: TW, height: lh, color: SOFT });
+        text(r.label, M + 8, y - 7.5, 6.4, bold, MUTED);
+      } else {
+        const strong = r.kind === "total" || r.kind === "subtotal";
+        const font = strong ? bold : regular;
+        if (r.kind === "total") page.drawRectangle({ x: M, y: y - lh, width: TW, height: lh, color: rgb(1, 0.95, 0.86) });
+        const color = r.kind === "info" ? MUTED : INK;
+        text(fit(r.label, lw - 14, fs, font), M + 8, y - 7.7, fs, font, color);
+        group.forEach((l, gi) => {
+          const v = l.cost!.rows[ri];
+          const str = v.kind === "count" ? formatNumber(v.value) : formatMoney(v.value);
+          text(str, M + lw + (gi + 1) * vw - 8 - font.widthOfTextAtSize(str, fs), y - 7.7, fs, font, color);
+        });
+        page.drawLine({ start: { x: M, y: y - lh }, end: { x: W - M, y: y - lh }, thickness: 0.3, color: LINE });
+      }
+      y -= lh;
+    });
+    frame();
+    y -= 12;
+  }
+  if (costLines.length) {
+    /* şartlar ve koşullar */
+    const terms = costTerms(o.cost_params ?? DEFAULT_COST_PARAMS);
+    // başlık + tüm maddeler birlikte sığmıyorsa hepsi sonraki sayfaya
+    const termLines = terms.map((term) => wrap(term, TW - 12, 7.6, regular));
+    ensure(16 + termLines.reduce((p, ls) => p + ls.length * 9.5 + 2, 0));
+    text("ŞARTLAR VE KOŞULLAR", M, y - 7, 8.5, bold, NAVY);
+    y -= 17;
+    for (const ls of termLines) {
+      text("•", M, y, 7.6, bold, ORANGE);
+      ls.forEach((l, li) => text(l, M + 10, y - li * 9.5, 7.6, regular, INK));
+      y -= ls.length * 9.5 + 2;
     }
   }
 
@@ -397,27 +460,36 @@ export async function buildOfferPdf(o: OfferPdfData, letterhead?: OfferLetterhea
     pg.drawText(label, { x: W - M - regular.widthOfTextAtSize(label, 7.5), y: fy, size: 7.5, font: regular, color: MUTED });
   });
 
-  await promoPage(doc, regular, bold);
+  await advantagesPage(doc, regular, bold, cmp ? { monthly: calc.monthly_profit, yearly: calc.yearly_profit, vat: calc.vat_saving, share: calc.profit_share_total } : null);
   return doc.save();
 }
 
-/** Tanıtım sayfasındaki özellik kartları (sabit içerik). */
-const FEATURES: [string, string, RGB][] = [
-  ["QR Devriye Sistemi", "Noktalara yerleştirilen QR etiketleri telefonla okutulur. Devriye turları, atlanan noktalar ve günlük rapor anlık görülür.", rgb(0.122, 0.435, 0.898)],
-  ["Ziyaretçi ve Kargo Takibi", "Güvenlik, ziyaretçi ve kargoları telefondan kaydeder: giriş-çıkış saati, plaka, daire onayı ve günlük rapor artık defterde değil.", rgb(0.05, 0.58, 0.53)],
-  ["İş Planlama ve Görev Atama", "Personele görev atanır; personel telefonundan kabul eder, fotoğrafla bitirir. Sorunlar anında yöneticiye bildirilir.", rgb(0.49, 0.23, 0.93)],
-  ["Personel ve Özlük Evrakları", "Özlük dosyaları, eğitimler, kıyafet teslim ve savunma evrakları personel bazında tek tıkla erişilir.", rgb(0.961, 0.541, 0.122)],
-  ["Puantaj ve İzin Yönetimi", "Aylık puantajlar ve yıllık izin hakları yasal sürelere göre hesaplanır; kalan izinler her an görünür.", rgb(0.07, 0.55, 0.3)],
-  ["Bordro ve Maaş", "Maaş bordroları kendi tablo düzeninizle hazırlanır, avanslar düşülür; onaylanan bordro yönetime açılır.", rgb(0.86, 0.2, 0.35)],
-  ["Cari Hesap", "Faturalar, tahsilatlar ve güncel bakiye tek ekranda; dönem ekstresi PDF olarak alınır.", rgb(0.039, 0.165, 0.388)],
-  ["Denetim ve Risk Analizi", "Gece ve gündüz denetim raporları ile risk analizleri proje bazında arşivlenir, istenince indirilir.", rgb(0.71, 0.33, 0.04)],
+/** Son sayfa, maddi kazanç kartları: [başlık, açıklama]. Metinler teklif hesabındaki iki kazanç kalemiyle aynı dili konuşur. */
+const GAINS: [string, string][] = [
+  ["KDV avantajı", "Hizmet faturasına eklenen KDV yükü kalkar. Yerine yalnızca kişi başı sabit OPSUYON hizmet bedelini ödersiniz."],
+  ["Şirket kâr payı sizde kalır", "Hizmet firmasının personel maliyetinin üstüne eklediği kâr payını ödemezsiniz; bu tutar bütçenizde kalır."],
+  ["Şeffaf maliyet", "Maaş, SGK, yol ve tüm giderleri kalem kalem görürsünüz. Neye ne ödediğinizi bilir, bütçenizi önceden planlarsınız."],
 ];
 
-/** Teklifin son sayfası: OPSUYON'un sunduğu sistemler (sabit tanıtım; antet kullanılmaz). */
-async function promoPage(doc: PDFDocument, regular: PDFFont, bold: PDFFont) {
+/** Son sayfa, operasyonel avantajlar: [başlık, açıklama, renk]. Özelliklerin ayrıntısı ayrı katalogdadır; burada FAYDA anlatılır. */
+const BENEFITS: [string, string, RGB][] = [
+  ["Tek ekrandan yönetim", "Personel, puantaj, izin, bordro ve evraklar tek panelde. Bilgi almak için kimseyi aramanız gerekmez.", rgb(0.122, 0.435, 0.898)],
+  ["Anlık denetim", "Devriye turları, verilen görevler ve ziyaretçi kayıtları anında ekranınızda; aksama olduğunda hemen görürsünüz.", rgb(0.05, 0.58, 0.53)],
+  ["Kâğıtsız, düzenli arşiv", "Defter, dosya ve dağınık tablolar biter. Her belge proje ve döneme göre saklanır, tek tıkla bulunur.", rgb(0.49, 0.23, 0.93)],
+  ["Denetime hazır kayıtlar", "Özlük evrakları, eğitimler ve yıllık izin hakları güncel tutulur; denetimde belge aramakla vakit kaybetmezsiniz.", rgb(0.07, 0.55, 0.3)],
+  ["Hızlı çözüm", "Sahadaki sorun fotoğrafıyla anında yöneticiye ulaşır; işler kanıtıyla kapanır, takipsiz kalmaz.", rgb(0.86, 0.2, 0.35)],
+  ["Her yerden erişim", "Bilgisayar, tablet ve telefondan çalışır; kurulum gerektirmez. Yönetim nerede olursa olsun sahayı görür.", rgb(0.71, 0.33, 0.04)],
+];
+
+/**
+ * Teklifin son sayfası: OPSUYON'u kullanmanın avantajları (antet kullanılmaz). Üstte lacivert bant; karşılaştırmalı
+ * teklifte "bu teklifle kazancınız" şeridi (aylık / yıllık); MADDİ KAZANÇ (3 kart) ve OPERASYONEL AVANTAJLAR (6 madde).
+ */
+async function advantagesPage(doc: PDFDocument, regular: PDFFont, bold: PDFFont, gain: { monthly: number; yearly: number; vat: number; share: number } | null) {
   const W = 595.28;
   const H = 841.89;
   const M = 44;
+  const TW = W - 2 * M;
   const page = doc.addPage([W, H]);
   const text = (s: string, x: number, y: number, size: number, font: PDFFont, color: RGB) => page.drawText(s, { x, y, size, font, color });
   const lines = (s: string, max: number, size: number, font: PDFFont) => {
@@ -430,41 +502,83 @@ async function promoPage(doc: PDFDocument, regular: PDFFont, bold: PDFFont) {
     if (cur) out.push(cur);
     return out;
   };
-  // üst bant
-  page.drawRectangle({ x: 0, y: H - 190, width: W, height: 190, color: NAVY });
-  page.drawRectangle({ x: 0, y: H - 194, width: W, height: 4, color: ORANGE });
+  const LIGHT = rgb(0.78, 0.85, 0.97);
+  // kazanç tutarı yalnızca müşteri kârdaysa gösterilir
+  const show = gain && gain.monthly > 0 ? gain : null;
+  const roomy = show ? 0 : 1; // şerit yoksa boşalan yer kartlara dağıtılır
+
+  /* üst bant */
+  const bandH = 172;
+  page.drawRectangle({ x: 0, y: H - bandH, width: W, height: bandH, color: NAVY });
+  page.drawRectangle({ x: 0, y: H - bandH - 4, width: W, height: 4, color: ORANGE });
   const logo = await doc.embedPng(Buffer.from(LOGO_PNG_B64, "base64"));
-  const lw = 150;
-  roundRect(page, M, H - 40, lw + 24, lw * LOGO_RATIO + 16, 8, { color: WHITE });
-  page.drawImage(logo, { x: M + 12, y: H - 48 - lw * LOGO_RATIO, width: lw, height: lw * LOGO_RATIO });
+  const lw = 132;
+  roundRect(page, M, H - 34, lw + 22, lw * LOGO_RATIO + 14, 8, { color: WHITE });
+  page.drawImage(logo, { x: M + 11, y: H - 41 - lw * LOGO_RATIO, width: lw, height: lw * LOGO_RATIO });
   const site = "www.opsuyon.com";
-  text(site, W - M - bold.widthOfTextAtSize(site, 11), H - 62, 11, bold, WHITE);
-  text("Operasyonunuz tek ekranda", M, H - 130, 25, bold, WHITE);
-  text("Personel operasyonunun tüm süreçleri; bilgisayar, tablet ve telefondan, kurulum gerekmeden.", M, H - 152, 10.5, regular, rgb(0.78, 0.85, 0.97));
-  text("OPSUYON ile yalnızca maliyet avantajı değil, aşağıdaki sistemlerin tamamı da sizin olur:", M, H - 168, 10.5, regular, rgb(0.78, 0.85, 0.97));
+  text(site, W - M - bold.widthOfTextAtSize(site, 10.5), H - 56, 10.5, bold, WHITE);
+  text("OPSUYON ile kazancınız", M, H - 118, 25, bold, WHITE);
+  text("Aynı personel, aynı hizmet; daha düşük maliyet ve sahada tam kontrol.", M, H - 140, 11, regular, LIGHT);
+  let y = H - bandH - 4 - 20;
 
-  // kartlar: 2 sütun × 4 satır
-  const gap = 14;
-  const cw = (W - 2 * M - gap) / 2;
-  const ch = 104;
-  let y = H - 194 - 26;
-  FEATURES.forEach(([title, desc, color], i) => {
-    const x = M + (i % 2) * (cw + gap);
-    if (i % 2 === 0 && i > 0) y -= ch + gap;
+  /* bu teklifle kazancınız */
+  if (show) {
+    const h = 58;
+    roundRect(page, M, y, TW, h, 10, { color: ORANGE });
+    text("BU TEKLİFLE KAZANCINIZ", M + 18, y - 24, 9.5, bold, WHITE);
+    text("KDV farkı + şirket kâr payı", M + 18, y - 40, 8.5, regular, WHITE);
+    const col = (label: string, value: string, xr: number) => {
+      text(value, xr - bold.widthOfTextAtSize(value, 19), y - 31, 19, bold, WHITE);
+      text(label, xr - regular.widthOfTextAtSize(label, 8.5), y - 46, 8.5, regular, WHITE);
+    };
+    col("yıllık net kâr", formatMoney(show.yearly), W - M - 18);
+    col("aylık net kâr", formatMoney(show.monthly), W - M - 18 - 178);
+    y -= h + 18;
+  } else y -= 6;
+
+  const section = (title: string) => {
+    page.drawRectangle({ x: M, y: y - 13, width: 4, height: 15, color: ORANGE });
+    text(title, M + 12, y - 11, 12.5, bold, NAVY);
+    y -= 26;
+  };
+
+  /* maddi kazanç: 3 kart */
+  section("MADDİ KAZANÇ");
+  const gap = 12;
+  const cw = (TW - 2 * gap) / 3;
+  const ch = 118 + roomy * 16;
+  const amounts = show ? [show.vat > 0 ? `${formatMoney(show.vat)} / ay` : null, show.share > 0 ? `${formatMoney(show.share)} / ay` : null, null] : [null, null, null];
+  GAINS.forEach(([title, desc], i) => {
+    const x = M + i * (cw + gap);
     roundRect(page, x, y, cw, ch, 10, { color: SOFT, borderColor: LINE, borderWidth: 0.7 });
-    roundRect(page, x + 14, y - 16, 30, 30, 8, { color });
-    const n = String(i + 1);
-    text(n, x + 14 + (30 - bold.widthOfTextAtSize(n, 14)) / 2, y - 36, 14, bold, WHITE);
-    text(title, x + 54, y - 35, 12, bold, NAVY);
-    lines(desc, cw - 28, 9, regular).slice(0, 4).forEach((l, li) => text(l, x + 14, y - 62 - li * 12.5, 9, regular, INK));
+    page.drawRectangle({ x: x + 14, y: y - 15, width: 26, height: 3, color: ORANGE });
+    lines(title, cw - 28, 11.5, bold).slice(0, 2).forEach((l, li) => text(l, x + 14, y - 33 - li * 13.5, 11.5, bold, NAVY));
+    const ty = y - 33 - (lines(title, cw - 28, 11.5, bold).slice(0, 2).length - 1) * 13.5 - 17;
+    lines(desc, cw - 28, 8.8, regular).slice(0, 6).forEach((l, li) => text(l, x + 14, ty - li * 11.8, 8.8, regular, INK));
+    const amt = amounts[i];
+    if (amt) text(amt, x + 14, y - ch + 13, 11, bold, rgb(0.07, 0.55, 0.3));
   });
-  y -= ch + 26;
+  y -= ch + 22;
 
-  // alt bant
-  roundRect(page, M, y, W - 2 * M, 58, 10, { color: ORANGE });
-  text("Daha Güvenli, Daha Düzenli, Daha Verimli…", M + 18, y - 25, 14, bold, WHITE);
-  text("Demo ve ayrıntılı bilgi için: www.opsuyon.com", M + 18, y - 43, 10, regular, WHITE);
-  const tag = "Operasyonel Süreç Yönetimi";
+  /* operasyonel avantajlar: 2 sütun × 3 satır */
+  section("OPERASYONEL AVANTAJLAR");
+  const bw = (TW - gap) / 2;
+  const bh = 72 + roomy * 12;
+  BENEFITS.forEach(([title, desc, color], i) => {
+    const x = M + (i % 2) * (bw + gap);
+    if (i % 2 === 0 && i > 0) y -= bh + 10;
+    roundRect(page, x, y, bw, bh, 9, { color: WHITE, borderColor: LINE, borderWidth: 0.8 });
+    roundRect(page, x, y, 5, bh, 2, { color });
+    text(title, x + 18, y - 22, 11.5, bold, NAVY);
+    lines(desc, bw - 34, 8.8, regular).slice(0, 4).forEach((l, li) => text(l, x + 18, y - 38 - li * 11.8, 8.8, regular, INK));
+  });
+  y -= bh + 20;
+
+  /* alt bant */
+  roundRect(page, M, y, TW, 52, 10, { color: NAVY });
+  text("Daha Güvenli, Daha Düzenli, Daha Verimli…", M + 18, y - 23, 13.5, bold, WHITE);
+  text("Sistemin tüm özellikleri için kataloğumuzu isteyin · www.opsuyon.com", M + 18, y - 40, 9.5, regular, LIGHT);
+  const tag = BRAND_TAGLINE;
   text(tag, W - M - regular.widthOfTextAtSize(tag, 9), 30, 9, regular, MUTED);
   text("OPSUYON", M, 30, 9, bold, NAVY);
 }
@@ -503,6 +617,7 @@ export function sampleOfferPdfData(creator: string | null): OfferPdfData {
     vat_rate: 20,
     fee_per_person: 7500,
     profit_pct: 5,
+    compare: true,
     valid_until: valid.toISOString().slice(0, 10),
     created_at: now.toISOString(),
     creator,
@@ -517,6 +632,8 @@ export function sampleOfferPdfData(creator: string | null): OfferPdfData {
 export type OfferReportRow = {
   offer_no: string; customer_name: string; status: OfferStatus; total_people: number; monthly_base: number;
   offer_total: number; monthly_profit: number; yearly_profit: number; created_at: string; creator: string | null;
+  /** false → yalnızca teklif: OPSUYON ve kâr sütunları "—" */
+  with_comparison?: boolean;
 };
 
 export type OfferReportSummary = {
@@ -596,10 +713,11 @@ export async function buildOfferReportPdf(rows: OfferReportRow[], s: OfferReport
       headRow();
     }
     const neg = (n: number) => (n < 0 ? BAD : undefined);
+    const m = (n: number) => (r.with_comparison === false ? "—" : formatMoney(n));
     drawRow(
       [
-        r.offer_no, r.customer_name, formatNumber(r.total_people), formatMoney(r.monthly_base), formatMoney(r.offer_total),
-        formatMoney(r.monthly_profit), formatMoney(r.yearly_profit), OFFER_STATUS[r.status].label, formatDate(r.created_at), r.creator ?? "—",
+        r.offer_no, r.customer_name, formatNumber(r.total_people), formatMoney(r.monthly_base), m(r.offer_total),
+        m(r.monthly_profit), m(r.yearly_profit), OFFER_STATUS[r.status].label, formatDate(r.created_at), r.creator ?? "—",
       ],
       regular,
       [undefined, undefined, undefined, undefined, undefined, neg(r.monthly_profit), neg(r.yearly_profit) ?? rgb(0.71, 0.33, 0.04), r.status === "accepted" ? OK : r.status === "rejected" ? BAD : undefined],

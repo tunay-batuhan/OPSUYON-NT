@@ -12,14 +12,14 @@ const people = z
   .trim()
   .refine((v) => v === "" || /^\d{1,6}$/.test(v), "Kişi sayısı tam sayı olmalı");
 
-/** Maliyet tablosu girdileri (Maliyet karşılaştırma ekranı); Teklif ekranında boş kalır. */
+/** Maliyet kalemleri (2. adım: maliyet karşılaştırma); yalnızca teklif verilecekse boş kalır. */
 export const COST_FIELDS = ["gross", "net_transport", "ot_hours", "clothing", "equipment", "ohs", "training", "insurance", "card", "extra"] as const;
 const costAmount = (label: string) => money(label, { min: 0, max: 99_999_999 });
 
 export const offerLineSchema = z.object({
   service: z.string().trim().min(1, "Hizmet adı zorunlu").max(80, "Hizmet adı en fazla 80 karakter"),
   people,
-  /** kişi başı hizmet bedeli (KDV hariç); maliyet ekranında hesaplanır */
+  /** kişi başı hizmet bedeli (KDV hariç); 2. adımda brüt maaş yazılan hizmette maliyet tablosundan hesaplanır */
   unit_price: money("Kişi başı bedel", { min: 0, max: MAX_AMOUNT }),
   gross: costAmount("Brüt maaş"),
   net_transport: costAmount("Net yol"),
@@ -43,16 +43,23 @@ export const offerSchema = z
     email,
     address: opt("Adres", 400),
     notes: opt("Not", 2000),
-    /** teklif: kişi başı bedel yazılır · maliyet: maliyet tablosundan hesaplanır */
-    kind: z.enum(["teklif", "maliyet"]),
+    /** 2. adım (maliyet karşılaştırma) teklife eklensin mi; kapalıysa yalnızca teklif (hizmetler ve bedeller) */
+    compare: z.boolean(),
+    /** fiyata dahil fonlar (maliyet tablosu; Excel'de satırın yanındaki oran) */
+    fund_severance: z.boolean(),
+    fund_leave: z.boolean(),
+    fund_holiday: z.boolean(),
     vat_rate: decimal("KDV oranı", { required: true, min: 0, max: 100 }),
     fee_per_person: money("Kişi başı teklif tutarı", { required: true, min: 0, max: 99_999_999 }),
     profit_pct: decimal("Şirket kâr payı", { required: true, min: 0, max: 100 }),
     valid_until: date("Geçerlilik tarihi"),
     lines: z.array(offerLineSchema).min(1, "En az bir hizmet satırı girin").max(30, "En fazla 30 hizmet satırı"),
   })
-  .refine((v) => offerLines(v.lines, v.kind).some((l) => l.people > 0), { path: ["lines"], message: "En az bir hizmette kişi sayısı girin" })
-  .refine((v) => v.kind !== "maliyet" || offerLines(v.lines, v.kind).every((l) => l.people === 0 || (l.cost?.gross ?? 0) > 0), { path: ["lines"], message: "Kişi sayısı girilen her görevde brüt maaşı yazın" });
+  .refine((v) => offerLines(v.lines, v.compare).some((l) => l.people > 0), { path: ["lines"], message: "En az bir hizmette kişi sayısı girin" })
+  .refine((v) => offerLines(v.lines, v.compare).every((l) => l.people === 0 || l.cost || l.unit_price > 0), {
+    path: ["lines"],
+    message: "Kişi sayısı girilen her hizmette kişi başı bedeli yazın (ya da 2. adımda o hizmetin brüt maaşını girin)",
+  });
 
 export type OfferValues = z.infer<typeof offerSchema>;
 
@@ -65,15 +72,32 @@ export const lineCost = (l: OfferLineValues): CostInput => ({
   insurance: toMoney(l.insurance) ?? 0, card: toMoney(l.card) ?? 0, extra: toMoney(l.extra) ?? 0,
 });
 
-/** Form satırları → hesap girdisi ("" → 0). Maliyet ekranında kişi başı bedel maliyet tablosundan hesaplanır. */
-export function offerLines(lines: OfferLineValues[], kind: "teklif" | "maliyet"): OfferLineInput[] {
+/** Satırda maliyet kalemi girilmiş mi (brüt maaş yazılmış): o satırın kişi başı bedeli maliyet tablosundan hesaplanır. */
+export const hasCost = (l: OfferLineValues) => (toMoney(l.gross) ?? 0) > 0;
+
+/**
+ * Form satırları → hesap girdisi ("" → 0). Maliyet karşılaştırma açıksa ve satırda brüt maaş yazılmışsa kişi başı
+ * bedel maliyet tablosundan hesaplanır; değilse 1. adımda yazılan bedel kullanılır.
+ */
+export function offerLines(lines: OfferLineValues[], compare: boolean): OfferLineInput[] {
   return lines.map((l) => ({
     service: l.service.trim(),
     people: Number(l.people || 0),
     unit_price: toMoney(l.unit_price) ?? 0,
-    cost: kind === "maliyet" ? lineCost(l) : null,
+    cost: compare && hasCost(l) ? lineCost(l) : null,
   }));
 }
+
+/** Teklifin maliyet oranları: saklanan / ayarlardaki oranlar + formdaki "fiyata dahil fonlar" işaretleri. */
+export const withFunds = (p: CostParams, v: Pick<OfferValues, "fund_severance" | "fund_leave" | "fund_holiday">): CostParams => ({
+  ...p,
+  severance: v.fund_severance ? 1 : 0,
+  leave: v.fund_leave ? 1 : 0,
+  holiday: v.fund_holiday ? 1 : 0,
+});
+
+/** 1. adımın alanları: hata bunlardaysa form o adıma döner. */
+export const STEP1_FIELDS = ["customer_name", "contact_name", "phone", "email", "address", "valid_until", "notes"] as const;
 
 export const offerNumbers = (v: Pick<OfferValues, "vat_rate" | "fee_per_person" | "profit_pct">) => ({
   vat: toNumber(v.vat_rate) ?? 0,

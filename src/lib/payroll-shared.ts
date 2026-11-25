@@ -2,6 +2,13 @@
 import { MONTHS } from "@/lib/format";
 import type { Cells, PayCol } from "@/lib/payroll-engine";
 
+/**
+ * Sistem içinde maaş hesaplama (maaş bordrosu, avanslar, ücret tanımları, bordro şablonu). 23 Kasım 2026: müşteri
+ * bordroyu kendi Excel / PDF'inde hazırlayıp yüklemek istedi ("Bordro ekle"); hesaplama ekranları menüden kalktı ve
+ * adresleri Bordrolar'a yönlenir. Kod ve veriler duruyor; true yapılınca sekmeler geri gelir.
+ */
+export const PAYROLL_CALC_ENABLED: boolean = false;
+
 /** Bir personelin satırı: girilen hücreler + hesaplanan değerler. */
 export type PayrollLineView = {
   id: string;

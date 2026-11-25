@@ -23,7 +23,8 @@ export type OfferRow = {
   id: string; offer_no: string; customer_name: string; contact_name: string | null; status: OfferStatus;
   total_people: number; monthly_base: number; monthly_vat: number; offer_total: number; monthly_profit: number; yearly_profit: number;
   valid_until: string | null; created_at: string; created_by: string | null; decided_at: string | null;
-  kind: "teklif" | "maliyet"; vat_saving: number; profit_share_total: number;
+  /** maliyet karşılaştırma (2. adım) teklife eklenmiş mi; false → yalnızca teklif (kâr tutarları 0) */
+  with_comparison: boolean; vat_saving: number; profit_share_total: number;
 };
 
 export type OfferLine = { id: string; service: string; people: number; monthly_total: number; unit_price: number; cost: CostInput | null; sort_order: number };
@@ -47,7 +48,7 @@ export type OfferSettings = {
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const UUID = /^[0-9a-f-]{36}$/i;
 const ROW_COLS =
-  "id, offer_no, customer_name, contact_name, status, total_people, monthly_base, monthly_vat, offer_total, monthly_profit, yearly_profit, valid_until, created_at, created_by, decided_at, kind, vat_saving, profit_share_total";
+  "id, offer_no, customer_name, contact_name, status, total_people, monthly_base, monthly_vat, offer_total, monthly_profit, yearly_profit, valid_until, created_at, created_by, decided_at, with_comparison, vat_saving, profit_share_total";
 
 const one = (v: string | string[] | null | undefined) => (typeof v === "string" && v !== "" ? v : undefined);
 
@@ -109,7 +110,7 @@ const toRow = (r: Record<string, unknown>): OfferRow =>
     yearly_profit: Number(r.yearly_profit),
     vat_saving: Number(r.vat_saving ?? 0),
     profit_share_total: Number(r.profit_share_total ?? 0),
-    kind: r.kind === "maliyet" ? "maliyet" : "teklif",
+    with_comparison: r.with_comparison !== false,
   }) as OfferRow;
 
 export async function loadOffers(f: OfferFilters, range?: { from: number; to: number }): Promise<{ rows: OfferRow[]; total: number }> {

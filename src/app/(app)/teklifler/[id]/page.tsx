@@ -9,7 +9,7 @@ import { CostTable, OfferResult } from "@/components/offers/offer-result";
 import { deleteOffer, setOfferStatus } from "@/app/actions/offers";
 import { hasPermission, requireStaff } from "@/lib/auth";
 import { formatDate, formatDateTime, formatMoney } from "@/lib/format";
-import { OFFER_STATUS, calcOffer, type OfferStatus } from "@/lib/offer-calc";
+import { OFFER_STATUS, calcOffer, costTerms, type OfferStatus } from "@/lib/offer-calc";
 import { loadOffer } from "../data";
 
 export const metadata: Metadata = { title: "Teklif" };
@@ -23,7 +23,7 @@ const STATUS_ACTIONS: { status: OfferStatus; label: string; cls: string }[] = [
 ];
 
 /**
- * Teklif sayfası: kâr tablosu (tabletteki hesabın aynısı, kayıtlı tutarlarla), müşteri bilgileri, durum,
+ * Teklif sayfası: teklif tablosu, maliyet karşılaştırma eklenmişse kâr tablosu (tabletteki hesabın aynısı), müşteri bilgileri, durum,
  * PDF indir / görüntüle, düzenle ve sil.
  */
 export default async function OfferPage({ params }: PageProps<"/teklifler/[id]">) {
@@ -36,7 +36,8 @@ export default async function OfferPage({ params }: PageProps<"/teklifler/[id]">
   const { offer: o, lines, creator } = data;
   // tablo, kayıtlı satırlarla yeniden çizilir (tutarlar kayıtla aynı fonksiyondan)
   const calc = calcOffer(lines, o.vat_rate, o.fee_per_person, o.profit_pct, o.cost_params);
-  const costLines = calc.lines.filter((l) => l.cost);
+  const cmp = o.with_comparison;
+  const costLines = cmp ? calc.lines.filter((l) => l.cost) : [];
   const s = OFFER_STATUS[o.status];
 
   const info: [string, ReactNode][] = [
@@ -61,7 +62,7 @@ export default async function OfferPage({ params }: PageProps<"/teklifler/[id]">
           <Card>
             <CardHeader
               title={`${o.offer_no} · ${o.customer_name}`}
-              description={`${o.kind === "maliyet" ? "Maliyet karşılaştırma · " : ""}${calc.total_people} kişi · aylık matrah ${formatMoney(calc.monthly_base)} · yıllık net kâr ${formatMoney(calc.yearly_profit)}`}
+              description={`${calc.total_people} kişi · aylık matrah ${formatMoney(calc.monthly_base)} · ${cmp ? `maliyet karşılaştırmalı · yıllık net kâr ${formatMoney(calc.yearly_profit)}` : `KDV dahil ${formatMoney(calc.current_total)} · yalnızca teklif`}`}
               action={<Badge tone={s.tone}>{s.label}</Badge>}
             />
             <dl className="grid gap-x-6 gap-y-4 p-5 text-sm sm:grid-cols-2">
@@ -125,13 +126,21 @@ export default async function OfferPage({ params }: PageProps<"/teklifler/[id]">
         </div>
 
         <div className="space-y-4 xl:sticky xl:top-20 xl:self-start">
-          <OfferResult calc={calc} vatRate={o.vat_rate} fee={o.fee_per_person} profitPct={o.profit_pct} />
+          <OfferResult calc={calc} vatRate={o.vat_rate} fee={o.fee_per_person} profitPct={o.profit_pct} compare={cmp} />
           {costLines.map((l, i) => (
             <details key={`${l.service}-${i}`} className="rounded-xl border border-border bg-surface p-3">
               <summary className="cursor-pointer text-sm font-semibold">{l.service} · maliyet analiz tablosu</summary>
               <CostTable title={l.service} cost={l.cost!} className="mt-3" />
             </details>
           ))}
+          {costLines.length > 0 && (
+            <div className="rounded-xl border border-border bg-surface p-3 text-xs text-muted">
+              <p className="mb-1 font-semibold text-fg">Şartlar ve koşullar</p>
+              <ul className="list-disc space-y-0.5 pl-4">
+                {costTerms(o.cost_params).map((t) => <li key={t}>{t}</li>)}
+              </ul>
+            </div>
+          )}
         </div>
       </div>
     </>

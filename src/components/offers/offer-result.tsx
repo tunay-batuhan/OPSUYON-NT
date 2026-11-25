@@ -3,17 +3,23 @@ import { formatRate, type CostResult, type OfferCalc } from "@/lib/offer-calc";
 import { cn } from "@/components/ui";
 
 /**
- * Teklif sonucu (tabletteki canlı hesap ve teklif sayfası): en üstte büyük Aylık / Yıllık net kâr kartları, altında
- * iki kazanç kalemi (KDV farkı, şirket kâr payı), teklif tablosu (hizmet, kişi, kişi başı bedel, aylık tutar, KDV)
- * ve karşılaştırma (bugün ödenen vs OPSUYON ile). Kâr eksiye düşerse kırmızı gösterilir.
+ * Teklif sonucu (tabletteki canlı hesap ve teklif sayfası).
+ *  - Her iki türde teklif tablosu: hizmet, kişi, kişi başı bedel, aylık bedel, toplam, KDV ve genel toplam (KDV dahil).
+ *  - `compare` kapalı (yalnızca teklif): yalnızca bu tablo.
+ *  - `compare` açık (maliyet karşılaştırma): en üstte büyük Aylık / Yıllık net kâr kartları, iki kazanç kalemi (KDV farkı,
+ *    şirket kâr payı), teklif tablosu ve karşılaştırma (bugün ödenen vs OPSUYON ile). Kâr eksiye düşerse kırmızı gösterilir.
  */
-export function OfferResult({ calc, vatRate, fee, profitPct, className }: { calc: OfferCalc; vatRate: number; fee: number; profitPct: number; className?: string }) {
-  const loss = calc.monthly_profit < 0;
+export function OfferResult({
+  calc, vatRate, fee, profitPct, compare = true, className,
+}: { calc: OfferCalc; vatRate: number; fee: number; profitPct: number; compare?: boolean; className?: string }) {
+  const loss = compare && calc.monthly_profit < 0;
   const navy = "bg-[var(--navy)] text-white";
-  const rows = calc.lines.filter((l) => l.service);
+  const named = calc.lines.filter((l) => l.service);
+  const rows = named.some((l) => l.people > 0) ? named.filter((l) => l.people > 0) : named;
   return (
     <div className={cn("space-y-4", className)}>
       {/* büyük kâr kartları */}
+      {compare && (<>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className={cn("rounded-2xl px-5 py-4 shadow-card", loss ? "bg-danger text-white" : navy)}>
           <p className="text-xs font-bold uppercase tracking-wide text-white/75">Aylık net kâr&apos;ınız</p>
@@ -36,10 +42,11 @@ export function OfferResult({ calc, vatRate, fee, profitPct, className }: { calc
           <dd className="mt-0.5 text-xs text-muted">%{formatRate(profitPct)} kâr payı × {formatNumber(calc.total_people)} personel</dd>
         </div>
       </dl>
+      </>)}
 
       {/* teklif tablosu */}
       <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-card">
-        <p className="bg-[var(--tone-amber)] px-4 py-2.5 text-center text-base font-extrabold tracking-wide text-white sm:text-lg">OPSUYON İLE KÂR&apos;A GEÇİN</p>
+        <p className="bg-[var(--tone-amber)] px-4 py-2.5 text-center text-base font-extrabold tracking-wide text-white sm:text-lg">{compare ? <>OPSUYON İLE KÂR&apos;A GEÇİN</> : "HİZMET TEKLİFİ"}</p>
         <div className="relative overflow-x-auto">
           <table className="w-full min-w-[30rem] text-sm tabular-nums">
             <thead>
@@ -75,12 +82,18 @@ export function OfferResult({ calc, vatRate, fee, profitPct, className }: { calc
                 <td className="px-3 py-2 text-right">KDV %{formatRate(vatRate)}</td>
                 <td className="px-3 py-2 text-right">{formatMoney(calc.monthly_vat)}</td>
               </tr>
+              <tr className="bg-[var(--tone-amber-soft)] font-bold">
+                <td className="px-3 py-2.5" colSpan={2} />
+                <td className="px-3 py-2.5 text-right">GENEL TOPLAM</td>
+                <td className="px-3 py-2.5 text-right">{formatMoney(calc.current_total)}</td>
+              </tr>
             </tbody>
           </table>
         </div>
       </div>
 
       {/* karşılaştırma */}
+      {compare && (
       <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-card">
         <div className="relative overflow-x-auto">
           <table className="w-full min-w-[30rem] text-sm tabular-nums">
@@ -121,6 +134,7 @@ export function OfferResult({ calc, vatRate, fee, profitPct, className }: { calc
           </table>
         </div>
       </div>
+      )}
       {loss && (
         <p role="status" className="rounded-xl bg-danger-soft px-4 py-2.5 text-sm text-danger">
           OPSUYON teklif tutarı, müşterinin kazancını (KDV + şirket kâr payı) aşıyor: bu teklifle müşteri kâr etmez. Kişi başı tutarı ya da kişi sayısını kontrol edin.
@@ -130,7 +144,7 @@ export function OfferResult({ calc, vatRate, fee, profitPct, className }: { calc
   );
 }
 
-/** Maliyet analiz tablosu (kişi başı; müşterinin Excel'indeki "TEKLİF DETAYI" satırları). */
+/** Maliyet analiz tablosu (kişi başı; müşterinin Excel'indeki "TEKLİF DETAYI" satırlarının tamamı). Soluk satırlar çalışandan kesilen / bilgi tutarlarıdır. */
 export function CostTable({ title, cost, className }: { title: string; cost: CostResult; className?: string }) {
   return (
     <div className={cn("overflow-hidden rounded-xl border border-border bg-surface", className)}>
@@ -145,7 +159,7 @@ export function CostTable({ title, cost, className }: { title: string; cost: Cos
             ) : (
               <tr key={i} className={cn("border-t border-border", r.kind === "total" && "bg-[var(--tone-amber-soft)] font-bold", r.kind === "subtotal" && "font-semibold")}>
                 <td className={cn("px-3 py-1.5", r.kind === "info" && "text-muted")}>{r.label}</td>
-                <td className={cn("whitespace-nowrap px-3 py-1.5 text-right", r.kind === "info" && "text-muted")}>{formatMoney(r.value)}</td>
+                <td className={cn("whitespace-nowrap px-3 py-1.5 text-right", r.kind === "info" && "text-muted")}>{r.kind === "count" ? formatNumber(r.value) : formatMoney(r.value)}</td>
               </tr>
             ),
           )}

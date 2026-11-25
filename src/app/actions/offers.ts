@@ -12,7 +12,7 @@ import { guard, nul, pgMessage, str, validate } from "@/lib/form";
 import { toMoney, toNumber } from "@/lib/parse";
 import { calcOffer, isOfferStatus, normalizeCostParams } from "@/lib/offer-calc";
 import {
-  LETTERHEAD_MAX, letterheadKind, letterheadMarginsSchema, offerLines, offerNumbers, offerSchema, offerSettingsSchema, paramsFromForm, serviceList,
+  LETTERHEAD_MAX, letterheadKind, letterheadMarginsSchema, offerLines, offerNumbers, offerSchema, offerSettingsSchema, paramsFromForm, serviceList, withFunds,
   type LetterheadMarginsValues, type OfferSettingsValues, type OfferValues,
 } from "@/lib/schemas-offers";
 import type { ActionState } from "@/lib/action-types";
@@ -32,13 +32,15 @@ export async function saveOffer(values: OfferValues): Promise<ActionState> {
     if (!v.ok) return v.state;
     const d = v.data;
     const supabase = await createClient();
-    const lines = offerLines(d.lines, d.kind).filter((l) => l.service);
+    const lines = offerLines(d.lines, d.compare).filter((l) => l.service);
     const { vat, fee, pct } = offerNumbers(d);
     // maliyet oranları: düzenlemede teklifle saklanan, yeni teklifte ayarlardaki güncel oranlar
     const { data: stored } = d.id ? await supabase.from("offers").select("cost_params").eq("id", d.id).maybeSingle() : { data: null };
     const { data: settings } = stored?.cost_params ? { data: null } : await supabase.from("offer_settings").select("cost_params").eq("id", true).maybeSingle();
-    const params = normalizeCostParams(stored?.cost_params ?? settings?.cost_params);
+    const params = withFunds(normalizeCostParams(stored?.cost_params ?? settings?.cost_params), d);
     const c = calcOffer(lines, vat, fee, pct, params);
+    // yalnızca teklif (karşılaştırma yok): kazanç tutarları saklanmaz, raporlarda kâr sayılmaz
+    const cmp = d.compare;
 
     const row = {
       customer_name: d.customer_name,
@@ -47,25 +49,25 @@ export async function saveOffer(values: OfferValues): Promise<ActionState> {
       email: nul(d.email),
       address: nul(d.address),
       notes: nul(d.notes),
-      kind: d.kind,
+      with_comparison: cmp,
       vat_rate: vat,
       fee_per_person: fee,
       profit_pct: pct,
       cost_params: params,
-      vat_saving: c.vat_saving,
-      profit_share_total: c.profit_share_total,
+      vat_saving: cmp ? c.vat_saving : 0,
+      profit_share_total: cmp ? c.profit_share_total : 0,
       valid_until: nul(d.valid_until),
       total_people: c.total_people,
       monthly_base: c.monthly_base,
       monthly_vat: c.monthly_vat,
-      offer_total: c.offer_total,
-      monthly_profit: c.monthly_profit,
-      yearly_profit: c.yearly_profit,
+      offer_total: cmp ? c.offer_total : 0,
+      monthly_profit: cmp ? c.monthly_profit : 0,
+      yearly_profit: cmp ? c.yearly_profit : 0,
     };
     const lineRows = (offerId: string) =>
       c.lines.map((l, i) => ({
         offer_id: offerId, service: l.service, people: l.people, monthly_total: l.monthly_total, unit_price: l.unit_price, profit_unit: l.profit_unit,
-        cost: d.kind === "maliyet" ? (lines[i].cost ?? null) : null, sort_order: i,
+        cost: lines[i].cost ?? null, sort_order: i,
       }));
 
     if (d.id) {

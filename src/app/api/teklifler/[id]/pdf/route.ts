@@ -28,6 +28,7 @@ export async function GET(req: NextRequest, ctx: RouteContext<"/api/teklifler/[i
     fee_per_person: o.fee_per_person,
     profit_pct: o.profit_pct,
     cost_params: o.cost_params,
+    compare: o.with_comparison,
     valid_until: o.valid_until,
     created_at: o.created_at,
     creator,

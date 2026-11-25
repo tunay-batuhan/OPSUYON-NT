@@ -100,9 +100,9 @@ export default async function OffersPage({ searchParams }: PageProps<"/teklifler
                     </td>
                     <td className={tdNum}>{formatNumber(r.total_people)}</td>
                     <td className={cn(tdNum, "whitespace-nowrap")}>{formatMoney(r.monthly_base)}</td>
-                    <td className={cn(tdNum, "whitespace-nowrap")}>{formatMoney(r.offer_total)}</td>
-                    <td className={cn(tdNum, "whitespace-nowrap", r.monthly_profit < 0 && "text-danger")}>{formatMoney(r.monthly_profit)}</td>
-                    <td className={cn(tdNum, "whitespace-nowrap font-semibold", r.yearly_profit < 0 ? "text-danger" : "text-[#b45309]")}>{formatMoney(r.yearly_profit)}</td>
+                    <td className={cn(tdNum, "whitespace-nowrap")}>{r.with_comparison ? formatMoney(r.offer_total) : <span className="text-muted" title="Yalnızca teklif (maliyet karşılaştırma eklenmedi)">—</span>}</td>
+                    <td className={cn(tdNum, "whitespace-nowrap", r.monthly_profit < 0 && "text-danger")}>{r.with_comparison ? formatMoney(r.monthly_profit) : <span className="text-muted">—</span>}</td>
+                    <td className={cn(tdNum, "whitespace-nowrap font-semibold", r.yearly_profit < 0 ? "text-danger" : "text-[#b45309]")}>{r.with_comparison ? formatMoney(r.yearly_profit) : <span className="font-normal text-muted">—</span>}</td>
                     <td className={td}><Badge tone={s.tone}>{s.label}</Badge></td>
                     <td className={cn(td, "whitespace-nowrap")}>{formatDate(r.created_at)}</td>
                     <td className={cn(td, "text-muted")}>{(r.created_by && names.get(r.created_by)) || "—"}</td>

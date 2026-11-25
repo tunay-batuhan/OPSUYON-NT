@@ -82,7 +82,8 @@ export const COST_INPUT_LABELS: Record<keyof CostInput, string> = {
   ohs: "İş sağlığı ve güvenliği", training: "Eğitim, denetim, kırtasiye", insurance: "Mali mesuliyet sigortası", card: "Alışveriş kartı (ticket)", extra: "Ek ödeme (istisna tutar)",
 };
 
-export type CostRow = { label: string; value: number; kind?: "section" | "subtotal" | "total" | "info" };
+/** kind: section → başlık satırı; info → çalışandan kesilen / bilgi satırı (maliyete eklenmez); count → adet (₺ değil). */
+export type CostRow = { label: string; value: number; kind?: "section" | "subtotal" | "total" | "info" | "count" };
 export type CostResult = {
   rows: CostRow[];
   /** ARA TOPLAM: şirket kâr payı hariç kişi başı maliyet */
@@ -138,50 +139,81 @@ export function calcCost(input: CostInput, p: CostParams, profitPct: number): Co
   const unit = subtotal + profit;
   const take_home = netSalary + tNet + oNet + card + extra;
   const rate = (n: number) => new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 3 }).format(n);
+  // Satırlar Excel'deki "MALİYET ANALİZ TABLOSU" ile aynı sırada ve EKSİKSİZ (tutarı 0 olanlar dahil): PDF dökümü bunu basar.
+  const sgkEr_ = `SGK işveren payı (%${rate(p.sgk_employer)})`, sgkEe_ = `SGK işçi payı (%${rate(p.sgk_employee)})`;
+  const unEr_ = `İşsizlik fonu işveren payı (%${rate(p.unemp_employer)})`, unEe_ = `İşsizlik fonu işçi payı (%${rate(p.unemp_employee)})`;
+  const tax_ = `Gelir vergisi (%${rate(p.income_tax)})`;
   const rows: CostRow[] = [
     { label: "MAAŞ GİDERLERİ", value: 0, kind: "section" },
     { label: "Brüt maaş", value: g },
     { label: "Net maaş", value: netSalary, kind: "info" },
-    { label: `SGK işveren payı (%${rate(p.sgk_employer)})`, value: sgkEr },
-    { label: `SGK işçi payı (%${rate(p.sgk_employee)})`, value: sgkEe, kind: "info" },
-    { label: `İşsizlik fonu işveren payı (%${rate(p.unemp_employer)})`, value: unEr },
-    { label: `İşsizlik fonu işçi payı (%${rate(p.unemp_employee)})`, value: unEe, kind: "info" },
-    { label: `Gelir vergisi (%${rate(p.income_tax)})`, value: incomeTax, kind: "info" },
+    { label: sgkEr_, value: sgkEr },
+    { label: sgkEe_, value: sgkEe, kind: "info" },
+    { label: unEr_, value: unEr },
+    { label: unEe_, value: unEe, kind: "info" },
+    { label: tax_, value: incomeTax, kind: "info" },
     { label: "Damga vergisi", value: stamp, kind: "info" },
     { label: "Maliyet toplamı (maaş)", value: salaryCost, kind: "subtotal" },
     { label: "YOL GİDERLERİ", value: 0, kind: "section" },
-    { label: "Net yol ücreti", value: tNet, kind: "info" },
     { label: "Brüt yol ücreti", value: tGross },
-    { label: "SGK ve işsizlik işveren payı", value: tSgkEr + tUnEr },
-    { label: "Gelir ve damga vergisi", value: tTax + tStamp },
+    { label: "Net yol ücreti", value: tNet, kind: "info" },
+    { label: sgkEr_, value: tSgkEr },
+    { label: sgkEe_, value: tSgkEe, kind: "info" },
+    { label: unEr_, value: tUnEr },
+    { label: unEe_, value: tGross * pct(p.unemp_employee), kind: "info" },
+    { label: tax_, value: tTax },
+    { label: "Damga vergisi", value: tStamp },
     { label: "Maliyet toplamı (yol ücreti)", value: transportCost, kind: "subtotal" },
-    ...(hours > 0
-      ? ([
-          { label: "FAZLA MESAİ GİDERLERİ", value: 0, kind: "section" },
-          { label: `Fazla mesai brüt ücreti (${rate(hours)} saat)`, value: oGross },
-          { label: "Fazla mesai net ücreti", value: oNet, kind: "info" },
-          { label: "Maliyet toplamı (fazla mesai)", value: overtimeCost, kind: "subtotal" },
-        ] as CostRow[])
-      : []),
-    ...(funds > 0
-      ? ([
-          { label: "FONLAR", value: 0, kind: "section" },
-          { label: "Kıdem tazminatı fonu", value: severance },
-          { label: "Yıllık izin fonu", value: leave },
-          { label: "Resmi tatil mesaisi fonu", value: holiday },
-          { label: "Maliyet toplamı (fonlar)", value: funds, kind: "subtotal" },
-        ] as CostRow[])
-      : []),
+    { label: "FAZLA MESAİ GİDERLERİ", value: 0, kind: "section" },
+    { label: "Fazla mesai saati", value: hours, kind: "count" },
+    { label: "Fazla mesai brüt ücreti", value: oGross },
+    { label: "Fazla mesai net ücreti", value: oNet, kind: "info" },
+    { label: sgkEr_, value: oSgkEr },
+    { label: sgkEe_, value: oSgkEe, kind: "info" },
+    { label: unEr_, value: oUnEr },
+    { label: unEe_, value: oUnEe },
+    { label: tax_, value: oTax },
+    { label: "Damga vergisi", value: oStamp },
+    { label: "Maliyet toplamı (fazla mesai)", value: overtimeCost, kind: "subtotal" },
+    { label: "KIDEM, YILLIK İZİN, RESMİ TATİL FONLARI", value: 0, kind: "section" },
+    { label: `Kıdem tazminatı fonu (${p.severance ? "dahil" : "dahil değil"})`, value: severance },
+    { label: `Yıllık izin fonu (${p.leave ? "dahil" : "dahil değil"})`, value: leave },
+    { label: `Resmi tatil mesaisi fonu (${p.holiday ? "dahil" : "dahil değil"})`, value: holiday },
+    { label: "Maliyet toplamı (kıdem + yıllık izin + resmi tatil)", value: funds, kind: "subtotal" },
     { label: "ŞİRKET GİDERLERİ", value: 0, kind: "section" },
-    { label: "Kıyafet, teçhizat, İSG, eğitim, sigorta", value: company, kind: "subtotal" },
-    { label: "Alışveriş kartı (ticket)", value: card },
+    { label: "Kıyafet giderleri", value: Math.max(0, num(input.clothing)) },
+    { label: "Teçhizat giderleri", value: Math.max(0, num(input.equipment)) },
+    { label: "İş sağlığı ve güvenliği giderleri", value: Math.max(0, num(input.ohs)) },
+    { label: "Eğitim, denetim, kırtasiye giderleri", value: Math.max(0, num(input.training)) },
+    { label: "Zorunlu mali mesuliyet sigortası bedeli", value: Math.max(0, num(input.insurance)) },
+    { label: "Maliyet toplamı (şirket giderleri)", value: company, kind: "subtotal" },
+    { label: "TOPLAM", value: 0, kind: "section" },
+    { label: "Alışveriş kartı ücreti (ticket kart ile ödenir)", value: card },
     { label: "Ek ödeme (bordroda istisna tutar)", value: extra },
     { label: "ARA TOPLAM", value: subtotal, kind: "total" },
     { label: `Şirket kâr payı (%${rate(profitPct)})`, value: profit, kind: "subtotal" },
     { label: "GENEL TOPLAM (kişi başı bedel)", value: unit, kind: "total" },
-    { label: "Net ele geçen maaş", value: take_home, kind: "info" },
+    { label: "Net ele geçen maaş", value: take_home, kind: "subtotal" },
   ];
   return { rows, subtotal, profit, unit, take_home };
+}
+
+/**
+ * Maliyet tablosunun altındaki "ŞARTLAR VE KOŞULLAR" (Excel'in ANA SAYFA'sındaki koşullu notlar): fonların fiyata
+ * dahil olup olmadığına ve SGK işveren payı indirimine göre.
+ */
+export function costTerms(p: CostParams): string[] {
+  const fund = (on: number, name: string) =>
+    on
+      ? `${name} fiyata dahil edilmiştir. Ek olarak fatura edilmeyecektir.`
+      : `${name} fiyata dahil değildir. Oluştuğunda veya mahkeme kararı gereği ödenmesi kararlaştırıldığında tamamı ek olarak fatura edilecektir.`;
+  return [
+    ...(p.sgk_employer === 15.5 ? ["SGK işveren payı %5 indirim uygulanarak %15,5 üzerinden hesaplanmıştır."] : []),
+    fund(p.severance, "Kıdem tazminatı fonu"),
+    fund(p.holiday, "Resmi tatil mesaisi fonu"),
+    fund(p.leave, "Yıllık izin fonu"),
+    "Malzeme ve ekipman fiyata dahil değildir.",
+  ];
 }
 
 /* ------------------------------------------------------------------ */
@@ -192,7 +224,7 @@ export type OfferLineInput = {
   people: number;
   /** kişi başı hizmet bedeli (KDV hariç); maliyet detayı varsa oradan hesaplanır */
   unit_price: number;
-  /** maliyet tablosu girdileri (Maliyet karşılaştırma ekranı); yoksa null */
+  /** maliyet kalemleri (2. adım: maliyet karşılaştırma); girilmediyse null → kişi başı bedel yazılan tutardır */
   cost?: CostInput | null;
 };
 
