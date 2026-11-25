@@ -34,7 +34,7 @@ export function OfferResult({
         <div className="rounded-xl border border-border bg-surface px-4 py-3">
           <dt className="text-xs font-semibold uppercase tracking-wide text-muted">KDV farkı</dt>
           <dd className={cn("mt-0.5 text-xl font-bold tabular-nums", calc.vat_saving < 0 && "text-danger")}>{formatMoney(calc.vat_saving)}</dd>
-          <dd className="mt-0.5 text-xs text-muted">KDV {formatMoney(calc.monthly_vat)} − OPSUYON {formatMoney(calc.offer_total)}</dd>
+          <dd className="mt-0.5 text-xs text-muted">KDV {formatMoney(calc.monthly_vat)} − OPSUYON {formatMoney(calc.offer_total)}{calc.offer_vat > 0 && " (KDV dahil)"}</dd>
         </div>
         <div className="rounded-xl border border-border bg-surface px-4 py-3">
           <dt className="text-xs font-semibold uppercase tracking-wide text-muted">Şirket kâr payı</dt>
@@ -123,8 +123,15 @@ export function OfferResult({
               <tr>
                 <td className="px-3 py-2">OPSUYON hizmet bedeli <span className="text-xs text-muted">({formatNumber(calc.total_people)} kişi × {formatMoney(fee)})</span></td>
                 <td className="px-3 py-2 text-right text-muted">—</td>
-                <td className="px-3 py-2 text-right">{formatMoney(calc.offer_total)}</td>
+                <td className="px-3 py-2 text-right">{formatMoney(calc.offer_net)}</td>
               </tr>
+              {calc.offer_vat > 0 && (
+                <tr>
+                  <td className="px-3 py-2">OPSUYON hizmet bedeli KDV (%{formatRate(calc.fee_vat)})</td>
+                  <td className="px-3 py-2 text-right text-muted">—</td>
+                  <td className="px-3 py-2 text-right">{formatMoney(calc.offer_vat)}</td>
+                </tr>
+              )}
               <tr className="bg-surface-2/60 font-bold">
                 <td className="px-3 py-2.5">Aylık toplam</td>
                 <td className="px-3 py-2.5 text-right">{formatMoney(calc.current_total)}</td>

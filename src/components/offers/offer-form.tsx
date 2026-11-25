@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useFieldArray, useFormContext, useWatch, type FieldArrayWithId, type FieldErrors } from "react-hook-form";
 import { ArrowLeft, ArrowRight, Loader2, Plus, Trash2 } from "lucide-react";
 import { saveOffer } from "@/app/actions/offers";
-import { COST_INPUT_LABELS, calcCost, calcOffer, type CostParams, type OfferCalc } from "@/lib/offer-calc";
+import { COST_INPUT_LABELS, calcCost, calcOffer, formatRate, type CostParams, type OfferCalc } from "@/lib/offer-calc";
 import {
   COST_FIELDS, EMPTY_LINE, STEP1_FIELDS, hasCost, lineCost, offerLines, offerNumbers, offerSchema, withFunds, type OfferValues,
 } from "@/lib/schemas-offers";
@@ -286,14 +286,14 @@ function Steps({ base, editing }: { base: CostParams; editing: boolean }) {
             <section className={card}>
               <h2 className="mb-4 text-base font-semibold">OPSUYON teklifi ve oranlar</h2>
               <FormGrid cols={3}>
-                <TextField name="fee_per_person" label="OPSUYON kişi başı tutar (aylık)" required large inputMode="decimal" suffix="₺" hint="Toplam teklif = toplam kişi × bu tutar" />
+                <TextField name="fee_per_person" label="OPSUYON kişi başı tutar (aylık)" required large inputMode="decimal" suffix="₺" hint={`KDV hariç. Toplam teklif = toplam kişi × bu tutar + %${formatRate(base.fee_vat)} KDV`} />
                 <TextField name="profit_pct" label="Şirket kâr payı" required large inputMode="decimal" suffix="%" hint="Maliyetin üstüne eklenen kâr; maliyet kalemi girilmeyen hizmette bedelin içinden ayrılır" />
                 <TextField name="vat_rate" label="KDV oranı" required large inputMode="decimal" suffix="%" hint="Hizmet faturasındaki KDV" />
               </FormGrid>
               <fieldset className="mt-5">
                 <legend className="mb-2 text-sm font-medium">Fiyata dahil fonlar</legend>
                 <div className="grid gap-2 sm:grid-cols-3">
-                  <CheckboxField name="fund_severance" label="Kıdem tazminatı fonu" />
+                  <CheckboxField name="fund_severance" label={base.severance_pct < 100 ? `Kıdem tazminatı fonu (%${formatRate(base.severance_pct)})` : "Kıdem tazminatı fonu"} />
                   <CheckboxField name="fund_leave" label="Yıllık izin fonu" />
                   <CheckboxField name="fund_holiday" label="Resmi tatil mesaisi fonu" />
                 </div>

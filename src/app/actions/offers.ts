@@ -10,7 +10,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { supabasePublicKey } from "@/lib/supabase/env";
 import { guard, nul, pgMessage, str, validate } from "@/lib/form";
 import { toMoney, toNumber } from "@/lib/parse";
-import { calcOffer, isOfferStatus, normalizeCostParams } from "@/lib/offer-calc";
+import { LEGACY_OFFER_PARAMS, calcOffer, isOfferStatus, normalizeCostParams } from "@/lib/offer-calc";
 import {
   LETTERHEAD_MAX, letterheadKind, letterheadMarginsSchema, offerLines, offerNumbers, offerSchema, offerSettingsSchema, paramsFromForm, serviceList, withFunds,
   type LetterheadMarginsValues, type OfferSettingsValues, type OfferValues,
@@ -37,7 +37,8 @@ export async function saveOffer(values: OfferValues): Promise<ActionState> {
     // maliyet oranları: düzenlemede teklifle saklanan, yeni teklifte ayarlardaki güncel oranlar
     const { data: stored } = d.id ? await supabase.from("offers").select("cost_params").eq("id", d.id).maybeSingle() : { data: null };
     const { data: settings } = stored?.cost_params ? { data: null } : await supabase.from("offer_settings").select("cost_params").eq("id", true).maybeSingle();
-    const params = withFunds(normalizeCostParams(stored?.cost_params ?? settings?.cost_params), d);
+    // eski tekliflerde olmayan oranlar (OPSUYON bedeli KDV'si) 0 sayılır: düzenleyince tutarları kendiliğinden değişmez
+    const params = withFunds(stored?.cost_params ? normalizeCostParams(stored.cost_params, LEGACY_OFFER_PARAMS) : normalizeCostParams(settings?.cost_params), d);
     const c = calcOffer(lines, vat, fee, pct, params);
     // yalnızca teklif (karşılaştırma yok): kazanç tutarları saklanmaz, raporlarda kâr sayılmaz
     const cmp = d.compare;
@@ -244,7 +245,7 @@ export async function saveOfferSettings(values: OfferSettingsValues): Promise<Ac
         validity_days: toNumber(d.validity_days) ?? 30,
         services: serviceList(d.services),
         profit_pct: toNumber(d.profit_pct) ?? 5,
-        cost_params: paramsFromForm(d.params),
+        cost_params: paramsFromForm(d.params, d),
         updated_by: user.id,
       })
       .eq("id", true)

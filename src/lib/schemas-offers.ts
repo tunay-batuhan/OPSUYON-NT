@@ -110,25 +110,36 @@ export const offerSettingsSchema = z.object({
   vat_rate: decimal("KDV oranı", { required: true, min: 0, max: 100 }),
   validity_days: decimal("Geçerlilik süresi", { required: true, min: 1, max: 365 }).refine((v) => Number.isInteger(toNumber(v)), "Gün sayısı tam sayı olmalı"),
   profit_pct: decimal("Şirket kâr payı", { required: true, min: 0, max: 100 }),
-  /** maliyet tablosu oranları (anahtar: CostParams alanı) */
+  /** maliyet tablosu oranları (anahtar: CostParams alanı; açık/kapalı fonlar hariç) */
   params: z.record(z.string(), decimal("Oran", { required: true, min: 0, max: 99_999_999 })),
+  /** fiyata dahil fonlar (kutucuk) */
+  fund_severance: z.boolean(),
+  fund_leave: z.boolean(),
+  fund_holiday: z.boolean(),
   services: z
     .string()
     .max(2000, "Liste çok uzun")
     .refine((v) => serviceList(v).length > 0, "En az bir hizmet adı yazın")
     .refine((v) => serviceList(v).every((s) => s.length <= 80), "Her hizmet adı en fazla 80 karakter"),
+}).superRefine((v, ctx) => {
+  for (const k of ["severance_pct", "fee_vat"]) {
+    if ((toNumber(v.params[k] ?? "") ?? 0) > 100) ctx.addIssue({ code: "custom", path: ["params", k], message: "En fazla %100 olabilir" });
+  }
 });
 
 export type OfferSettingsValues = z.infer<typeof offerSettingsSchema>;
 
-/** Ayarlar formundaki oranlar → CostParams (eksik / geçersiz olan varsayılanla dolar). */
-export function paramsFromForm(form: Record<string, string>): CostParams {
+/** Yüzde oranları 100'ü geçemez (kıdem fon oranı, OPSUYON KDV). */
+export const PERCENT_PARAMS = ["severance_pct", "fee_vat"] as const;
+
+/** Ayarlar formundaki oranlar ve fon kutucukları → CostParams (eksik / geçersiz olan varsayılanla dolar). */
+export function paramsFromForm(form: Record<string, string>, funds: Pick<OfferSettingsValues, "fund_severance" | "fund_leave" | "fund_holiday">): CostParams {
   const out = { ...DEFAULT_COST_PARAMS };
   for (const k of Object.keys(out) as (keyof CostParams)[]) {
     const n = toNumber(form[k] ?? "");
-    if (n !== null && n >= 0) out[k] = n;
+    if (n !== null && n >= 0) out[k] = (PERCENT_PARAMS as readonly string[]).includes(k) ? Math.min(100, n) : n;
   }
-  return out;
+  return withFunds(out, funds);
 }
 
 /** Antetin üst ve alt boşluğu (mm): teklif içeriği bu boşlukların arasına yazılır. */

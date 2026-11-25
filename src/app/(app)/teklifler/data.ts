@@ -1,7 +1,7 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { isOfferStatus, normalizeCostParams, type CostInput, type CostParams, type OfferStatus } from "@/lib/offer-calc";
+import { LEGACY_OFFER_PARAMS, isOfferStatus, normalizeCostParams, type CostInput, type CostParams, type OfferStatus } from "@/lib/offer-calc";
 import type { OfferLetterhead } from "@/lib/pdf/offer-pdf";
 
 /**
@@ -179,7 +179,7 @@ export async function loadOffer(id: string): Promise<{ offer: OfferDetail; lines
   if (!o) return null;
   const offer = {
     ...toRow(o as Record<string, unknown>), vat_rate: Number(o.vat_rate), fee_per_person: Number(o.fee_per_person),
-    profit_pct: Number(o.profit_pct ?? 0), cost_params: normalizeCostParams(o.cost_params),
+    profit_pct: Number(o.profit_pct ?? 0), cost_params: normalizeCostParams(o.cost_params, LEGACY_OFFER_PARAMS),
   } as OfferDetail;
   const lines = ((l ?? []) as OfferLine[]).map((x) => {
     const people = Number(x.people), monthly_total = Number(x.monthly_total);

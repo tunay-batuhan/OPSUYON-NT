@@ -1,0 +1,199 @@
+- generic [active] [ref=f1e1]:
+  - generic [ref=f1e2]:
+    - complementary [ref=f1e3]:
+      - generic [ref=f1e4]:
+        - link "OPSÜYON" [ref=f1e6] [cursor=pointer]:
+          - /url: /merkez
+          - generic [aria-hidden] [ref=f1e14]: PSÜYON
+        - navigation "Ana menü" [ref=f1e16]:
+          - link "Ana Sayfa" [ref=f1e18] [cursor=pointer]:
+            - /url: /merkez
+          - link "Projeler" [ref=f1e25] [cursor=pointer]:
+            - /url: /projeler
+          - link "Personel" [ref=f1e31] [cursor=pointer]:
+            - /url: /personel
+          - link "Puantaj" [ref=f1e40] [cursor=pointer]:
+            - /url: /puantaj
+          - link "İzin Yönetimi" [ref=f1e47] [cursor=pointer]:
+            - /url: /izinler
+          - link "Bordrolar" [ref=f1e55] [cursor=pointer]:
+            - /url: /bordrolar
+          - link "Formlar" [ref=f1e62] [cursor=pointer]:
+            - /url: /formlar
+          - link "Denetimler" [ref=f1e70] [cursor=pointer]:
+            - /url: /denetimler
+          - link "Devriye Sistemi" [ref=f1e78] [cursor=pointer]:
+            - /url: /devriye/rapor
+          - link "Risk Analizi" [ref=f1e86] [cursor=pointer]:
+            - /url: /risk-analizi
+          - link "Faturalar" [ref=f1e92] [cursor=pointer]:
+            - /url: /faturalar
+          - link "Cari Hesap" [ref=f1e99] [cursor=pointer]:
+            - /url: /cari-hesap
+          - link "Raporlar" [ref=f1e105] [cursor=pointer]:
+            - /url: /raporlar
+          - link "Mesajlar" [ref=f1e111] [cursor=pointer]:
+            - /url: /mesajlar
+          - generic [ref=f1e116]:
+            - paragraph [ref=f1e117]: Yönetim
+            - link "Firmalar" [ref=f1e118] [cursor=pointer]:
+              - /url: /merkez/firmalar
+          - link "Kullanıcılar & hesaplar" [ref=f1e126] [cursor=pointer]:
+            - /url: /merkez/kullanicilar
+          - link "Müşteri modülleri" [ref=f1e142] [cursor=pointer]:
+            - /url: /merkez/moduller
+          - link "İşlem geçmişi" [ref=f1e147] [cursor=pointer]:
+            - /url: /merkez/islem-gecmisi
+        - button "Çıkış yap" [ref=f1e156] [cursor=pointer]
+    - generic [ref=f1e160]:
+      - generic [ref=f1e161]:
+        - generic [ref=f1e162]:
+          - paragraph [ref=f1e163]: Hoş Geldiniz,
+          - paragraph [ref=f1e164]: Merkez Yönetim · Sistem Yöneticisi
+        - generic [ref=f1e165]:
+          - textbox "Ara" [ref=f1e167]:
+            - /placeholder: Proje, personel, belge ara…
+          - link "Bildirimler" [ref=f1e168] [cursor=pointer]:
+            - /url: /bildirimler
+          - link "Profil" [ref=f1e172] [cursor=pointer]:
+            - /url: /profil
+            - generic [aria-hidden] [ref=f1e173]: SY
+            - generic [ref=f1e174]:
+              - generic [ref=f1e175]: Sistem Yöneticisi
+              - generic [ref=f1e176]: Süper Yönetici
+      - main [ref=f1e177]:
+        - generic [ref=f1e178]:
+          - generic [ref=f1e180]:
+            - heading "Risk Analizi" [level=1] [ref=f1e181]
+            - paragraph [ref=f1e182]: Tüm projelerin risk analizi raporları. İndirebilir, Görüntüle ile açabilir veya silebilirsiniz.
+          - navigation "Bölümler" [ref=f1e183]:
+            - link "Risk analizleri" [ref=f1e184] [cursor=pointer]:
+              - /url: /risk-analizi
+            - link "Risk analizi ekle" [ref=f1e185] [cursor=pointer]:
+              - /url: /risk-analizi/ekle
+          - generic [ref=f1e186]:
+            - generic [ref=f1e187]:
+              - generic [ref=f1e188]: Hizmet
+              - combobox "Hizmet" [ref=f1e189] [cursor=pointer]:
+                - option "Tümü" [selected]
+                - option "Güvenlik"
+                - option "Temizlik"
+                - option "Danışma"
+                - option "Tesis Yönetimi"
+                - option "Teknik Personel"
+            - generic [ref=f1e190]:
+              - generic [ref=f1e191]: Proje
+              - combobox "Proje" [ref=f1e192] [cursor=pointer]:
+                - option "Tüm projeler" [selected]
+                - option "Butik Garden Güvenlik Hizmeti"
+                - option "Butik Garden Sitesi Danışma Hizmeti"
+                - option "Butik Garden Sitesi Temizlik Hizmeti"
+                - option "Butik Garden Sitesi Temizlik Hizmeti"
+                - option "Cornerpark Güvenlik Hizmeti"
+                - option "Danışma Görevlisi Hizmeti"
+                - option "Demo Plaza Danışma Ve Tesis"
+                - option "Demo Plaza Ek Bina Tedarik"
+                - option "Demo Plaza Güvenlik"
+                - option "Demo Plaza Teknik Personel"
+                - option "Demo Plaza Temizlik"
+                - option "Sinpaş Liva Temizlik Hizmeti Yönetimi"
+                - option "Temizlik Hizmei"
+                - option "Test Site Güvenlik"
+                - option "test1"
+            - generic [ref=f1e193]:
+              - generic [ref=f1e194]: Ay
+              - combobox "Ay" [ref=f1e195] [cursor=pointer]:
+                - option "Tümü" [selected]
+                - option "Ocak"
+                - option "Şubat"
+                - option "Mart"
+                - option "Nisan"
+                - option "Mayıs"
+                - option "Haziran"
+                - option "Temmuz"
+                - option "Ağustos"
+                - option "Eylül"
+                - option "Ekim"
+                - option "Kasım"
+                - option "Aralık"
+            - generic [ref=f1e196]:
+              - generic [ref=f1e197]: Yıl
+              - combobox "Yıl" [ref=f1e198] [cursor=pointer]:
+                - option "Tümü" [selected]
+                - option "2027"
+                - option "2026"
+                - option "2025"
+                - option "2024"
+            - button "Filtrele" [ref=f1e199] [cursor=pointer]
+          - generic [ref=f1e202]:
+            - heading "4 belge" [level=2] [ref=f1e205]
+            - table [ref=f1e207]:
+              - rowgroup [ref=f1e208]:
+                - row [ref=f1e209]:
+                  - columnheader "Belge" [ref=f1e210]
+                  - columnheader "Hizmet / proje" [ref=f1e211]
+                  - columnheader "Dönem" [ref=f1e212]
+                  - columnheader "Boyut" [ref=f1e213]
+                  - columnheader "Yükleme" [ref=f1e214]
+                  - columnheader [ref=f1e215]
+              - rowgroup [ref=f1e216]:
+                - row [ref=f1e217]:
+                  - cell [ref=f1e218]:
+                    - paragraph [ref=f1e219]: Risk Analizi Raporu - Test Site Güvenlik
+                    - paragraph [ref=f1e220]: risk-analizi-raporu-test-site-guvenlik.pdf
+                  - cell "Test Site Güvenlik" [ref=f1e221]
+                  - cell "—" [ref=f1e222]
+                  - cell "739 B" [ref=f1e223]
+                  - cell "19.10.2026" [ref=f1e224]
+                  - cell [ref=f1e225]:
+                    - generic [ref=f1e226]:
+                      - link "PDF indir" [ref=f1e227] [cursor=pointer]:
+                        - /url: /api/documents/febd972c-8c43-4ab3-869f-67a5d1cb3859
+                      - button "Risk Analizi Raporu - Test Site Güvenlik — görüntüle" [ref=f1e231] [cursor=pointer]: Görüntüle
+                    - button "Risk Analizi Raporu - Test Site Güvenlik — sil" [ref=f1e236] [cursor=pointer]: Sil
+                - row [ref=f1e240]:
+                  - cell [ref=f1e241]:
+                    - paragraph [ref=f1e242]: Risk Analizi Raporu - Danışma Görevlisi Hizmeti
+                    - paragraph [ref=f1e243]: risk-analizi-raporu-danisma-gorevlisi-hizmeti.pdf
+                  - cell "Danışma Görevlisi Hizmeti" [ref=f1e244]
+                  - cell "—" [ref=f1e245]
+                  - cell "746 B" [ref=f1e246]
+                  - cell "19.10.2026" [ref=f1e247]
+                  - cell [ref=f1e248]:
+                    - generic [ref=f1e249]:
+                      - link "PDF indir" [ref=f1e250] [cursor=pointer]:
+                        - /url: /api/documents/e0c39e97-1bc7-43d6-a010-fb9686fc1e9d
+                      - button "Risk Analizi Raporu - Danışma Görevlisi Hizmeti — görüntüle" [ref=f1e254] [cursor=pointer]: Görüntüle
+                    - button "Risk Analizi Raporu - Danışma Görevlisi Hizmeti — sil" [ref=f1e259] [cursor=pointer]: Sil
+                - row [ref=f1e263]:
+                  - cell [ref=f1e264]:
+                    - paragraph [ref=f1e265]: Risk Analizi Raporu - Demo Plaza Güvenlik
+                    - paragraph [ref=f1e266]: risk-analizi-raporu-demo-plaza-guvenlik.pdf
+                  - cell "Demo Plaza Güvenlik" [ref=f1e267]
+                  - cell "—" [ref=f1e268]
+                  - cell "740 B" [ref=f1e269]
+                  - cell "19.10.2026" [ref=f1e270]
+                  - cell [ref=f1e271]:
+                    - generic [ref=f1e272]:
+                      - link "PDF indir" [ref=f1e273] [cursor=pointer]:
+                        - /url: /api/documents/5114caf1-0f83-4be1-83fa-673810e4f481
+                      - button "Risk Analizi Raporu - Demo Plaza Güvenlik — görüntüle" [ref=f1e277] [cursor=pointer]: Görüntüle
+                    - button "Risk Analizi Raporu - Demo Plaza Güvenlik — sil" [ref=f1e282] [cursor=pointer]: Sil
+                - row [ref=f1e286]:
+                  - cell [ref=f1e287]:
+                    - paragraph [ref=f1e288]: Risk Analizi Raporu - Demo Plaza Danışma ve Tesis
+                    - paragraph [ref=f1e289]: risk-analizi-raporu-demo-plaza-danisma-ve-tesis.pdf
+                  - cell "Demo Plaza Danışma Ve Tesis" [ref=f1e290]
+                  - cell "—" [ref=f1e291]
+                  - cell "748 B" [ref=f1e292]
+                  - cell "19.10.2026" [ref=f1e293]
+                  - cell [ref=f1e294]:
+                    - generic [ref=f1e295]:
+                      - link "PDF indir" [ref=f1e296] [cursor=pointer]:
+                        - /url: /api/documents/910f95bf-07fd-4f5e-8e25-82d4c228dc2c
+                      - button "Risk Analizi Raporu - Demo Plaza Danışma ve Tesis — görüntüle" [ref=f1e300] [cursor=pointer]: Görüntüle
+                    - button "Risk Analizi Raporu - Demo Plaza Danışma ve Tesis — sil" [ref=f1e305] [cursor=pointer]: Sil
+    - button "Opsüyon AI'ya sor" [ref=f1e309] [cursor=pointer]:
+      - generic [ref=f1e313]: Opsüyon AI
+  - button "Open Next.js Dev Tools" [ref=f1e319] [cursor=pointer]
+  - alert [ref=f1e323]

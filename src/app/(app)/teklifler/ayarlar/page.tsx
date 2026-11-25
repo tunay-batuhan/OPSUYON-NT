@@ -5,6 +5,7 @@ import { OfferSettingsForm } from "@/components/offers/offer-settings-form";
 import { LetterheadCard } from "@/components/offers/letterhead-card";
 import { hasPermission, requireStaff } from "@/lib/auth";
 import { formatNumber } from "@/lib/format";
+import { COST_PARAM_FLAGS } from "@/lib/offer-calc";
 import { loadOfferSettings } from "../data";
 
 export const metadata: Metadata = { title: "Teklif ayarları" };
@@ -24,7 +25,14 @@ export default async function OfferSettingsPage() {
             validity_days: String(s.validity_days),
             services: s.services.join("\n"),
             profit_pct: formatNumber(s.profit_pct),
-            params: Object.fromEntries(Object.entries(s.cost_params).map(([k, v]) => [k, new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 4, useGrouping: false }).format(v)])),
+            params: Object.fromEntries(
+              Object.entries(s.cost_params)
+                .filter(([k]) => !(COST_PARAM_FLAGS as readonly string[]).includes(k))
+                .map(([k, v]) => [k, new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 4, useGrouping: false }).format(v)]),
+            ),
+            fund_severance: s.cost_params.severance > 0,
+            fund_leave: s.cost_params.leave > 0,
+            fund_holiday: s.cost_params.holiday > 0,
           }}
         />
       </Card>

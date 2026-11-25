@@ -1,0 +1,79 @@
+- generic [ref=f10e1]:
+  - generic [ref=f10e2]:
+    - complementary [ref=f10e3]:
+      - generic [ref=f10e4]:
+        - link "OPSÜYON" [ref=f10e6] [cursor=pointer]:
+          - /url: /merkez
+          - generic [aria-hidden] [ref=f10e14]: PSÜYON
+        - navigation "Ana menü" [ref=f10e16]:
+          - link "Ana Sayfa" [ref=f10e18] [cursor=pointer]:
+            - /url: /merkez
+          - link "Projeler" [ref=f10e25] [cursor=pointer]:
+            - /url: /projeler
+          - link "Personel" [ref=f10e31] [cursor=pointer]:
+            - /url: /personel
+          - link "Puantaj" [ref=f10e40] [cursor=pointer]:
+            - /url: /puantaj
+          - link "İzin Yönetimi" [ref=f10e47] [cursor=pointer]:
+            - /url: /izinler
+          - link "Bordrolar" [ref=f10e55] [cursor=pointer]:
+            - /url: /bordrolar
+          - link "Formlar" [ref=f10e62] [cursor=pointer]:
+            - /url: /formlar
+          - link "Denetimler" [ref=f10e70] [cursor=pointer]:
+            - /url: /denetimler
+          - link "Devriye Sistemi" [ref=f10e78] [cursor=pointer]:
+            - /url: /devriye/rapor
+          - link "Risk Analizi" [ref=f10e86] [cursor=pointer]:
+            - /url: /risk-analizi
+          - link "Faturalar" [ref=f10e92] [cursor=pointer]:
+            - /url: /faturalar
+          - link "Cari Hesap" [ref=f10e99] [cursor=pointer]:
+            - /url: /cari-hesap
+          - link "Raporlar" [ref=f10e105] [cursor=pointer]:
+            - /url: /raporlar
+          - link "Mesajlar" [ref=f10e111] [cursor=pointer]:
+            - /url: /mesajlar
+          - generic [ref=f10e116]:
+            - paragraph [ref=f10e117]: Yönetim
+            - link "Firmalar" [ref=f10e118] [cursor=pointer]:
+              - /url: /merkez/firmalar
+          - link "Kullanıcılar & hesaplar" [ref=f10e126] [cursor=pointer]:
+            - /url: /merkez/kullanicilar
+          - link "Müşteri modülleri" [ref=f10e142] [cursor=pointer]:
+            - /url: /merkez/moduller
+          - link "İşlem geçmişi" [ref=f10e147] [cursor=pointer]:
+            - /url: /merkez/islem-gecmisi
+        - button "Çıkış yap" [ref=f10e156] [cursor=pointer]
+    - generic [ref=f10e160]:
+      - generic [ref=f10e161]:
+        - generic [ref=f10e162]:
+          - paragraph [ref=f10e163]: Hoş Geldiniz,
+          - paragraph [ref=f10e164]: Merkez Yönetim · Sistem Yöneticisi
+        - generic [ref=f10e165]:
+          - textbox "Ara" [ref=f10e167]:
+            - /placeholder: Proje, personel, belge ara…
+          - link "Bildirimler" [ref=f10e168] [cursor=pointer]:
+            - /url: /bildirimler
+          - link "Profil" [ref=f10e172] [cursor=pointer]:
+            - /url: /profil
+            - generic [aria-hidden] [ref=f10e173]: SY
+            - generic [ref=f10e174]:
+              - generic [ref=f10e175]: Sistem Yöneticisi
+              - generic [ref=f10e176]: Süper Yönetici
+      - main [ref=f10e177]:
+        - generic [ref=f10e178]:
+          - generic [ref=f10e180]:
+            - heading "İzin Yönetimi" [level=1] [ref=f10e181]
+            - paragraph [ref=f10e182]: Personelin izin kayıtları, kalan yıllık izin süresi ve izin evrakları.
+          - navigation "Bölümler" [ref=f10e183]:
+            - link "İzin kayıtları" [ref=f10e184] [cursor=pointer]:
+              - /url: /izinler
+            - link "İzin evrakı ekle" [ref=f10e185] [cursor=pointer]:
+              - /url: /izinler/ekle
+          - status "Yükleniyor" [ref=f10e186]:
+            - generic [ref=f10e216]: Yükleniyor…
+    - button "Opsüyon AI'ya sor" [ref=f10e217] [cursor=pointer]:
+      - generic [ref=f10e221]: Opsüyon AI
+  - button "Open Next.js Dev Tools" [ref=f10e227] [cursor=pointer]
+  - alert [ref=f10e231]
