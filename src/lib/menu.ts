@@ -126,7 +126,8 @@ function staffMenu(user: CurrentUser, extra: MenuExtras): NavItem[] {
     { href: "/puantaj", label: "Puantaj", icon: "timesheets", anyOf: ["timesheets.read"] },
     { href: "/izinler", label: "İzin Yönetimi", icon: "leaves", anyOf: ["leaves.read"] },
     ...(payroll.length ? [{ href: payroll[0].href, label: "Bordrolar", icon: "payroll" as const, match: ["/bordrolar"] }] : []),
-    { href: "/is-planlama", label: "İş Planlama", icon: "tasks", anyOf: ["tasks.read"], badge: alertBadge(extra.taskAlerts) },
+    // her merkez kullanıcısı görür: saha görevlerini görme yetkisi olmasa da kendisine atanan merkez görevleri buradadır
+    { href: "/is-planlama", label: "İş Planlama", icon: "tasks", badge: alertBadge(extra.taskAlerts) },
     { href: "/formlar", label: "Formlar", icon: "forms", anyOf: ["forms.read"] },
     { href: "/denetimler", label: "Denetimler", icon: "inspections", anyOf: ["inspections.read"] },
     { href: "/devriye/rapor", label: "Devriye Sistemi", icon: "patrol", anyOf: ["patrol.read", "patrol.manage"], match: ["/devriye"] },

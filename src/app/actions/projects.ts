@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { assertStaff } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { applyOrgLogo } from "@/lib/org-logo";
 import { createClient } from "@/lib/supabase/server";
 import { guard, nul, pgMessage, str, validate } from "@/lib/form";
 import { toTitleCase } from "@/lib/format";
@@ -15,13 +16,13 @@ import type { ActionState } from "@/lib/action-types";
 
 export async function createOrganization(values: OrganizationValues): Promise<ActionState> {
   return guard(async () => {
-    await assertStaff("organizations.manage");
+    const actor = await assertStaff("organizations.manage");
     const v = validate(organizationSchema, values);
     if (!v.ok) return v.state;
     const d = v.data;
 
     const supabase = await createClient();
-    const { error } = await supabase.from("organizations").insert({
+    const { data: created, error } = await supabase.from("organizations").insert({
       name: d.name,
       legal_name: nul(d.legal_name),
       contact_name: toTitleCase(d.contact_name),
@@ -30,12 +31,14 @@ export async function createOrganization(values: OrganizationValues): Promise<Ac
       address: nul(d.address),
       phone: nul(d.phone),
       email: nul(d.email),
-    });
+    }).select("id").single();
     if (error) {
       if (error.code === "23505") return { error: "Bu vergi numarasıyla kayıtlı bir firma var.", fieldErrors: { tax_no: "Bu vergi numarası zaten kayıtlı" } };
       return { error: pgMessage(error) };
     }
     revalidatePath("/merkez/firmalar", "layout");
+    const logoErr = await applyOrgLogo(created.id as string, d.logo, actor.id);
+    if (logoErr) return { error: `Firma oluşturuldu, ancak ${logoErr.charAt(0).toLocaleLowerCase("tr")}${logoErr.slice(1)} Firma sayfasından yeniden deneyin.` };
     return { ok: true, message: "Firma oluşturuldu." };
   });
 }
@@ -116,7 +119,7 @@ export async function updateProject(values: ProjectUpdateValues): Promise<Action
 
 export async function updateOrganization(values: OrganizationUpdateValues): Promise<ActionState> {
   return guard(async () => {
-    await assertStaff("organizations.manage");
+    const actor = await assertStaff("organizations.manage");
     const v = validate(organizationUpdateSchema, values);
     if (!v.ok) return v.state;
     const d = v.data;
@@ -139,8 +142,10 @@ export async function updateOrganization(values: OrganizationUpdateValues): Prom
       if (error.code === "23505") return { error: "Bu vergi numarasıyla kayıtlı başka bir firma var.", fieldErrors: { tax_no: "Bu vergi numarası zaten kayıtlı" } };
       return { error: pgMessage(error) };
     }
+    const logoErr = await applyOrgLogo(d.id, d.logo, actor.id);
     revalidatePath("/merkez/firmalar", "layout");
     revalidatePath(`/merkez/firmalar/${d.id}`);
+    if (logoErr) return { error: `Firma bilgileri kaydedildi, ancak ${logoErr.charAt(0).toLocaleLowerCase("tr")}${logoErr.slice(1)}` };
     return { ok: true, message: "Firma bilgileri güncellendi." };
   });
 }

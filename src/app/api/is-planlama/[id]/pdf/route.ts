@@ -5,13 +5,14 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { slugify } from "@/lib/format";
 import { isImageFile, loadTaskDetail } from "@/lib/task-detail";
 import { buildTaskPdf } from "@/lib/pdf/tasks-pdf";
+import { withAssigneeNames } from "@/lib/task-data";
 
 const MAX_IMAGES = 6;
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 
 /**
  * Tek görevin PDF'i (görev formu + fotoğraflar). Görev kullanıcının oturumuyla okunur (RLS): müdür projede tasks.read,
- * personel yalnızca kendi görevi. Fotoğraflar (JPG/PNG, en fazla 6) PDF'e gömülür; diğer dosyalar adıyla listelenir.
+ * personel yalnızca kendi görevi; merkez görevini merkezde tasks.read yetkisi olan ya da görevin atandığı kullanıcı. Fotoğraflar (JPG/PNG, en fazla 6) PDF'e gömülür; diğer dosyalar adıyla listelenir.
  */
 export async function GET(req: NextRequest, ctx: RouteContext<"/api/is-planlama/[id]/pdf">) {
   const { id } = await ctx.params;
@@ -19,8 +20,10 @@ export async function GET(req: NextRequest, ctx: RouteContext<"/api/is-planlama/
   const user = await getCurrentUser();
   if (!user) return new NextResponse("Unauthorized", { status: 401 });
 
-  const detail = await loadTaskDetail(await createClient(), id);
-  if (!detail) return new NextResponse("Not found", { status: 404 });
+  const loaded = await loadTaskDetail(await createClient(), id);
+  if (!loaded) return new NextResponse("Not found", { status: 404 });
+  // merkez görevinde atanan kullanıcının adı (satırı RLS yalnızca merkez kullanıcısına verir)
+  const detail = { ...loaded, task: (await withAssigneeNames([loaded.task]))[0] };
 
   const admin = createAdminClient();
   const candidates = detail.files.filter((f) => isImageFile(f) && /\.(jpe?g|png)$|image\/(jpeg|png)/i.test(`${f.file_name} ${f.mime_type ?? ""}`)).slice(0, MAX_IMAGES);

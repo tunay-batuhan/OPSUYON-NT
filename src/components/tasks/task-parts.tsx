@@ -1,6 +1,6 @@
 import { FileText } from "lucide-react";
 import { cn } from "@/components/ui";
-import { EVENT_LABELS, FILE_STAGE_LABELS, isImageFile, type TaskEvent, type TaskFile } from "@/lib/task-detail";
+import { eventLabel, FILE_STAGE_LABELS, isImageFile, type TaskEvent, type TaskFile } from "@/lib/task-detail";
 
 const fmt = (iso: string) =>
   new Intl.DateTimeFormat("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Istanbul" }).format(new Date(iso));
@@ -50,15 +50,15 @@ const DOT: Record<string, string> = {
   cancelled: "bg-muted",
 };
 
-/** Görevin geçmişi: kim, ne zaman, ne yaptı. */
-export function TaskTimeline({ events }: { events: TaskEvent[] }) {
+/** Görevin geçmişi: kim, ne zaman, ne yaptı. `staffTask`: merkez görevi ("Personel" yerine "Görevli" yazar). */
+export function TaskTimeline({ events, staffTask = false }: { events: TaskEvent[]; staffTask?: boolean }) {
   if (events.length === 0) return <p className="text-sm text-muted">Kayıt yok.</p>;
   return (
     <ol className="relative space-y-4 border-l border-border pl-5">
       {events.map((e) => (
         <li key={e.id} className="relative">
           <span className={cn("absolute -left-[1.6rem] top-1 size-2.5 rounded-full ring-4 ring-surface", DOT[e.kind] ?? "bg-brand/60")} aria-hidden />
-          <p className="text-sm font-medium">{EVENT_LABELS[e.kind] ?? e.kind}</p>
+          <p className="text-sm font-medium">{eventLabel(e.kind, staffTask)}</p>
           <p className="text-xs text-muted">
             {fmt(e.created_at)}
             {e.actor_name ? ` · ${e.actor_name}` : ""}

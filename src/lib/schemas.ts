@@ -89,6 +89,11 @@ export const organizationSchema = z.object({
     .min(1, "Telefon zorunlu")
     .refine((v) => /^\+?[0-9\s()-]{7,20}$/.test(v), "Geçerli bir telefon numarası girin (örn. 0532 123 45 67)"),
   address: str("Adres", 300),
+  /** "" değişmedi · "remove" kaldır · "data:image/png;base64,…" yeni logo (PNG/JPG, en fazla 500 KB) */
+  logo: z
+    .string()
+    .refine((v) => v === "" || v === "remove" || /^data:image\/(png|jpeg);base64,/.test(v), "Logo PNG veya JPG olmalı")
+    .refine((v) => v.length <= 700_000, "Logo en fazla 500 KB olabilir"),
 });
 
 export const organizationUpdateSchema = organizationSchema.extend({ id: uuid("Firma") });

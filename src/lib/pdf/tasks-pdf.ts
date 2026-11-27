@@ -2,8 +2,8 @@ import { PDFDocument, rgb, type PDFFont, type PDFImage, type PDFPage, type RGB }
 import fontkit from "@pdf-lib/fontkit";
 import { ROBOTO_MEDIUM_B64, ROBOTO_REGULAR_B64 } from "@/lib/pdf/roboto";
 import { formatDate } from "@/lib/format";
-import { TASK_STATUS, taskStage, type TaskStage } from "@/lib/task-status";
-import { EVENT_LABELS, FILE_STAGE_LABELS, type TaskDetail, type TaskEvent, type TaskFile } from "@/lib/task-detail";
+import { stageInfo, taskStage, type TaskStage } from "@/lib/task-status";
+import { eventLabel, FILE_STAGE_LABELS, isStaffTask, taskPersonName, type TaskDetail, type TaskEvent, type TaskFile } from "@/lib/task-detail";
 import type { TaskCounts, TaskListRow } from "@/lib/task-data";
 
 // Diğer raporlarla aynı görünüm: lacivert başlık bandı, künye, özet kutuları, sayfa kıran tablo, alt bilgi.
@@ -201,8 +201,8 @@ export async function makeDoc(title: string, landscape: boolean) {
   return { W, band, info, boxes, heading, table, paragraph, images, finish };
 }
 
-/** Süzülmüş görev listesi (A4 yatay): süzgeç künyesi, sayaçlar, tablo. */
-export async function buildTaskReportPdf(input: { rows: TaskListRow[]; counts: TaskCounts; filters: [string, string][]; multiProject: boolean; truncated: boolean }) {
+/** Süzülmüş görev listesi (A4 yatay): süzgeç künyesi, sayaçlar, tablo. `staffView`: merkez görevleri (proje ve "Görevi" sütunu yok). */
+export async function buildTaskReportPdf(input: { rows: TaskListRow[]; counts: TaskCounts; filters: [string, string][]; multiProject: boolean; staffView?: boolean; truncated: boolean }) {
   const d = await makeDoc("İş Planlama Raporu", true);
   d.band("İŞ PLANLAMA RAPORU", `${input.rows.length} görev · ${fmtNow()}`);
   d.info([...input.filters, ["Rapor oluşturma", fmtNow()]]);
@@ -213,7 +213,16 @@ export async function buildTaskReportPdf(input: { rows: TaskListRow[]; counts: T
     ["Sorun bildirilen", String(input.counts.issue), STAGE_COLOR.issue],
     ["Tamamlanan", String(input.counts.done), STAGE_COLOR.done],
   ]);
-  const cols: Col[] = input.multiProject
+  const cols: Col[] = input.staffView
+    ? [
+        { label: "#", width: 26, align: "center" },
+        { label: "Görevli", width: 160, wrap: true },
+        { label: "Görev başlığı", width: 340, wrap: true },
+        { label: "Tarih", width: 64, align: "center" },
+        { label: "Saat", width: 42, align: "center" },
+        { label: "Durum", width: 137.89 },
+      ]
+    : input.multiProject
     ? [
         { label: "#", width: 26, align: "center" },
         { label: "Personel", width: 120, wrap: true },
@@ -241,13 +250,13 @@ export async function buildTaskReportPdf(input: { rows: TaskListRow[]; counts: T
       const title = [t.title, t.location].filter(Boolean).join(" · ") + (stage === "issue" && t.issue_note ? `\nSorun: ${t.issue_note}` : "");
       const cells = [
         String(i + 1),
-        t.personnel?.full_name ?? "—",
-        t.job ?? "—",
+        taskPersonName(t),
+        ...(input.staffView ? [] : [t.job ?? "—"]),
         title,
         ...(input.multiProject ? [t.projects?.name ?? "—"] : []),
         t.planned_date ? formatDate(t.planned_date) : "—",
         t.planned_time ? t.planned_time.slice(0, 5) : "—",
-        TASK_STATUS[stage].label,
+        stageInfo(stage, isStaffTask(t)).label,
       ];
       const colors = cells.map((_, ci) => (ci === cells.length - 1 ? STAGE_COLOR[stage] : undefined));
       return { cells, colors };
@@ -266,32 +275,34 @@ export async function buildTaskPdf(input: {
 }) {
   const t = input.task;
   const stage = taskStage(t);
+  const staffTask = isStaffTask(t);
+  const who = staffTask ? "Görevli" : "Personel";
   const d = await makeDoc(`Görev - ${t.title}`, false);
   d.band("GÖREV FORMU", t.title);
   d.boxes([
-    ["Durum", TASK_STATUS[stage].label, STAGE_COLOR[stage]],
+    ["Durum", stageInfo(stage, staffTask).label, STAGE_COLOR[stage]],
     ["Görev tarihi", t.planned_date ? formatDate(t.planned_date) : "Verilmedi", INK],
     ["Saat", t.planned_time ? t.planned_time.slice(0, 5) : "—", INK],
   ]);
   d.info([
-    ["Personel", t.personnel?.full_name ?? "—"],
-    ["Görevi", t.job ?? "—"],
+    [who, taskPersonName(t)],
+    ...(staffTask ? [] : ([["Görevi", t.job ?? "—"]] as [string, string][])),
     ["Görev başlığı", t.title],
-    ["Proje", [t.projects?.name, t.projects?.organizations?.name].filter(Boolean).join(" · ") || "—"],
+    staffTask ? ["Tür", "Merkez görevi"] : ["Proje", [t.projects?.name, t.projects?.organizations?.name].filter(Boolean).join(" · ") || "—"],
     ["Görev yeri", t.location ?? "—"],
     ["Atama", fmtDT(t.created_at)],
-    ...(t.accepted_at ? ([["Personel kabulü", fmtDT(t.accepted_at)]] as [string, string][]) : []),
-    ...(t.finished_by_personnel_at ? ([["Personel bitirdi", fmtDT(t.finished_by_personnel_at)]] as [string, string][]) : []),
+    ...(t.accepted_at ? ([[`${who} kabulü`, fmtDT(t.accepted_at)]] as [string, string][]) : []),
+    ...(t.finished_by_personnel_at ? ([[`${who} bitirdi`, fmtDT(t.finished_by_personnel_at)]] as [string, string][]) : []),
     ...(t.completed_at ? ([["Tamamlandı", fmtDT(t.completed_at)]] as [string, string][]) : []),
   ]);
   d.heading("Görev açıklaması");
   d.paragraph(t.description || "—", t.description ? INK : MUTED);
   if (t.issue_note && (t.status === "issue" || input.events.some((e) => e.kind === "issue"))) {
-    d.heading("Personelin bildirdiği sorun");
+    d.heading(staffTask ? "Görevlinin bildirdiği sorun" : "Personelin bildirdiği sorun");
     d.paragraph(t.issue_note, STAGE_COLOR.issue);
   }
   if (t.finish_note) {
-    d.heading("Personelin iş bitimi notu");
+    d.heading(staffTask ? "Görevlinin iş bitimi notu" : "Personelin iş bitimi notu");
     d.paragraph(t.finish_note);
   }
   if (input.images.length) {
@@ -319,7 +330,7 @@ export async function buildTaskPdf(input: {
       { label: "Not", width: 161.28, wrap: true },
     ],
     input.events.map((e) => ({
-      cells: [fmtDT(e.created_at), EVENT_LABELS[e.kind] ?? e.kind, e.actor_name ?? "—", e.note ?? ""],
+      cells: [fmtDT(e.created_at), eventLabel(e.kind, staffTask), e.actor_name ?? "—", e.note ?? ""],
       colors: [undefined, e.kind === "issue" ? STAGE_COLOR.issue : undefined],
     })),
   );

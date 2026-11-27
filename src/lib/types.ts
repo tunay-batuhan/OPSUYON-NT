@@ -22,6 +22,8 @@ export type Organization = {
   email: string | null;
   status: "active" | "suspended" | "archived";
   notes: string | null;
+  /** Firma logosu (documents kovasında organizations/logo/…): personele basılan formların sol üstünde */
+  logo_path?: string | null;
   created_at: string;
 };
 
@@ -90,6 +92,10 @@ export type Personnel = {
   shoe_size: string | null;
   emergency_phone: string | null;
   emergency_contact_name: string | null;
+  meal_card_no: string | null;
+  /** Sağlık raporu / güvenlik kimlik kartı geçerlilik bitişi: bitişe 6 ay kala merkeze her gün uyarı */
+  health_report_until: string | null;
+  security_card_until: string | null;
 };
 
 export type DocumentCategory = {

@@ -2,6 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { canAnywhere, hasPermission, type CurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getAccessibleProjects, isUuid, str1, type ProjectLite } from "@/lib/lookups";
 
 /** İş Planlama listesi ve PDF raporu için ortak süzgeç (adres parametreleri). */
@@ -13,16 +14,32 @@ export type TaskFilters = {
   to?: string;
   /** bekleyen | planlanan | tarih | sorun | bitirdi | tamam | iptal | acik */
   stage?: string;
+  /**
+   * Yalnızca merkez kullanıcısında: saha = projedeki personele atanan görevler, merkez = merkez kullanıcılarına
+   * atananlar, bana = oturumdaki kullanıcıya atananlar. Müşteride boştur (RLS zaten yalnızca saha görevini verir).
+   */
+  scope?: TaskScope;
+  /** scope "bana" iken oturumdaki kullanıcı */
+  me?: string;
 };
+
+export type TaskScope = "saha" | "merkez" | "bana";
+export const TASK_SCOPE_LABELS: Record<TaskScope, string> = { saha: "Saha görevleri", merkez: "Merkez görevleri", bana: "Bana atananlar" };
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const clean = (v?: string) => v?.replace(/[%_*,()]/g, "").trim() || undefined;
 
-export function taskFiltersFrom(sp: Record<string, string | string[] | undefined>): TaskFilters {
+export function taskFiltersFrom(sp: Record<string, string | string[] | undefined>, user?: Pick<CurrentUser, "id" | "kind" | "permissions" | "roleCode">): TaskFilters {
   const from = str1(sp.bas);
   const to = str1(sp.bit);
   const stage = str1(sp.durum);
+  const tur = str1(sp.tur);
+  // merkez: sekme adresten; verilmediyse saha (saha görevlerini göremeyen kullanıcıda "bana atananlar")
+  const scope: TaskScope | undefined =
+    user?.kind !== "staff" ? undefined : tur === "merkez" || tur === "bana" || tur === "saha" ? tur : hasPermission(user, "tasks.read") ? "saha" : "bana";
   return {
+    scope,
+    me: scope === "bana" ? user?.id : undefined,
     projectId: isUuid(str1(sp.proje)) ? str1(sp.proje) : undefined,
     name: clean(str1(sp.ad)),
     job: clean(str1(sp.gorev)),
@@ -40,6 +57,7 @@ export const filterQuery = (f: TaskFilters) => {
   if (f.from) q.set("bas", f.from);
   if (f.to) q.set("bit", f.to);
   if (f.stage) q.set("durum", f.stage);
+  if (f.scope && f.scope !== "saha") q.set("tur", f.scope);
   const s = q.toString();
   return s ? `?${s}` : "";
 };
@@ -50,11 +68,25 @@ const nextDay = (iso: string) => new Date(Date.parse(iso + "T00:00:00Z") + 86400
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Q = any;
 
-/** Süzgeçleri (durum hariç) bir work_tasks sorgusuna uygular. Tarih: görev tarihi; tarihsiz görevde atama tarihi. */
-function applyFilters(q: Q, f: TaskFilters): Q {
-  if (f.projectId) q = q.eq("project_id", f.projectId);
-  if (f.name) q = q.ilike("personnel.full_name", `%${f.name}%`);
-  if (f.job) q = q.eq("job", f.job);
+const NO_ID = "00000000-0000-0000-0000-000000000000";
+const staffScope = (f: TaskFilters) => f.scope === "merkez" || f.scope === "bana";
+
+/**
+ * Süzgeçleri (durum hariç) bir work_tasks sorgusuna uygular. Tarih: görev tarihi; tarihsiz görevde atama tarihi.
+ * `staffIds`: merkez sekmesinde ad süzgecine uyan merkez kullanıcıları (ad, profilden aranır).
+ */
+function applyFilters(q: Q, f: TaskFilters, staffIds?: string[]): Q {
+  // saha görevinde personel her zaman dolu, merkez görevinde boştur
+  if (f.scope === "saha") q = q.not("personnel_id", "is", null);
+  else if (f.scope === "merkez") q = q.is("personnel_id", null);
+  else if (f.scope === "bana") q = q.eq("assignee_id", f.me ?? NO_ID);
+  if (staffScope(f)) {
+    if (f.name && f.scope === "merkez") q = q.in("assignee_id", staffIds?.length ? staffIds : [NO_ID]);
+  } else {
+    if (f.projectId) q = q.eq("project_id", f.projectId);
+    if (f.name) q = q.ilike("personnel.full_name", `%${f.name}%`);
+    if (f.job) q = q.eq("job", f.job);
+  }
   if (f.from && f.to) {
     q = q.or(
       `and(planned_date.gte.${f.from},planned_date.lte.${f.to}),and(planned_date.is.null,created_at.gte.${f.from},created_at.lt.${nextDay(f.to)})`,
@@ -88,8 +120,11 @@ function applyStage(q: Q, stage?: string): Q {
 
 export type TaskListRow = {
   id: string;
-  project_id: string;
-  personnel_id: string;
+  project_id: string | null;
+  personnel_id: string | null;
+  assignee_id?: string | null;
+  /** merkez görevinde görevin atandığı kullanıcının adı */
+  assignee_name?: string | null;
   title: string;
   job: string | null;
   location: string | null;
@@ -105,17 +140,59 @@ export type TaskListRow = {
   projects: { name: string } | null;
 };
 
-export const TASK_LIST_COLUMNS =
-  "id, project_id, personnel_id, title, job, location, description, planned_date, planned_time, status, issue_note, finished_by_personnel_at, completed_at, created_at, projects(name)";
+// "*": merkez görevi sütunu (assignee_id) veritabanında henüz yoksa da liste çalışır
+export const TASK_LIST_COLUMNS = "*, projects(name)";
+
+/**
+ * Merkez kullanıcıları (ad + etkin mi). profiles tablosunu yalnızca "users.read" yetkisi olan okuyabildiği için
+ * servis anahtarıyla okunur; YALNIZCA merkez kullanıcısına gösterilecek yerde çağrılır (çağıran doğrular).
+ */
+export const staffDirectory = cache(async (): Promise<{ id: string; full_name: string; is_active: boolean; role: string | null }[]> => {
+  const { data } = await createAdminClient()
+    .from("profiles")
+    .select("id, full_name, is_active, roles:staff_role_id(name)")
+    .eq("kind", "staff")
+    .order("full_name")
+    .limit(1000);
+  return ((data ?? []) as unknown as { id: string; full_name: string; is_active: boolean; roles: { name: string } | null }[]).map((p) => ({
+    id: p.id, full_name: p.full_name, is_active: p.is_active, role: p.roles?.name ?? null,
+  }));
+});
+
+/** Görev atanabilecek merkez kullanıcıları: merkezde tasks.assign yetkisi olan atar; etkin tüm merkez kullanıcıları seçilebilir. */
+export async function assignableStaff(user: CurrentUser): Promise<{ value: string; label: string }[]> {
+  if (user.kind !== "staff" || !hasPermission(user, "tasks.assign")) return [];
+  return (await staffDirectory())
+    .filter((p) => p.is_active)
+    .map((p) => ({ value: p.id, label: p.id === user.id ? `${p.full_name} (ben)` : p.role ? `${p.full_name} · ${p.role}` : p.full_name }));
+}
+
+/**
+ * Merkez görevlerinde atanan kullanıcının adını ekler. Merkez görevi satırını RLS yalnızca merkez kullanıcısına
+ * verdiği için ad da yalnızca merkez kullanıcısına ulaşır.
+ */
+export async function withAssigneeNames<T extends { assignee_id?: string | null; assignee_name?: string | null }>(rows: T[]): Promise<T[]> {
+  if (!rows.some((r) => r.assignee_id)) return rows;
+  const names = new Map((await staffDirectory()).map((p) => [p.id, p.full_name]));
+  return rows.map((r) => (r.assignee_id ? { ...r, assignee_name: names.get(r.assignee_id) ?? null } : r));
+}
+
+const lower = (v: string) => v.toLocaleLowerCase("tr");
+/** Merkez sekmesinde ad süzgecine uyan kullanıcılar. */
+async function staffIdsByName(f: TaskFilters): Promise<string[] | undefined> {
+  if (!(f.name && f.scope === "merkez")) return undefined;
+  const needle = lower(f.name);
+  return (await staffDirectory()).filter((p) => lower(p.full_name).includes(needle)).map((p) => p.id);
+}
 
 /** Liste (sayfalı) ya da PDF için tümü (limit). Sıra: en yeni atanan üstte. */
 export async function loadTasks(f: TaskFilters, range: { from: number; to: number }) {
   const supabase = await createClient();
-  const person = f.name ? "personnel!inner(full_name)" : "personnel(full_name)";
+  const person = f.name && !staffScope(f) ? "personnel!inner(full_name)" : "personnel(full_name)";
   let q = supabase.from("work_tasks").select(`${TASK_LIST_COLUMNS}, ${person}`, { count: "exact" });
-  q = applyStage(applyFilters(q, f), f.stage);
+  q = applyStage(applyFilters(q, f, await staffIdsByName(f)), f.stage);
   const { data, count } = await q.order("created_at", { ascending: false }).range(range.from, range.to);
-  return { rows: (data ?? []) as unknown as TaskListRow[], total: count ?? 0 };
+  return { rows: await withAssigneeNames((data ?? []) as unknown as TaskListRow[]), total: count ?? 0 };
 }
 
 export type TaskCounts = { pending: number; planned: number; waitingDate: number; issue: number; finished: number; done: number };
@@ -123,9 +200,10 @@ export type TaskCounts = { pending: number; planned: number; waitingDate: number
 /** Üstteki sayaçlar: durum süzgeci hariç diğer süzgeçler uygulanır. */
 export async function loadTaskCounts(f: TaskFilters): Promise<TaskCounts> {
   const supabase = await createClient();
-  const person = f.name ? "id, personnel!inner(full_name)" : "id";
+  const person = f.name && !staffScope(f) ? "id, personnel!inner(full_name)" : "id";
+  const staffIds = await staffIdsByName(f);
   const count = async (stage: string) => {
-    const q = applyStage(applyFilters(supabase.from("work_tasks").select(person, { count: "exact", head: true }), f), stage);
+    const q = applyStage(applyFilters(supabase.from("work_tasks").select(person, { count: "exact", head: true }), f, staffIds), stage);
     const { count: c } = await q;
     return (c as number | null) ?? 0;
   };
@@ -174,4 +252,11 @@ export async function taskJobOptions(): Promise<string[]> {
   const supabase = await createClient();
   const { data } = await supabase.from("work_tasks").select("job").not("job", "is", null).order("job").limit(2000);
   return [...new Set(((data ?? []) as { job: string }[]).map((r) => r.job))];
+}
+
+/** Oturumdaki merkez kullanıcısına atanmış, yanıtını (kabul / sorun) bekleyen görev sayısı. Sütun yoksa 0. */
+export async function myPendingTaskCount(userId: string): Promise<number> {
+  const supabase = await createClient();
+  const { count, error } = await supabase.from("work_tasks").select("id", { count: "exact", head: true }).eq("assignee_id", userId).eq("status", "pending");
+  return error ? 0 : (count ?? 0);
 }

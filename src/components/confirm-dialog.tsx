@@ -30,7 +30,7 @@ const TONE = {
  * tetikleyici de sayfadan kalkarsa (ör. silinen satır listeden çıkınca) bu ayar takılı kalabilir: sayfa "donmuş"
  * gibi olur, imleç el olmaz. Kapanış animasyonundan sonra açık başka pencere yoksa temizlenir.
  */
-function releaseBody() {
+export function releaseBody() {
   window.setTimeout(() => {
     if (!document.querySelector('[role="alertdialog"], [role="dialog"]') && document.body.style.pointerEvents === "none") {
       document.body.style.pointerEvents = "";

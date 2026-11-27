@@ -44,6 +44,10 @@ const cardFields = {
   // ulaşılamazsa aranacak kişi
   emergency_phone: phone,
   emergency_contact_name: opt("Yedek telefon kime ait", 80),
+  // kartlar ve süreli belgeler (bitişe 6 ay kala merkeze her gün uyarı)
+  meal_card_no: opt("Yemek kartı no", 40),
+  health_report_until: date("Sağlık raporu geçerlilik bitişi"),
+  security_card_until: date("Güvenlik kimlik kartı geçerlilik bitişi"),
 };
 
 const hireAfterBirth = (v: { birth_date: string; hire_date: string }) => !v.birth_date || !v.hire_date || v.hire_date > v.birth_date;

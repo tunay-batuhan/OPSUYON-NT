@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { AlertTriangle, CalendarClock, CheckCircle2, FileText, Inbox, MessageSquare } from "lucide-react";
+import { AlertTriangle, CalendarClock, CheckCircle2, ClipboardList, FileText, Inbox, MessageSquare } from "lucide-react";
 import { Card, CardHeader, EmptyState, PageHeader } from "@/components/ui";
 import { canAnywhere, isSuperAdmin, requireUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -8,6 +8,10 @@ import { CONTACT_TOPICS, type ContactTopic } from "@/lib/schemas-contact";
 import { getEnabledModules } from "@/lib/modules";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatDateTime, isoDayFromNow, isoTimeFromNow } from "@/lib/format";
+import { loadExpiryAlerts } from "@/lib/expiry-alerts";
+import { withAssigneeNames } from "@/lib/task-data";
+import { taskPersonName } from "@/lib/task-detail";
+import { ExpiryAlertList } from "@/components/expiry-alerts";
 
 export const metadata: Metadata = { title: "Bildirimler" };
 
@@ -41,15 +45,26 @@ export default async function NotificationsPage() {
   const { data: taskData } = seesTasks
     ? await supabase
         .from("work_tasks")
-        .select("id, title, status, issue_note, issue_at, finished_by_personnel_at, personnel(full_name), projects(name)")
+        .select("*, personnel(full_name), projects(name)")
         .or("status.eq.issue,and(status.eq.accepted,finished_by_personnel_at.not.is.null)")
         .order("updated_at", { ascending: false })
         .limit(30)
     : { data: [] };
-  const taskRows = (taskData ?? []) as unknown as {
+  type TaskAlertRow = {
     id: string; title: string; status: string; issue_note: string | null; issue_at: string | null; finished_by_personnel_at: string | null;
+    planned_date: string | null; created_at: string; assignee_id?: string | null; assignee_name?: string | null;
     personnel: { full_name: string } | null; projects: { name: string } | null;
-  }[];
+  };
+  const taskRows = await withAssigneeNames((taskData ?? []) as unknown as TaskAlertRow[]);
+
+  // Merkez kullanıcısına atanmış, yanıtını (kabul / sorun) bekleyen merkez görevleri. Sütun henüz yoksa boş döner.
+  const { data: myTaskData } = user.kind === "staff"
+    ? await supabase.from("work_tasks").select("*").eq("assignee_id", user.id).eq("status", "pending").order("created_at", { ascending: false }).limit(30)
+    : { data: [] };
+  const myTaskRows = (myTaskData ?? []) as unknown as TaskAlertRow[];
+
+  // Sağlık raporu / güvenlik kimlik kartı: bitişe 6 ay kala her gün (merkez, personel kartını görebilen)
+  const expiryRows = await loadExpiryAlerts(user);
 
   const readMap = new Map((reads ?? []).map((r) => [r.thread_id as string, new Date(r.last_read_at as string).getTime()]));
   const unread = new Map<string, Msg>();
@@ -59,13 +74,22 @@ export default async function NotificationsPage() {
   const threads = [...unread.values()];
   const contractRows = !showContracts ? [] : (contracts ?? []) as unknown as { id: string; name: string; end_date: string; organizations: { name: string } | null }[];
   const docRows = (docs ?? []) as unknown as { id: string; title: string; created_at: string; project_id: string; projects: { name: string } | null }[];
-  const nothing = threads.length + contractRows.length + docRows.length + contactRows.length + taskRows.length === 0;
+  const nothing = threads.length + contractRows.length + docRows.length + contactRows.length + taskRows.length + myTaskRows.length + expiryRows.length === 0;
 
   return (
     <>
       <PageHeader title="Bildirimler" description="Dikkat etmeniz gereken gelişmeler." />
       {nothing && <Card><EmptyState title="Yeni bildirim yok" description="Mesaj, belge ve yaklaşan sözleşme bildirimleri burada görünür." /></Card>}
       <div className="space-y-6">
+        {expiryRows.length > 0 && (
+          <Card>
+            <CardHeader
+              title="Süresi yaklaşan belgeler"
+              description="Sağlık raporu ve güvenlik kimlik kartı: bitişe 6 ay kala her gün hatırlatılır. Kapatınca personele bildirim evrakı basmak isteyip istemediğiniz sorulur."
+            />
+            <ExpiryAlertList rows={expiryRows} />
+          </Card>
+        )}
         {contactRows.length > 0 && (
           <Card>
             <CardHeader title="Yeni iletişim talepleri" description="Web sitesindeki iletişim formundan" />
@@ -82,9 +106,28 @@ export default async function NotificationsPage() {
             </ul>
           </Card>
         )}
+        {myTaskRows.length > 0 && (
+          <Card>
+            <CardHeader title="İş Planlama: size atanan görevler" description="Yanıtınızı bekliyor: kabul edin ya da sorun varsa yazın" />
+            <ul className="divide-y divide-border">
+              {myTaskRows.map((t) => (
+                <li key={t.id}>
+                  <Link href={`/is-planlama/${t.id}`} className="flex items-start gap-3 px-5 py-3 hover:bg-surface-2">
+                    <ClipboardList className="mt-0.5 size-5 shrink-0 text-warning" aria-hidden />
+                    <span className="min-w-0 flex-1">
+                      <span className="block font-medium">{t.title}</span>
+                      <span className="block text-sm text-muted">{t.planned_date ? `Görev tarihi ${formatDate(t.planned_date)}` : "Tarih henüz verilmedi"}</span>
+                    </span>
+                    <span className="shrink-0 text-xs text-muted">{formatDateTime(t.created_at)}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        )}
         {taskRows.length > 0 && (
           <Card>
-            <CardHeader title="İş Planlama: ilgilenmeniz gereken görevler" description="Personelin sorun bildirdiği ya da bitirdiğini söylediği görevler" />
+            <CardHeader title="İş Planlama: ilgilenmeniz gereken görevler" description="Görevi alanın sorun bildirdiği ya da bitirdiğini söylediği görevler" />
             <ul className="divide-y divide-border">
               {taskRows.map((t) => {
                 const issue = t.status === "issue";
@@ -94,8 +137,8 @@ export default async function NotificationsPage() {
                       {issue ? <AlertTriangle className="mt-0.5 size-5 shrink-0 text-danger" aria-hidden /> : <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-success" aria-hidden />}
                       <span className="min-w-0 flex-1">
                         <span className="block font-medium">
-                          {issue ? "Sorun bildirildi" : "Personel işi bitirdi"}: {t.title}{" "}
-                          <span className="font-normal text-muted">· {t.personnel?.full_name}{t.projects?.name ? ` · ${t.projects.name}` : ""}</span>
+                          {issue ? "Sorun bildirildi" : t.assignee_id ? "Görevli işi bitirdi" : "Personel işi bitirdi"}: {t.title}{" "}
+                          <span className="font-normal text-muted">· {taskPersonName(t)}{t.projects?.name ? ` · ${t.projects.name}` : t.assignee_id ? " · Merkez" : ""}</span>
                         </span>
                         {issue && t.issue_note && <span className="block truncate text-sm text-muted">“{t.issue_note}”</span>}
                       </span>

@@ -251,18 +251,18 @@ export async function PersonnelFileDetail({
       if (s.optional && list.length === 0) return null; // "Diğer" yalnızca belge varsa
       if (list.length === 0) {
         return (
-          <tr key={s.no}>
-            <td className={cn(td, "w-14 text-muted")}>{s.no}</td>
+          <tr key={s.no} className="bg-danger-soft/60">
+            <td className={cn(td, "w-14 border-l-4 border-danger text-muted")}>{s.no}</td>
             <td className={cn(td, "font-medium")}>{s.label}</td>
             <td className={td}>{person.full_name}</td>
-            <td className={cn(td, "italic text-muted")}>Yüklenmemiş</td>
+            <td className={cn(td, "font-medium text-danger")}>Yüklenmemiş</td>
             <td className={td} />
           </tr>
         );
       }
       return list.map((d, i) => (
-        <tr key={d.id}>
-          <td className={cn(td, "w-14 text-muted")}>{i === 0 ? s.no : ""}</td>
+        <tr key={d.id} className="bg-success-soft/60">
+          <td className={cn(td, "w-14 border-l-4 border-success text-muted")}>{i === 0 ? s.no : ""}</td>
           <td className={cn(td, "font-medium")}>{i === 0 ? s.label : ""}</td>
           <td className={td}>{person.full_name}</td>
           <td className={td}>
@@ -291,7 +291,7 @@ export async function PersonnelFileDetail({
     });
     body = (
       <Card>
-        <CardHeader title={screen.title} description={`${done} / ${required.length} evrak türü yüklü · PDF indirebilir veya Görüntüle ile altta açabilirsiniz.`} />
+        <CardHeader title={screen.title} description={`${done} / ${required.length} evrak türü yüklü · yeşil satır yüklenmiş, kırmızı satır eksik evraktır · PDF indirebilir veya Görüntüle ile altta açabilirsiniz.`} />
         {ok.size === 0 ? (
           <EmptyState title="Görüntülenecek evrak türü yok" description="Hesabınızın özlük evraklarını görme yetkisi yok." />
         ) : (

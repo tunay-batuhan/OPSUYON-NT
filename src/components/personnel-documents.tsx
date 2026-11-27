@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ChevronDown, FilePlus2 } from "lucide-react";
-import { Card, CardHeader, EmptyState, btn } from "@/components/ui";
+import { Card, CardHeader, EmptyState, btn, cn } from "@/components/ui";
 import { FilterBar, type FilterField } from "@/components/filter-bar";
 import { DownloadLink } from "@/components/doc-ui";
 import { hasPermission, type CurrentUser } from "@/lib/auth";
@@ -90,10 +90,15 @@ export async function PersonnelDocuments({
         <div className="divide-y divide-border border-t border-border">
           {groups.map(({ cat, list }) => (
             <details key={cat.code} open={list.length > 0} className="group">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-3.5 hover:bg-surface-2">
+              <summary
+                className={cn(
+                  "flex cursor-pointer list-none items-center justify-between gap-3 border-l-4 px-5 py-3.5 hover:brightness-[0.98]",
+                  list.length > 0 ? "border-success bg-success-soft/60" : "border-danger bg-danger-soft/60",
+                )}
+              >
                 <span className="font-medium">{cat.name}</span>
-                <span className="flex items-center gap-3 text-sm text-muted">
-                  {list.length} belge
+                <span className={cn("flex items-center gap-3 text-sm", list.length > 0 ? "text-muted" : "font-medium text-danger")}>
+                  {list.length > 0 ? `${list.length} belge` : "Yüklenmemiş"}
                   <ChevronDown className="size-4 transition-transform group-open:rotate-180" aria-hidden />
                 </span>
               </summary>

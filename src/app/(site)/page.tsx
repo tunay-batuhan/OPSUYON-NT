@@ -11,6 +11,7 @@ import { AuthButton } from "@/components/site/auth-button";
 import { DesktopNav, MobileNav } from "@/components/site/site-nav";
 import { PanelPreview } from "@/components/site/panel-preview";
 import { PatrolShowcase } from "@/components/site/patrol-showcase";
+import { SeveranceCalculator } from "@/components/site/severance-calculator";
 import { getPublicServiceLines, lineTitle } from "@/lib/lines";
 import { BRAND, BRAND_DOMAIN, BRAND_SLOGAN, BRAND_TAGLINE } from "@/lib/brand";
 import { faqLd, ldJson, organizationLd, pageMetadata, websiteLd } from "@/lib/seo";
@@ -325,6 +326,23 @@ export default async function Home() {
                 </li>
               ))}
             </ol>
+          </div>
+        </section>
+
+        {/* ---------------- Kıdem ve ihbar tazminatı hesaplama (istemci bileşeni; hesap src/lib/severance-calc.ts) ---------------- */}
+        <section id="tazminat-hesaplama" aria-labelledby="tazminat-baslik" className="scroll-mt-6 border-y border-border bg-surface-2/60">
+          <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:py-20">
+            <div className="site-reveal max-w-2xl">
+              <p className="text-sm font-semibold uppercase tracking-wider text-brand-hover">Hesaplama aracı</p>
+              <h2 id="tazminat-baslik" className="mt-2 text-3xl font-bold tracking-tight text-navy sm:text-4xl">Kıdem ve ihbar tazminatı hesaplama</h2>
+              <p className="mt-3 text-fg/80">
+                İşe giriş ve çıkış tarihini, aylık brüt ücreti girin; kıdem ve ihbar tazminatının brüt, kesinti ve net tutarları
+                anında hesaplansın.
+              </p>
+            </div>
+            <div className="mt-10">
+              <SeveranceCalculator />
+            </div>
           </div>
         </section>
 

@@ -21,10 +21,11 @@ import type { ActionState } from "@/lib/action-types";
 
 const BUCKET = "documents";
 
-async function canAssign(user: CurrentUser | null, projectId: string): Promise<boolean> {
+/** Görev atama / yönetme yetkisi. `projectId` boş: merkez görevi (yalnızca merkez, tasks.assign). */
+async function canAssign(user: CurrentUser | null, projectId: string | null): Promise<boolean> {
   if (!user) return false;
   if (user.kind === "staff") return hasPermission(user, "tasks.assign");
-  if (user.kind !== "customer") return false;
+  if (user.kind !== "customer" || !projectId) return false;
   const supabase = await createClient();
   const { data } = await supabase.rpc("my_project_permissions", { p_project_id: projectId });
   return ((data as string[] | null) ?? []).includes("tasks.assign");
@@ -36,11 +37,12 @@ function refresh(id?: string) {
   revalidatePath("/gorevlerim");
 }
 
-type TaskRow = { id: string; project_id: string; personnel_id: string; status: string; accepted_at: string | null };
+type TaskRow = { id: string; project_id: string | null; personnel_id: string | null; assignee_id?: string | null; status: string; accepted_at: string | null };
 
+/** Görev, kullanıcının oturumuyla (RLS). "*": merkez görevi sütunu veritabanında henüz yoksa da çalışır. */
 async function readTask(id: string): Promise<TaskRow | null> {
   const supabase = await createClient();
-  const { data } = await supabase.from("work_tasks").select("id, project_id, personnel_id, status, accepted_at").eq("id", id).maybeSingle();
+  const { data } = await supabase.from("work_tasks").select("*").eq("id", id).maybeSingle();
   return (data as TaskRow | null) ?? null;
 }
 
@@ -62,12 +64,16 @@ async function saveTaskInner(values: TaskValues): Promise<SaveTaskResult> {
     if (!v.ok) return v.state;
     const d = v.data;
     const user = await getCurrentUser();
-    if (!(await canAssign(user, d.project_id))) return { error: "Bu projede görev atama yetkiniz yok." };
+    const staffTask = d.target === "staff";
+    if (staffTask) {
+      if (user?.kind !== "staff" || !hasPermission(user, "tasks.assign")) return { error: "Merkez görevi atama yetkiniz yok." };
+    } else if (!(await canAssign(user, d.project_id))) return { error: "Bu projede görev atama yetkiniz yok." };
     const supabase = await createClient();
+    const who = staffTask ? "Kullanıcı" : "Personel";
     const fields = {
-      personnel_id: d.personnel_id,
+      ...(staffTask ? { assignee_id: d.assignee_id } : { personnel_id: d.personnel_id }),
       title: d.title,
-      job: nul(d.job),
+      job: staffTask ? null : nul(d.job),
       description: nul(d.description),
       location: nul(d.location),
       planned_date: nul(d.planned_date),
@@ -75,17 +81,22 @@ async function saveTaskInner(values: TaskValues): Promise<SaveTaskResult> {
     };
 
     if (!d.id) {
-      const { data, error } = await supabase.from("work_tasks").insert({ project_id: d.project_id, ...fields }).select("id").single();
+      const { data, error } = await supabase.from("work_tasks").insert({ ...(staffTask ? {} : { project_id: d.project_id }), ...fields }).select("id").single();
       if (error) return { error: pgMessage(error) };
       refresh(data.id);
-      return { ok: true, id: data.id, message: "Görev atandı. Personel telefonunda görüp kabul edecek." };
+      return {
+        ok: true,
+        id: data.id,
+        message: staffTask ? "Görev atandı. Kullanıcı İş Planlama'da “Bana atananlar” altında görüp kabul edecek." : "Görev atandı. Personel telefonunda görüp kabul edecek.",
+      };
     }
 
     const current = await readTask(d.id);
     if (!current) return { error: "Görev bulunamadı." };
-    if (current.project_id !== d.project_id) return { error: "Görevin projesi değiştirilemez." };
+    if (Boolean(current.assignee_id) !== staffTask) return { error: "Görevin türü (saha / merkez) değiştirilemez." };
+    if (!staffTask && current.project_id !== d.project_id) return { error: "Görevin projesi değiştirilemez." };
     if (current.status === "done" || current.status === "cancelled") return { error: "Tamamlanan ya da iptal edilen görev düzenlenemez; önce geri alın." };
-    const reassigned = current.personnel_id !== d.personnel_id;
+    const reassigned = staffTask ? current.assignee_id !== d.assignee_id : current.personnel_id !== d.personnel_id;
     const resend = current.status === "issue" || (reassigned && current.status === "accepted");
     const { error } = await supabase.from("work_tasks").update({ ...fields, ...(resend ? { status: "pending" } : {}) }).eq("id", d.id);
     if (error) return { error: pgMessage(error) };
@@ -93,7 +104,7 @@ async function saveTaskInner(values: TaskValues): Promise<SaveTaskResult> {
     return {
       ok: true,
       id: d.id,
-      message: resend ? "Görev güncellendi ve personele yeniden onaya gönderildi." : "Görev güncellendi.",
+      message: resend ? `Görev güncellendi ve yeniden onaya gönderildi (${who.toLocaleLowerCase("tr")} yeniden kabul edecek).` : "Görev güncellendi.",
     };
   }
 }
@@ -163,41 +174,51 @@ export async function respondTask(input: { id: string; action: "accept" | "issue
   return guard(async () => {
     if (!isUuid(input.id) || !["accept", "issue", "finish"].includes(input.action)) return { error: "Geçersiz istek." };
     const user = await getCurrentUser();
-    if (!user || user.kind !== "personnel") return { error: "Bu işlem yalnızca personel hesabıyla yapılabilir." };
+    // saha görevini personel, merkez görevini atandığı merkez kullanıcısı yanıtlar (kimin görevi olduğunu veritabanı doğrular)
+    if (!user || (user.kind !== "personnel" && user.kind !== "staff")) return { error: "Bu işlem yalnızca görevin atandığı kişi tarafından yapılabilir." };
     const supabase = await createClient();
     const { error } = await supabase.rpc("task_respond", { p_task: input.id, p_action: input.action, p_note: input.note ?? null });
     if (error) return { error: error.message };
     refresh(input.id);
+    const boss = user.kind === "staff" ? "görevi veren" : "müdürünüz";
     return {
       ok: true,
-      message: input.action === "accept" ? "Görevi kabul ettiniz." : input.action === "issue" ? "Sorun bildirildi; müdürünüz görecek." : "İşi bitirdiniz; müdürünüz onaylayacak.",
+      message: input.action === "accept" ? "Görevi kabul ettiniz." : input.action === "issue" ? `Sorun bildirildi; ${boss} görecek.` : `İşi bitirdiniz; ${boss} onaylayacak.`,
     };
   });
 }
 
 /* ------------------------------ dosyalar ------------------------------ */
 
-type UploadRole = { role: "manager" | "personnel"; status: string } | null;
+type UploadRoles = { manager: boolean; assignee: boolean } | null;
 
-/** Dosya ekleyebilir mi? Müdür: projede tasks.assign. Personel: yalnızca kendi görevi. */
-async function uploadRole(user: CurrentUser | null, taskId: string): Promise<UploadRole> {
+/**
+ * Dosya ekleyebilir mi? Yönetici (manager): saha görevinde projede tasks.assign, merkez görevinde merkezde tasks.assign.
+ * Görevi alan (assignee): saha personeli ya da merkez kullanıcısı, yalnızca kendi açık görevine (sorun / iş bitimi).
+ */
+async function uploadRoles(user: CurrentUser | null, taskId: string): Promise<UploadRoles> {
   if (!user || !isUuid(taskId)) return null;
+  const open = (status: string) => ["pending", "issue", "accepted"].includes(status);
   if (user.kind === "personnel") {
     const { data } = await createAdminClient().from("work_tasks").select("status, personnel_id").eq("id", taskId).maybeSingle();
-    if (!data || data.personnel_id !== user.personnel_id) return null;
-    return ["pending", "issue", "accepted"].includes(data.status) ? { role: "personnel", status: data.status } : null;
+    if (!data || data.personnel_id !== user.personnel_id || !open(data.status)) return null;
+    return { manager: false, assignee: true };
   }
   const task = await readTask(taskId);
-  if (!task || !(await canAssign(user, task.project_id))) return null;
-  return { role: "manager", status: task.status };
+  if (!task) return null;
+  const roles = {
+    manager: await canAssign(user, task.project_id),
+    assignee: user.kind === "staff" && Boolean(task.assignee_id) && task.assignee_id === user.id && open(task.status),
+  };
+  return roles.manager || roles.assignee ? roles : null;
 }
 
 export type PreparedTaskUpload = { path: string; signedUrl: string; anonKey: string } | { error: string };
 
 export async function prepareTaskUpload(input: { taskId: string; fileName: string; mime?: string; size: number }): Promise<PreparedTaskUpload> {
   try {
-    const role = await uploadRole(await getCurrentUser(), input.taskId);
-    if (!role) return { error: "Bu göreve dosya ekleme yetkiniz yok." };
+    const roles = await uploadRoles(await getCurrentUser(), input.taskId);
+    if (!roles) return { error: "Bu göreve dosya ekleme yetkiniz yok." };
     const ext = taskFileExt(input.fileName, input.mime);
     if (!ext) return { error: "Yalnızca fotoğraf (JPG, PNG, WEBP, HEIC) ya da PDF eklenebilir." };
     if (!(input.size > 0 && input.size <= TASK_FILE_MAX)) return { error: "Dosya 50 MB'tan büyük olamaz." };
@@ -214,15 +235,17 @@ export async function prepareTaskUpload(input: { taskId: string; fileName: strin
 export async function registerTaskFile(input: { taskId: string; path: string; fileName: string; mime: string; size: number; stage?: "issue" | "finish" }): Promise<ActionState> {
   return guard(async () => {
     const user = await getCurrentUser();
-    const role = await uploadRole(user, input.taskId);
+    const roles = await uploadRoles(user, input.taskId);
     const admin = createAdminClient(user?.id);
     const drop = async (message: string) => {
       if (input.path.startsWith(`tasks/${input.taskId}/`)) await admin.storage.from(BUCKET).remove([input.path]);
       return { error: message };
     };
-    if (!role) return drop("Bu göreve dosya ekleme yetkiniz yok.");
+    if (!roles) return drop("Bu göreve dosya ekleme yetkiniz yok.");
     if (!input.path.startsWith(`tasks/${input.taskId}/`) || input.path.includes("..")) return { error: "Geçersiz dosya yolu." };
-    const stage = role.role === "manager" ? "assign" : input.stage === "finish" ? "finish" : "issue";
+    // görevi alan kendi yanıtına eklerken aşamayı bildirir (sorun / iş bitimi); aşama yoksa yönetici eklemesidir
+    const asAssignee = roles.assignee && (Boolean(input.stage) || !roles.manager);
+    const stage = asAssignee ? (input.stage === "finish" ? "finish" : "issue") : "assign";
     const { error } = await admin.from("work_task_files").insert({
       task_id: input.taskId,
       stage,
@@ -244,8 +267,8 @@ export async function removeTaskFile(fd: FormData): Promise<void> {
   const supabase = await createClient();
   const { data: file } = await supabase.from("work_task_files").select("task_id, storage_path").eq("id", id).maybeSingle();
   if (!file) return;
-  const role = await uploadRole(await getCurrentUser(), file.task_id as string);
-  if (role?.role !== "manager") return;
+  const roles = await uploadRoles(await getCurrentUser(), file.task_id as string);
+  if (!roles?.manager) return;
   const admin = createAdminClient();
   const { error } = await admin.from("work_task_files").delete().eq("id", id);
   if (!error) await admin.storage.from(BUCKET).remove([file.storage_path as string]);

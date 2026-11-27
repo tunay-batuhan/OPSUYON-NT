@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useFormContext, useWatch } from "react-hook-form";
-import { CheckCircle2, ClipboardList, CloudUpload, ImageIcon, Info, MapPin, Send, UserRound, X } from "lucide-react";
+import { Building2, CheckCircle2, ClipboardList, CloudUpload, HardHat, ImageIcon, Info, MapPin, Send, UserRound, X } from "lucide-react";
 import { saveTask } from "@/app/actions/tasks";
 import { taskSchema, TASK_FILE_ACCEPT, type TaskValues } from "@/lib/schemas-tasks";
 import { DateField } from "@/components/forms/date-fields";
@@ -14,11 +14,67 @@ import { cn } from "@/components/ui";
 export type PersonOption = { value: string; label: string; project_id: string; job: string };
 type Option = { value: string; label: string };
 
-/** Seçilen projenin aktif personeli; personel seçilince "Görevi" alanı (boşsa) pozisyonundan dolar. */
-function PersonFields({ projects, people }: { projects: Option[]; people: PersonOption[] }) {
+/** Görev kime? Saha personeli (projede görevli) ya da merkez kullanıcısı. Yalnızca yeni görevde ve ikisi de mümkünse görünür. */
+function TargetSwitch() {
+  const { control, setValue, clearErrors } = useFormContext<TaskValues>();
+  const target = useWatch({ control, name: "target" });
+  const options = [
+    { value: "field" as const, label: "Saha personeli", hint: "Projede görevli personele", Icon: HardHat },
+    { value: "staff" as const, label: "Merkez kullanıcısı", hint: "Merkezdeki bir kullanıcıya", Icon: Building2 },
+  ];
+  return (
+    <div role="radiogroup" aria-label="Görev kime atanacak" className="grid gap-2 sm:grid-cols-2 lg:max-w-xl">
+      {options.map((o) => {
+        const active = target === o.value;
+        return (
+          <button
+            key={o.value}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            onClick={() => {
+              setValue("target", o.value, { shouldDirty: true });
+              clearErrors(["project_id", "personnel_id", "assignee_id"]);
+            }}
+            className={cn(
+              "flex cursor-pointer items-center gap-3 rounded-xl border-2 px-4 py-3 text-left transition-colors",
+              active ? "border-brand bg-brand-soft/60" : "border-border bg-surface hover:bg-surface-2",
+            )}
+          >
+            <o.Icon className={cn("size-5 shrink-0", active ? "text-brand" : "text-muted")} aria-hidden />
+            <span>
+              <span className="block text-sm font-semibold">{o.label}</span>
+              <span className="block text-xs text-muted">{o.hint}</span>
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
+ * Saha görevi: seçilen projenin aktif personeli; personel seçilince "Görevi" alanı (boşsa) pozisyonundan dolar.
+ * Merkez görevi: merkez kullanıcısı seçilir (proje ve "Görevi" yoktur).
+ */
+function PersonFields({ projects, people, staff }: { projects: Option[]; people: PersonOption[]; staff: Option[] }) {
   const { control, setValue, getValues } = useFormContext<TaskValues>();
   const projectId = useWatch({ control, name: "project_id" });
+  const target = useWatch({ control, name: "target" });
   const options = people.filter((p) => p.project_id === projectId);
+  if (target === "staff") {
+    return (
+      <SelectField
+        name="assignee_id"
+        label="Merkez kullanıcısı"
+        required
+        searchable
+        options={staff}
+        placeholder="Kullanıcı adı yazın veya seçin…"
+        hint={staff.length === 0 ? "Etkin merkez kullanıcısı yok." : undefined}
+      />
+    );
+  }
   return (
     <>
       {projects.length > 1 && (
@@ -53,10 +109,12 @@ function PersonFields({ projects, people }: { projects: Option[]; people: Person
  * Dosyalar görev kaydedildikten sonra yüklenir (dosya yolu görev numarasını içerir).
  */
 export function TaskForm({
-  projects, people, initial, submitLabel = "Görevi ata", onDoneHref,
+  projects, people, staff = [], initial, submitLabel = "Görevi ata", onDoneHref,
 }: {
   projects: Option[];
   people: PersonOption[];
+  /** görev atanabilecek merkez kullanıcıları (yalnızca merkezde, tasks.assign yetkisi olana dolu gelir) */
+  staff?: Option[];
   initial?: Partial<TaskValues>;
   submitLabel?: string;
   /** kaydedince gidilecek adres (düzenleme: görev sayfası). Verilmezse form temizlenir ve liste yenilenir. */
@@ -70,6 +128,8 @@ export function TaskForm({
 
   const defaults: TaskValues = {
     id: initial?.id ?? "",
+    target: initial?.target ?? (projects.length === 0 && staff.length > 0 ? "staff" : "field"),
+    assignee_id: initial?.assignee_id ?? "",
     project_id: initial?.project_id ?? (projects.length === 1 ? projects[0].value : ""),
     personnel_id: initial?.personnel_id ?? "",
     title: initial?.title ?? "",
@@ -101,8 +161,9 @@ export function TaskForm({
 
   return (
     <Form schema={taskSchema} defaultValues={defaults} action={action} resetOnSuccess={!editing} className="space-y-5 p-5">
+      {!editing && projects.length > 0 && staff.length > 0 && <TargetSwitch />}
       <FormGrid cols={3}>
-        <PersonFields projects={projects} people={people} />
+        <PersonFields projects={projects} people={people} staff={staff} />
         <TextField name="title" label="Görev başlığı" required placeholder="Örn. A Blok giriş kat temizliği" maxLength={160} />
         <TextField name="location" label="Görev yeri" placeholder="Örn. A Blok giriş kat" maxLength={160} />
         <div className="grid grid-cols-[1fr_7rem] gap-3">
@@ -158,23 +219,39 @@ export function TaskForm({
           {fileError && <p role="alert" className="mt-2 text-sm text-danger">{fileError}</p>}
         </div>
         <div className="flex flex-col justify-between gap-4 rounded-xl border border-brand/20 bg-brand-soft/50 p-4 text-sm">
-          <ul className="space-y-2">
-            {[
-              "Göreve fotoğraf ekleyerek görev detayını destekleyebilirsiniz.",
-              "Personel görevi telefonunda görür; kabul eder ya da sorun varsa açıklama yazar.",
-              "İş bitince personel fotoğraf ekleyebilir; son onayı (Tamamlandı) siz verirsiniz.",
-            ].map((t) => (
-              <li key={t} className="flex items-start gap-2">
-                <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" aria-hidden /> {t}
-              </li>
-            ))}
-          </ul>
+          <FormTips />
           <SubmitButton size="lg" className="self-end">
             <Send className="size-4" aria-hidden /> {submitLabel}
           </SubmitButton>
         </div>
       </div>
     </Form>
+  );
+}
+
+/** Formun sağındaki kısa bilgiler: saha ve merkez görevinde akış aynı, görevi gören ekran farklı. */
+function FormTips() {
+  const { control } = useFormContext<TaskValues>();
+  const staffTask = useWatch({ control, name: "target" }) === "staff";
+  const tips = staffTask
+    ? [
+        "Görev, seçtiğiniz merkez kullanıcısının zilinde ve İş Planlama'da “Bana atananlar” altında görünür.",
+        "Kullanıcı görevi kabul eder ya da sorun varsa açıklama yazar.",
+        "İş bitince “İşi bitirdim” der; son onayı (Tamamlandı) siz verirsiniz. Müşteri hesapları merkez görevlerini görmez.",
+      ]
+    : [
+        "Göreve fotoğraf ekleyerek görev detayını destekleyebilirsiniz.",
+        "Personel görevi telefonunda görür; kabul eder ya da sorun varsa açıklama yazar.",
+        "İş bitince personel fotoğraf ekleyebilir; son onayı (Tamamlandı) siz verirsiniz.",
+      ];
+  return (
+    <ul className="space-y-2">
+      {tips.map((t) => (
+        <li key={t} className="flex items-start gap-2">
+          <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" aria-hidden /> {t}
+        </li>
+      ))}
+    </ul>
   );
 }
 

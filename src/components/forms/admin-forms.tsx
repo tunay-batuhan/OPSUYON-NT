@@ -2,9 +2,9 @@
 
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { createOrganization, createProject, updateOrganization, updateProject } from "@/app/actions/projects";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
-import { Loader2, Trash2 } from "lucide-react";
+import { Loader2, Printer, Trash2 } from "lucide-react";
 import { assignPersonnel, createPersonnel, deletePersonnel, updatePersonnel } from "@/app/actions/personnel";
 import {
   assignSchema, organizationSchema, organizationUpdateSchema, projectCreateSchema, projectUpdateSchema,
@@ -13,14 +13,85 @@ import { MARITAL_OPTIONS, personnelCreateSchema, personnelEditSchema } from "@/l
 import { accruedAnnualLeave, ageOf, legalAnnualLeaveDays, tenureLabel } from "@/lib/leave-law";
 import type { Personnel } from "@/lib/types";
 import { Form, FormGrid, SelectField, SubmitButton, TextField, TextareaField } from "@/components/forms/form";
+import { btn } from "@/components/ui";
 
 type Option = { value: string; label: string };
+
+const LOGO_MAX = 500 * 1024;
+
+/**
+ * Firma logosu (PNG/JPG, en fazla 500 KB). Personele basılan formların (yemek kartı teslim formu, belge süresi
+ * bildirimi) sol üstünde çıkar. Seçilen dosya formun "logo" alanına data URL olarak yazılır; kayıtta yüklenir.
+ */
+function LogoField({ current }: { current?: string | null }) {
+  const { control, setValue, setError, clearErrors, formState } = useFormContext();
+  const value = (useWatch({ control, name: "logo" }) as string) ?? "";
+  const [key, setKey] = useState(0);
+  const error = formState.errors.logo?.message as string | undefined;
+  const preview = value.startsWith("data:") ? value : value === "remove" ? null : current ?? null;
+  // Kayıttan sonra logo değişince alan yeniden kurulur (key); yüklenen dosya formda kalıp ikinci kez gönderilmesin.
+  useEffect(() => {
+    setValue("logo", "");
+  }, [setValue]);
+
+  function onFile(file: File | undefined) {
+    if (!file) return;
+    if (!["image/png", "image/jpeg"].includes(file.type)) {
+      setKey((k) => k + 1);
+      return setError("logo", { message: "Logo PNG veya JPG olmalı" });
+    }
+    if (file.size > LOGO_MAX) {
+      setKey((k) => k + 1);
+      return setError("logo", { message: "Logo en fazla 500 KB olabilir" });
+    }
+    const r = new FileReader();
+    r.onload = () => {
+      clearErrors("logo");
+      setValue("logo", String(r.result), { shouldDirty: true, shouldValidate: true });
+    };
+    r.readAsDataURL(file);
+  }
+
+  return (
+    <div className="sm:col-span-2">
+      <span className="mb-1.5 block text-sm font-medium">Firma logosu</span>
+      <div className="flex flex-wrap items-center gap-4">
+        <div className="grid h-20 w-44 place-items-center overflow-hidden rounded-lg border border-dashed border-border bg-white p-2">
+          {preview ? (
+            // eslint-disable-next-line @next/next/no-img-element -- yerel önizleme (data URL) ya da korumalı API görseli
+            <img src={preview} alt="Firma logosu önizleme" className="max-h-full max-w-full object-contain" />
+          ) : (
+            <span className="text-xs text-muted">Logo yok</span>
+          )}
+        </div>
+        <div className="space-y-1.5">
+          <label className={btn("secondary", "sm", "cursor-pointer")}>
+            {preview ? "Logoyu değiştir" : "Logo seç"}
+            <input key={key} type="file" accept="image/png,image/jpeg" className="sr-only" onChange={(e) => onFile(e.target.files?.[0])} />
+          </label>
+          {preview && (
+            <button
+              type="button"
+              onClick={() => { setValue("logo", current ? "remove" : "", { shouldDirty: true }); setKey((k) => k + 1); }}
+              className="block text-xs text-muted underline hover:text-fg"
+            >
+              Logoyu kaldır
+            </button>
+          )}
+        </div>
+      </div>
+      <p className={`mt-1.5 text-xs ${error ? "text-danger" : "text-muted"}`} role={error ? "alert" : undefined}>
+        {error ?? "PNG veya JPG, en fazla 500 KB. Personele basılan formların sol üstünde çıkar; şeffaf arka planlı yatay logo en iyi sonucu verir."}
+      </p>
+    </div>
+  );
+}
 
 export function OrganizationForm() {
   return (
     <Form
       schema={organizationSchema}
-      defaultValues={{ name: "", legal_name: "", contact_name: "", tax_office: "", tax_no: "", email: "", phone: "", address: "" }}
+      defaultValues={{ name: "", legal_name: "", contact_name: "", tax_office: "", tax_no: "", email: "", phone: "", address: "", logo: "" }}
       action={createOrganization}
       className="space-y-4 p-5"
     >
@@ -33,6 +104,7 @@ export function OrganizationForm() {
         <TextField name="email" type="email" label="E-posta" autoComplete="off" placeholder="ornek@firma.com" />
         <TextField name="phone" type="tel" label="Telefon" required placeholder="0532 000 00 00" />
         <TextField name="address" label="Adres" required className="sm:col-span-2" />
+        <LogoField />
       </FormGrid>
       <SubmitButton>Firmayı kaydet</SubmitButton>
     </Form>
@@ -41,13 +113,13 @@ export function OrganizationForm() {
 
 export function OrganizationEditForm({
   org,
-}: { org: { id: string; name: string; legal_name: string | null; contact_name: string | null; tax_office: string | null; tax_no: string | null; address: string | null; phone: string | null; email: string | null } }) {
+}: { org: { id: string; name: string; legal_name: string | null; contact_name: string | null; tax_office: string | null; tax_no: string | null; address: string | null; phone: string | null; email: string | null; logo_path?: string | null; updated_at?: string } }) {
   return (
     <Form
       schema={organizationUpdateSchema}
       defaultValues={{
         id: org.id, name: org.name, legal_name: org.legal_name ?? "", contact_name: org.contact_name ?? "", tax_office: org.tax_office ?? "", tax_no: org.tax_no ?? "",
-        email: org.email ?? "", phone: org.phone ?? "", address: org.address ?? "",
+        email: org.email ?? "", phone: org.phone ?? "", address: org.address ?? "", logo: "",
       }}
       action={updateOrganization}
       resetOnSuccess={false}
@@ -62,6 +134,7 @@ export function OrganizationEditForm({
         <TextField name="email" type="email" label="E-posta" autoComplete="off" />
         <TextField name="phone" type="tel" label="Telefon" required />
         <TextField name="address" label="Adres" required className="sm:col-span-2" />
+        <LogoField key={org.logo_path ?? "none"} current={org.logo_path ? `/api/firma-logo/${org.id}?v=${encodeURIComponent(org.logo_path.slice(-12))}` : null} />
       </FormGrid>
       <SubmitButton>Değişiklikleri kaydet</SubmitButton>
     </Form>
@@ -211,9 +284,31 @@ const ORG_HINT: Record<OrgChange, string> = {
   locked: "Daha önce projede çalıştığı için firmasını yalnızca Süper Yönetici değiştirebilir.",
 };
 
+/**
+ * "Yemek kartı teslim formu bas": formdaki (henüz kaydedilmemiş olsa da) kart numarasıyla PDF'i yeni sekmede açar.
+ * Form, personelin kadrosundaki firmanın logosu ve bilgileriyle basılır.
+ */
+function MealCardFormLink({ personnelId }: { personnelId: string }) {
+  const { control } = useFormContext();
+  const no = ((useWatch({ control, name: "meal_card_no" }) as string) ?? "").trim();
+  const href = `/api/personel/${personnelId}/form/yemek-karti${no ? `?no=${encodeURIComponent(no)}` : ""}`;
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener"
+      aria-disabled={!no}
+      onClick={(e) => { if (!no) e.preventDefault(); }}
+      className={`mt-1.5 inline-flex items-center gap-1.5 text-xs font-medium ${no ? "text-brand hover:underline" : "cursor-not-allowed text-muted"}`}
+    >
+      <Printer className="size-3.5" aria-hidden /> Yemek kartı teslim formu bas
+    </a>
+  );
+}
+
 function PersonnelFields({
-  lines, orgs, canSensitive, edit, orgChange = "free",
-}: { lines: Option[]; orgs: Option[]; canSensitive: boolean; edit?: boolean; orgChange?: OrgChange }) {
+  lines, orgs, canSensitive, edit, orgChange = "free", personnelId,
+}: { lines: Option[]; orgs: Option[]; canSensitive: boolean; edit?: boolean; orgChange?: OrgChange; personnelId?: string }) {
   return (
     <>
       <FormSection title="İş bilgileri">
@@ -258,6 +353,17 @@ function PersonnelFields({
         <PersonnelSummary />
       </FormSection>
 
+      <FormSection title="Kartlar ve süreli belgeler">
+        <FormGrid cols={3}>
+          <div>
+            <TextField name="meal_card_no" label="Yemek kartı no" inputMode="numeric" autoComplete="off" placeholder="Örn. 6036 8190 7668 5328 184" />
+            {personnelId ? <MealCardFormLink personnelId={personnelId} /> : <p className="mt-1.5 text-xs text-muted">Kart kaydedilince teslim formu basılabilir.</p>}
+          </div>
+          <TextField name="health_report_until" type="date" label="Sağlık raporu geçerlilik bitişi" hint="Bitişe 6 ay kala her gün uyarı verilir" />
+          <TextField name="security_card_until" type="date" label="Güvenlik kimlik kartı geçerlilik bitişi" hint="Bitişe 6 ay kala her gün uyarı verilir" />
+        </FormGrid>
+      </FormSection>
+
       <FormSection title="Beden ölçüleri">
         <FormGrid cols={6}>
           <TextField name="height_cm" label="Boy" inputMode="numeric" suffix="cm" maxLength={3} />
@@ -276,6 +382,7 @@ const emptyCard = {
   first_name: "", last_name: "", title: "", service_line: "", organization_id: "", hire_date: "", phone: "", email: "", national_id: "", iban: "",
   birth_date: "", birth_place: "", hometown: "", address: "", marital_status: "", height_cm: "", weight_kg: "",
   pants_size: "", shirt_size: "", coat_size: "", shoe_size: "", emergency_phone: "", emergency_contact_name: "",
+  meal_card_no: "", health_report_until: "", security_card_until: "",
 };
 
 export function PersonnelForm({ lines, orgs, canSensitive }: { lines: Option[]; orgs: Option[]; canSensitive: boolean }) {
@@ -303,7 +410,8 @@ export function AssignForm({ projectId, candidates }: { projectId: string; candi
 type CardKey =
   | "id" | "first_name" | "last_name" | "title" | "service_line" | "organization_id" | "hire_date" | "phone" | "email" | "status"
   | "birth_date" | "birth_place" | "hometown" | "address" | "marital_status" | "height_cm" | "weight_kg"
-  | "pants_size" | "shirt_size" | "coat_size" | "shoe_size" | "emergency_phone" | "emergency_contact_name";
+  | "pants_size" | "shirt_size" | "coat_size" | "shoe_size" | "emergency_phone" | "emergency_contact_name"
+  | "meal_card_no" | "health_report_until" | "security_card_until";
 
 export function PersonnelEditForm({
   person, lines, orgs, canSensitive, orgChange,
@@ -327,12 +435,13 @@ export function PersonnelEditForm({
         marital_status: s(person.marital_status), height_cm: s(person.height_cm), weight_kg: s(person.weight_kg),
         pants_size: s(person.pants_size), shirt_size: s(person.shirt_size), coat_size: s(person.coat_size), shoe_size: s(person.shoe_size),
         emergency_phone: s(person.emergency_phone), emergency_contact_name: s(person.emergency_contact_name),
+        meal_card_no: s(person.meal_card_no), health_report_until: s(person.health_report_until), security_card_until: s(person.security_card_until),
       }}
       action={updatePersonnel}
       resetOnSuccess={false}
       className="space-y-6 p-5"
     >
-      <PersonnelFields lines={lines} orgs={orgs} canSensitive={canSensitive} edit orgChange={orgChange} />
+      <PersonnelFields lines={lines} orgs={orgs} canSensitive={canSensitive} edit orgChange={orgChange} personnelId={person.id} />
       <SubmitButton>Kartı kaydet</SubmitButton>
     </Form>
   );
@@ -345,7 +454,7 @@ export function DeletePersonnelButton({ id, name }: { id: string; name: string }
     <div>
       <ConfirmDialog
         title={`${name} personel kartı silinsin mi?`}
-        description="Kart kalıcı olarak silinir, geri alınamaz. Proje ataması, puantaj, izin veya belge kaydı olan personel silinmez; onun durumunu “Ayrıldı” yapın."
+        description="Kart, proje atamaları ve izin bakiyesiyle birlikte kalıcı olarak silinir; geri alınamaz. Puantaj, izin kaydı, vardiya, belge veya maaş kaydı olan personel silinmez; onun durumunu “Ayrıldı” yapın."
         confirmLabel="Kartı sil"
         onConfirm={async () => {
           setBusy(true);

@@ -16,3 +16,7 @@ export const EMPTY_PERSONAL = {
   height_cm: null, weight_kg: null, pants_size: null, shirt_size: null, coat_size: null, shoe_size: null,
   emergency_phone: null, emergency_contact_name: null, notes: null, metadata: {},
 } as const;
+
+/** Yemek kartı ve süreli belgeler (migration 20261127000100): iş bilgisi gibi okunur, ayrı sorguyla çekilir. */
+export const PERSONNEL_CARD_COLUMNS = "meal_card_no, health_report_until, security_card_until";
+export const EMPTY_CARDS = { meal_card_no: null, health_report_until: null, security_card_until: null } as const;

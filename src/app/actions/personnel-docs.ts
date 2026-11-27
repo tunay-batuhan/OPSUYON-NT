@@ -46,3 +46,12 @@ export async function registerPersonnelDocument(values: PersonnelDocumentValues)
     return res;
   });
 }
+
+/** Evrak ekle ekranı: seçilen personelin yüklenmiş evrak türleri (yeşil/kırmızı kontrol listesi için). */
+export async function personnelDocStatus(personnelId: string): Promise<string[]> {
+  await assertStaff("documents.manage");
+  if (!/^[0-9a-f-]{36}$/i.test(personnelId ?? "")) return [];
+  const supabase = await createClient();
+  const { data } = await supabase.from("documents").select("category_code").eq("personnel_id", personnelId).limit(1000);
+  return [...new Set((data ?? []).map((d) => d.category_code as string))];
+}

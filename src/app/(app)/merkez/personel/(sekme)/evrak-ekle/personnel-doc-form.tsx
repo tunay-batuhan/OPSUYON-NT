@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
-import { CheckCircle2, FileUp, Loader2 } from "lucide-react";
+import { CheckCircle2, CircleAlert, FileUp, Loader2 } from "lucide-react";
 import { prepareUpload } from "@/app/actions/documents";
-import { registerPersonnelDocument } from "@/app/actions/personnel-docs";
+import { personnelDocStatus, registerPersonnelDocument } from "@/app/actions/personnel-docs";
 import { personnelDocumentSchema } from "@/lib/schemas-personnel";
 import { MONTHS } from "@/lib/format";
+import { FILE_SECTIONS, requiredCodes } from "@/lib/personnel-file";
 import { CheckboxField, Form, FormGrid, SelectField, SubmitButton, TextField } from "@/components/forms/form";
 
 /** Aktif ataması olan personel; belge bu atamanın projesine bağlanır. */
@@ -14,6 +15,8 @@ export type DocPerson = { id: string; label: string; projectId: string };
 export type DocCategory = { code: string; name: string; requires_period: boolean };
 
 const MAX = 50 * 1024 * 1024;
+/** Özlük dosyasında her personelde beklenen evrak türleri (Özlük Evrakları ekranıyla aynı liste). */
+const REQUIRED = new Set(requiredCodes(FILE_SECTIONS));
 const FILE_FIELDS = ["storage_path", "file_name", "mime_type", "size_bytes"] as const;
 
 /** Dosyayı imzalı URL ile doğrudan Storage'a yükler; gizli form alanlarını doldurur. */
@@ -76,6 +79,61 @@ function FileArea() {
   );
 }
 
+/**
+ * Seçilen personelin evrak durumu: yüklenmiş türler yeşil, eksikler kırmızı. Eksik türe tıklanınca kategori seçilir.
+ * (Eğitim, savunma gibi her zaman eklenebilen türler listede yok; yalnızca özlük dosyasında beklenenler.)
+ */
+function DocStatus({ categories }: { categories: DocCategory[] }) {
+  const { control, setValue } = useFormContext();
+  const personId = useWatch({ control, name: "personnel_id" }) as string;
+  const [state, setState] = useState<{ id: string; codes: Set<string> } | null>(null);
+
+  useEffect(() => {
+    if (!personId) return;
+    let live = true;
+    personnelDocStatus(personId)
+      .then((codes) => live && setState({ id: personId, codes: new Set(codes) }))
+      .catch(() => live && setState(null));
+    return () => {
+      live = false;
+    };
+  }, [personId]);
+
+  if (!personId) return null;
+  const expected = categories.filter((c) => REQUIRED.has(c.code));
+  if (expected.length === 0) return null;
+  const ready = state?.id === personId;
+  const done = ready ? expected.filter((c) => state.codes.has(c.code)).length : 0;
+  return (
+    <div className="sm:col-span-6 rounded-xl border border-border p-3">
+      <p className="mb-2 flex items-center gap-2 text-sm font-medium">
+        Evrak durumu
+        {ready ? <span className="font-normal text-muted">{done} / {expected.length} yüklü · eksik olana tıklayınca kategori seçilir</span> : <Loader2 className="size-4 animate-spin text-muted" aria-hidden />}
+      </p>
+      {ready && (
+        <ul className="grid gap-1.5 sm:grid-cols-2">
+          {expected.map((c) => {
+            const ok = state.codes.has(c.code);
+            return (
+              <li key={c.code}>
+                <button
+                  type="button"
+                  onClick={() => setValue("category_code", c.code, { shouldValidate: true, shouldDirty: true })}
+                  className={`flex w-full items-center gap-2 rounded-lg border-l-4 px-3 py-2 text-left text-sm ${ok ? "border-success bg-success-soft/70" : "border-danger bg-danger-soft/70 font-medium text-danger"}`}
+                >
+                  {ok ? <CheckCircle2 className="size-4 shrink-0 text-success" aria-hidden /> : <CircleAlert className="size-4 shrink-0" aria-hidden />}
+                  <span className="min-w-0 flex-1 truncate">{c.name}</span>
+                  <span className="shrink-0 text-xs">{ok ? "Yüklendi" : "Yüklenmemiş"}</span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function Fields({ people, categories }: { people: DocPerson[]; categories: DocCategory[] }) {
   const { control, getValues, setValue, setError } = useFormContext();
   const category = useWatch({ control, name: "category_code" }) as string;
@@ -106,6 +164,7 @@ function Fields({ people, categories }: { people: DocPerson[]; categories: DocCa
         name="category_code" label="Kategori" required className="sm:col-span-3"
         options={categories.map((c) => ({ value: c.code, label: c.name }))}
       />
+      <DocStatus categories={categories} />
       <TextField name="title" label="Başlık" required placeholder="Örn. Sağlık Raporu 2026" titleCase className="sm:col-span-6" />
       {cat?.requires_period && (
         <>

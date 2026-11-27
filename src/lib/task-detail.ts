@@ -4,8 +4,13 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type TaskDetail = {
   id: string;
-  project_id: string;
-  personnel_id: string;
+  /** saha görevinde dolu; merkez görevinde boş */
+  project_id: string | null;
+  personnel_id: string | null;
+  /** merkez görevi: görevin atandığı merkez kullanıcısı (profiles.id) */
+  assignee_id?: string | null;
+  /** merkez görevinde sunucuda doldurulur (bkz. task-data.ts → withAssigneeNames) */
+  assignee_name?: string | null;
   title: string;
   job: string | null;
   description: string | null;
@@ -26,8 +31,15 @@ export type TaskDetail = {
 export type TaskEvent = { id: number; kind: string; actor_name: string | null; note: string | null; created_at: string };
 export type TaskFile = { id: string; stage: string; file_name: string; mime_type: string | null; size_bytes: number | null; created_at: string };
 
-const COLUMNS =
-  "id, project_id, personnel_id, title, job, description, location, planned_date, planned_time, status, issue_note, issue_at, accepted_at, finished_by_personnel_at, finish_note, completed_at, created_at, personnel(full_name), projects(name, organizations(name))";
+// "*": merkez görevi sütunu (assignee_id) veritabanında henüz yoksa da sorgu çalışır
+const COLUMNS = "*, personnel(full_name), projects(name, organizations(name))";
+
+/** Merkez görevi mi? (saha görevinde personel her zaman doludur) */
+export const isStaffTask = (t: { personnel_id: string | null }) => !t.personnel_id;
+
+/** Görevin atandığı kişinin adı: saha personeli ya da merkez kullanıcısı. */
+export const taskPersonName = (t: { personnel: { full_name: string } | null; assignee_name?: string | null }) =>
+  t.personnel?.full_name ?? t.assignee_name ?? "—";
 
 /** Görev + olay geçmişi + dosyalar. `db`: kullanıcı oturumu (RLS) ya da süzgeci sunucuda verilmiş servis istemcisi. */
 export async function loadTaskDetail(db: SupabaseClient, id: string): Promise<{ task: TaskDetail; events: TaskEvent[]; files: TaskFile[] } | null> {
@@ -53,6 +65,12 @@ export const EVENT_LABELS: Record<string, string> = {
   resent: "Personele yeniden onaya gönderildi",
   cancelled: "İptal edildi",
   file: "Dosya eklendi",
+};
+
+/** Merkez görevinde olay adları ("Personel" yerine "Görevli"). */
+export const eventLabel = (kind: string, staffTask = false) => {
+  const label = EVENT_LABELS[kind] ?? kind;
+  return staffTask ? label.replace("Personele", "Görevliye").replace("personele", "kullanıcıya").replace("Personel", "Görevli") : label;
 };
 
 export const FILE_STAGE_LABELS: Record<string, string> = { assign: "Atamada eklendi", issue: "Sorun bildirirken", finish: "İş bitince" };

@@ -5,7 +5,7 @@ import { hasPermission, requireStaff } from "@/lib/auth";
 import { getServiceLines } from "@/lib/lines";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/format";
-import { EMPTY_PERSONAL, PERSONNEL_BASE_COLUMNS, PERSONNEL_PERSONAL_COLUMNS } from "@/lib/personnel-columns";
+import { EMPTY_CARDS, EMPTY_PERSONAL, PERSONNEL_BASE_COLUMNS, PERSONNEL_CARD_COLUMNS, PERSONNEL_PERSONAL_COLUMNS } from "@/lib/personnel-columns";
 import { PersonnelAccountCard } from "@/components/personnel-account";
 import { PERSONNEL_LOGIN_URL, loadPersonnelAccount } from "@/lib/personnel-account";
 import type { Personnel } from "@/lib/types";
@@ -21,7 +21,7 @@ export default async function PersonnelCardPage({ params }: PageProps<"/merkez/p
 
   const sensitive = hasPermission(user, "personnel.sensitive.read");
   const manage = hasPermission(user, "personnel.manage");
-  const [lines, { data: person }, priv, { data: orgRows }, { data: asg }, { data: personal }, acc] = await Promise.all([
+  const [lines, { data: person }, priv, { data: orgRows }, { data: asg }, { data: personal }, acc, { data: cards }] = await Promise.all([
     getServiceLines(),
     supabase.from("personnel").select(PERSONNEL_BASE_COLUMNS).eq("id", id).maybeSingle(),
     sensitive ? supabase.from("personnel_private").select("national_id, iban").eq("personnel_id", id).maybeSingle() : null,
@@ -30,9 +30,11 @@ export default async function PersonnelCardPage({ params }: PageProps<"/merkez/p
     // kişisel bilgiler ayrı okunur (yetki yoksa boş gelir)
     supabase.from("personnel_personal").select(PERSONNEL_PERSONAL_COLUMNS).eq("personnel_id", id).maybeSingle(),
     loadPersonnelAccount(user, id),
+    // yemek kartı ve süreli belgeler (migration 20261127000100 uygulanmadıysa boş gelir, sayfa yine açılır)
+    supabase.from("personnel").select(PERSONNEL_CARD_COLUMNS).eq("id", id).maybeSingle(),
   ]);
   if (!person) notFound();
-  const p = { ...EMPTY_PERSONAL, ...(personal ?? {}), ...person } as unknown as Personnel;
+  const p = { ...EMPTY_PERSONAL, ...EMPTY_CARDS, ...(personal ?? {}), ...(cards ?? {}), ...person } as unknown as Personnel;
   const orgs = (orgRows ?? []) as { id: string; name: string }[];
   // Firmalar arası geçiş: aktif görev varken olmaz; geçmiş görevi olan personeli yalnızca Süper Yönetici geçirir
   const assignments = (asg ?? []) as { end_date: string | null }[];
@@ -73,6 +75,9 @@ export default async function PersonnelCardPage({ params }: PageProps<"/merkez/p
           <Item label="Adres" value={p.address} />
           <Item label="Boy / kilo" value={[p.height_cm && `${p.height_cm} cm`, p.weight_kg && `${p.weight_kg} kg`].filter(Boolean).join(" · ")} />
           <Item label="Beden ölçüleri" value={sizes} />
+          <Item label="Yemek kartı no" value={p.meal_card_no} mono />
+          <Item label="Sağlık raporu bitişi" value={p.health_report_until ? formatDate(p.health_report_until) : null} />
+          <Item label="Güvenlik kimlik kartı bitişi" value={p.security_card_until ? formatDate(p.security_card_until) : null} />
           {sensitive && (
             <>
               <Item label="TC kimlik no" value={priv?.data?.national_id} mono />
@@ -100,7 +105,7 @@ export default async function PersonnelCardPage({ params }: PageProps<"/merkez/p
         />
       </Card>
       <Card>
-        <CardHeader title="Kartı sil" description="Yalnızca hiç işlem kaydı (atama, puantaj, izin, vardiya, belge) olmayan personel silinebilir." />
+        <CardHeader title="Kartı sil" description="Puantaj, izin kaydı, vardiya, belge, maaş veya görev kaydı olmayan personel silinebilir; proje atamaları ve izin bakiyesi kartla birlikte silinir." />
         <div className="p-5">
           <DeletePersonnelButton id={p.id} name={p.full_name} />
         </div>

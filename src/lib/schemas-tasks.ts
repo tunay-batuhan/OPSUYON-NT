@@ -7,12 +7,20 @@ const time = z
   .trim()
   .refine((v) => v === "" || /^([01]\d|2[0-3]):[0-5]\d$/.test(v), "Saat SS:DD biçiminde olmalı (ör. 09:00)");
 
-/** Yeni görev (Yeni Görev Atama) ve düzenleme. Tarih/saat isteğe bağlı: kabulden sonra da verilebilir. */
+const UUID = /^[0-9a-f-]{36}$/i;
+
+/**
+ * Yeni görev (Yeni Görev Atama) ve düzenleme. Tarih/saat isteğe bağlı: kabulden sonra da verilebilir.
+ * target "field": projedeki saha personeline (proje + personel zorunlu). target "staff": merkez kullanıcısına
+ * (yalnızca merkez atar; proje ve personel boş kalır).
+ */
 export const taskSchema = z
   .object({
     id: z.string(),
-    project_id: uuid("Proje"),
-    personnel_id: uuid("Personel"),
+    target: z.enum(["field", "staff"]),
+    project_id: z.string(),
+    personnel_id: z.string(),
+    assignee_id: z.string(),
     title: str("Görev başlığı", 160).refine((v) => v.length >= 2, "Görev başlığı en az 2 karakter olmalı"),
     job: opt("Görevi", 80),
     description: opt("Görev açıklaması", 4000),
@@ -20,7 +28,17 @@ export const taskSchema = z
     planned_date: date("Tarih"),
     planned_time: time,
   })
-  .refine((v) => v.planned_time === "" || v.planned_date !== "", { path: ["planned_date"], message: "Saat verdiyseniz tarihi de seçin" });
+  .superRefine((v, ctx) => {
+    const need = (path: "project_id" | "personnel_id" | "assignee_id", label: string) => {
+      if (!UUID.test(v[path])) ctx.addIssue({ code: "custom", path: [path], message: `${label} seçin` });
+    };
+    if (v.target === "staff") need("assignee_id", "Merkez kullanıcısı");
+    else {
+      need("project_id", "Proje");
+      need("personnel_id", "Personel");
+    }
+    if (v.planned_time !== "" && v.planned_date === "") ctx.addIssue({ code: "custom", path: ["planned_date"], message: "Saat verdiyseniz tarihi de seçin" });
+  });
 
 /** Tarih / saat ver (Planla). */
 export const scheduleSchema = z

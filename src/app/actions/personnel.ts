@@ -39,6 +39,9 @@ function cardColumns(d: PersonnelCreateValues) {
     shoe_size: nul(d.shoe_size),
     emergency_phone: nul(d.emergency_phone),
     emergency_contact_name: nul(d.emergency_contact_name),
+    meal_card_no: nul(d.meal_card_no),
+    health_report_until: nul(d.health_report_until),
+    security_card_until: nul(d.security_card_until),
   };
 }
 
@@ -301,7 +304,11 @@ export async function updatePersonnel(values: PersonnelEditValues): Promise<Acti
   });
 }
 
-/** Islem kaydi (atama, puantaj, izin, vardiya, belge) olan personel silinemez; durumu "Ayrildi" yapilir. */
+/**
+ * Gerçek işlem kaydı (puantaj, izin kaydı, vardiya, belge, maaş/avans, görev, personel hesabı) olan personel silinemez;
+ * durumu "Ayrıldı" yapılır. Proje atamaları ve izin bakiyesi işlem sayılmaz: bakiye işe giriş tarihinden otomatik
+ * açılır, bitmiş atama yalnızca geçmiştir; ikisi de personelle birlikte silinir.
+ */
 export async function deletePersonnel(input: { id: string }): Promise<ActionState> {
   return guard(async () => {
     await assertStaff("personnel.manage");
@@ -310,16 +317,18 @@ export async function deletePersonnel(input: { id: string }): Promise<ActionStat
     const supabase = await createClient();
 
     const head = { count: "exact", head: true } as const;
-    const counts = await Promise.all([
-      supabase.from("personnel_assignments").select("id", head).eq("personnel_id", id),
-      supabase.from("timesheets").select("id", head).eq("personnel_id", id),
-      supabase.from("leave_balances").select("id", head).eq("personnel_id", id),
-      supabase.from("leave_records").select("id", head).eq("personnel_id", id),
-      supabase.from("shift_assignments").select("personnel_id", head).eq("personnel_id", id),
-      supabase.from("documents").select("id", head).eq("personnel_id", id),
-    ]);
-    const labels = ["proje ataması", "puantaj", "izin bakiyesi", "izin kaydı", "vardiya", "belge"];
-    const used = counts.map((c, i) => ((c.count ?? 0) > 0 ? `${c.count} ${labels[i]}` : null)).filter(Boolean);
+    const checks = [
+      ["puantaj", supabase.from("timesheets").select("id", head).eq("personnel_id", id)],
+      ["izin kaydı", supabase.from("leave_records").select("id", head).eq("personnel_id", id)],
+      ["vardiya", supabase.from("shift_assignments").select("personnel_id", head).eq("personnel_id", id)],
+      ["belge", supabase.from("documents").select("id", head).eq("personnel_id", id)],
+      ["maaş satırı", supabase.from("payroll_lines").select("id", head).eq("personnel_id", id)],
+      ["avans", supabase.from("pay_advances").select("id", head).eq("personnel_id", id)],
+      ["görev", supabase.from("work_tasks").select("id", head).eq("personnel_id", id)],
+      ["personel hesabı", supabase.from("profiles").select("id", head).eq("personnel_id", id)],
+    ] as const;
+    const counts = await Promise.all(checks.map(([, q]) => q));
+    const used = counts.map((c, i) => ((c.count ?? 0) > 0 ? `${c.count} ${checks[i][0]}` : null)).filter(Boolean);
     if (used.length) {
       return { error: `Bu personelin işlem kayıtları var (${used.join(", ")}); silinemez. Kartı düzenleyip durumunu "Ayrıldı" yapabilirsiniz.` };
     }

@@ -31,3 +31,13 @@ export function taskStage(t: { status: string; planned_date: string | null; fini
       return "cancelled";
   }
 }
+
+/**
+ * Aşama etiketi ve açıklaması. Merkez görevinde (görev bir merkez kullanıcısına atanmışsa) "Personel" yerine
+ * "Görevli" yazar.
+ */
+export function stageInfo(stage: TaskStage, staffTask = false) {
+  const s = TASK_STATUS[stage];
+  if (!staffTask) return s;
+  return { ...s, label: s.label.replace("Personel", "Görevli"), hint: s.hint.replace(/Personel/g, "Görevli") };
+}

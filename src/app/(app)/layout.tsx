@@ -20,7 +20,8 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   const [counts, enabled, taskAlerts] = await Promise.all([
     getNotificationCounts(),
     getEnabledModules(),
-    canAnywhere(user, "tasks.read") ? openTaskAlerts() : Promise.resolve(0),
+    // merkez kullanıcısı: kendisine atanan, yanıtını bekleyen merkez görevleri de sayılır
+    user.kind === "staff" ? openTaskAlerts(user.id) : canAnywhere(user, "tasks.read") ? openTaskAlerts() : Promise.resolve(0),
   ]);
 
   return (
